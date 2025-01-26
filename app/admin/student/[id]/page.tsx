@@ -13,14 +13,13 @@ import StudentSettingsSkeleton from "@/components/features/students/view/skeleto
 import StudentTableSkeleton from "@/components/features/students/view/skeletons/StudentTableSkeleton";
 
 interface StudentPageProps {
-  params: Promise<{
+  params: {
     id: string;
-  }>;
+  };
 }
 
-// Make sure to wrap your code in async functions if you're fetching data asynchronously
-const StudentPage: React.FC<StudentPageProps> = async ({ params }) => {
-  // Handle the async logic for fetching data here if needed
+// The component should accept `params` directly
+const StudentPage: React.FC<StudentPageProps> = ({ params }) => {
   return (
     <ContentLayout title="Student">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
