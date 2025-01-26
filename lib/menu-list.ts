@@ -1,0 +1,360 @@
+import {
+  Tag,
+  Users,
+  Settings,
+  Bookmark,
+  SquarePen,
+  LayoutGrid,
+  LucideIcon,
+  DollarSign,
+  Calendar,
+  Building,
+  GraduationCap,
+  ClipboardList,
+  FileCheck,
+  Bell,
+  FileText,
+  File,
+  FilePlus,
+  FileMinus,
+} from "lucide-react";
+
+type Submenu = {
+  href: string;
+  label: string;
+  active: boolean;
+};
+
+type Menu = {
+  href: string;
+  label: string;
+  active: boolean;
+  icon: LucideIcon;
+  submenus: Submenu[];
+};
+
+type Group = {
+  groupLabel: string;
+  menus: Menu[];
+};
+
+export function getMenuList(pathname: string): Group[] {
+  if (pathname.startsWith("/admin")) {
+    return [
+      {
+        groupLabel: "",
+        menus: [
+          {
+            href: "/admin/dashboard",
+            label: "Dashboard",
+            active: pathname.includes("/admin/dashboard"),
+            icon: LayoutGrid,
+            submenus: [],
+          },
+        ],
+      },
+
+      // Student Management
+      {
+        groupLabel: "Student Management",
+        menus: [
+          {
+            href: "/admin/student/",
+            label: "Students",
+            active: pathname.includes("/admin/student"),
+            icon: Users,
+            submenus: [],
+          },
+          {
+            href: "/admin/finance",
+            label: "Finance",
+            active: pathname.includes("admin/finance"),
+            icon: DollarSign,
+            submenus: [
+              {
+                href: "/admin/finance/collect",
+                label: "Fees: Paid",
+                active: pathname === "admin/finance/collect",
+              },
+              {
+                href: "/admin/finance/payable",
+                label: "Fees: To Pay",
+                active: pathname === "admin/finance/payable",
+              },
+              {
+                href: "/admin/finance/sheet",
+                label: "Finance Sheet",
+                active: pathname === "admin/finance/sheet",
+              },
+            ],
+          },
+          {
+            href: "/admin/attendance",
+            label: "Attendance",
+            active: pathname.includes("/admin/attendance"),
+            icon: ClipboardList,
+            submenus: [
+              {
+                href: "/admin/attendance/student",
+                label: "Student Attendance ",
+                active: pathname === "/admin/attendance/student",
+              },
+              {
+                href: "/admin/attendance/qr",
+                label: "QR Attendance",
+                active: pathname === "/admin/attendance/qr",
+              },
+              {
+                href: "/admin/attendance/wel",
+                label: "W.E.L Attendance",
+                active: pathname === "/admin/attendance/wel",
+              },
+            ],
+          },
+        ],
+      },
+
+      // Academic Management
+      {
+        groupLabel: "Academic Management",
+        menus: [
+          {
+            href: "/admin/assignment",
+            label: "Tests/Tasks",
+            active: pathname.includes("/admin/assignment"),
+            icon: FileText,
+            submenus: [
+              {
+                href: "/admin/assignment",
+                label: "All Test/Tasks",
+                active: pathname === "/admin/assignment",
+              },
+              {
+                href: "/admin/assignment/create",
+                label: "Create Test/Task",
+                active: pathname === "/admin/assignment/create",
+              },
+              {
+                href: "/admin/assignment/mark",
+                label: "Mark Test/Task",
+                active: pathname === "/admin/assignment/mark",
+              },
+            ],
+          },
+          {
+            href: "/admin/results",
+            label: "Results",
+            active: pathname.includes("/admin/results"),
+            icon: FileCheck,
+            submenus: [
+              {
+                href: "admin/results/capture",
+                label: "Capture Results",
+                active: pathname === "admin/results/capture",
+              },
+              {
+                href: "admin/results/sor",
+                label: "S.O.R",
+                active: pathname === "admin/results/sor",
+              },
+            ],
+          },
+          {
+            href: "/admin/uploads",
+            label: "Learning Material",
+            active: pathname.includes("/admin/uploads"),
+            icon: FilePlus,
+            submenus: [],
+          },
+        ],
+      },
+
+      // WEL
+      {
+        groupLabel: "General",
+        menus: [
+          {
+            href: "/admin/wel",
+            label: "WEL",
+            active: pathname.includes("/admin/wel"),
+            icon: File,
+            submenus: [],
+          },
+          {
+            href: "/admin/notifications",
+            label: "Notifications",
+            active: pathname.includes("/admin/notifications"),
+            icon: Bell,
+            submenus: [],
+          },
+          {
+            href: "/admin/admin",
+            label: "Admin",
+            active: pathname.includes("/admin/admin"),
+            icon: Building,
+            submenus: [
+              {
+                href: "/admin/admin/accommodation",
+                label: "Accommodation",
+                active: pathname === "/admin/admin/accommodation",
+              },
+              {
+                href: "/admin/admin/graduate",
+                label: "Graduate Student",
+                active: pathname === "/admin/admin/graduate",
+              },
+              {
+                href: "/admin/admin/change-student-intake-group",
+                label: "Change Student Intake",
+                active: pathname === "/admin/admin/change-student-intake-group",
+              },
+              {
+                href: "/admin/admin/alumni",
+                label: "Alumni",
+                active: pathname === "/admin/admin/alumni",
+              },
+            ],
+          },
+          {
+            href: "admin/reports",
+            label: "Reports",
+            active: pathname.includes("admin/reports"),
+            icon: FileText,
+            submenus: [
+              {
+                href: "admin/reports/arrears",
+                label: "Account in Arrears",
+                active: pathname === "admin/reports/arrears",
+              },
+              {
+                href: "admin/reports/moderation",
+                label: "Moderation",
+                active: pathname === "admin/reports/moderation",
+              },
+            ],
+          },
+          {
+            href: "admin/settings",
+            label: "Settings",
+            active: pathname.includes("admin/settings"),
+            icon: Settings,
+            submenus: [
+              {
+                href: "/admin/settings/campus",
+                label: "Campus",
+                active: pathname === "/admin/settings/campus",
+              },
+              {
+                href: "/admin/settings/intake-group",
+                label: "Intake Group",
+                active: pathname === "/settings/intake-group",
+              },
+              {
+                href: "/admin/settings/outcomes",
+                label: "Outcome",
+                active: pathname === "/settings/outcomes",
+              },
+              {
+                href: "/admin/settings/roles",
+                label: "Role",
+                active: pathname === "/admin/settings/roles",
+              },
+              {
+                href: "/admin/settings/staff",
+                label: "Staff",
+                active: pathname === "/admin/settings/staff",
+              },
+            ],
+          },
+        ],
+      },
+    ];
+  } else if (pathname.startsWith("/student")) {
+    return [
+      {
+        groupLabel: "",
+        menus: [
+          {
+            href: "/student/dashboard",
+            label: "Dashboard",
+            active: pathname.includes("/student/dashboard"),
+            icon: LayoutGrid,
+            submenus: [],
+          },
+        ],
+      },
+      {
+        groupLabel: "Student Contents",
+        menus: [
+          {
+            href: "/student/courses",
+            label: "Courses",
+            active: pathname.includes("/student/courses"),
+            icon: Bookmark,
+            submenus: [],
+          },
+          {
+            href: "/student/assignments",
+            label: "Assignments",
+            active: pathname.includes("/student/assignments"),
+            icon: SquarePen,
+            submenus: [],
+          },
+        ],
+      },
+      {
+        groupLabel: "Student Settings",
+        menus: [
+          {
+            href: "/student/account",
+            label: "Account",
+            active: pathname.includes("/student/account"),
+            icon: Settings,
+            submenus: [],
+          },
+        ],
+      },
+    ];
+  } else if (pathname.startsWith("/guardian")) {
+    return [
+      {
+        groupLabel: "",
+        menus: [
+          {
+            href: "/guardian/dashboard",
+            label: "Dashboard",
+            active: pathname.includes("/guardian/dashboard"),
+            icon: LayoutGrid,
+            submenus: [],
+          },
+        ],
+      },
+      {
+        groupLabel: "Guardian Contents",
+        menus: [
+          {
+            href: "/guardian/students",
+            label: "Students",
+            active: pathname.includes("/guardian/students"),
+            icon: Users,
+            submenus: [],
+          },
+        ],
+      },
+      {
+        groupLabel: "Guardian Settings",
+        menus: [
+          {
+            href: "/guardian/account",
+            label: "Account",
+            active: pathname.includes("/guardian/account"),
+            icon: Settings,
+            submenus: [],
+          },
+        ],
+      },
+    ];
+  } else {
+    return [];
+  }
+}

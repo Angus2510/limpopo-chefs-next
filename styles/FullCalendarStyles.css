@@ -1,0 +1,86 @@
+/* src/styles/FullCalendarStyles.css */
+
+/* FullCalendar Styles */
+.fc {
+  @apply font-sans;
+}
+
+.fc-header-toolbar {
+  @apply mb-4 flex flex-col md:flex-row justify-between items-center;
+}
+
+.fc-button {
+  @apply bg-blue-500 text-white border-none py-1 px-2 rounded;
+}
+
+.fc-button:hover {
+  @apply bg-blue-700;
+}
+
+.fc-event {
+  @apply cursor-pointer;
+}
+
+/* Light green background for event hover in month view */
+.fc-daygrid-event:hover {
+  background-color: #90ee90 !important; /* Light green */
+}
+
+.fc-daygrid-day {
+  @apply border border-gray-200;
+}
+
+.fc-daygrid-day-number {
+  @apply text-gray-600;
+}
+
+/* Light green background for the active day in month view */
+.fc-day-today {
+  @apply bg-green-100 !important;
+}
+
+.fc-day-today .fc-daygrid-day-events {
+  @apply bg-green-100 !important;
+}
+
+/* Light green background for the active day in week and day views */
+.fc-timegrid-col.fc-day-today {
+  @apply bg-green-100 !important;
+}
+
+.fc-timegrid-col.fc-day-today .fc-timegrid-day-events {
+  @apply bg-green-100 !important;
+}
+
+.fc-timegrid-now-indicator {
+  @apply bg-green-100 !important;
+}
+
+.fc-toolbar-title {
+  @apply text-xl font-bold;
+}
+
+/* Darker green for the current day name */
+.fc-day-today .fc-daygrid-day-number, 
+.fc-timegrid-col.fc-day-today .fc-timegrid-day-header,
+.fc-daygrid-day.fc-day-today .fc-col-header-cell-cushion {
+  @apply text-green-700 !important;
+}
+
+.fc .fc-button {
+  text-transform: capitalize;
+}
+
+/* Custom Event Content with Color Indicator */
+.fc-event .event-content {
+  display: flex;
+  align-items: center;
+}
+
+.fc-event .color-indicator {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-right: 5px;
+}

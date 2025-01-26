@@ -1,0 +1,10 @@
+import { z } from 'zod';
+
+export const campusSearchParamsSchema = z.object({
+  page: z.coerce.number().default(1),
+  per_page: z.coerce.number().default(10),
+  sort: z.string().default('title.asc'),
+  search: z.string().optional(),
+});
+
+export type CampusSearchParams = z.infer<typeof campusSearchParamsSchema>;
