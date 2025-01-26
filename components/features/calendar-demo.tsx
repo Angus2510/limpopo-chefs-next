@@ -50,13 +50,16 @@ export default function CalendarDemo() {
     color: "blue",
   });
 
+  // Handlers for navigating between months
   const handlePrevMonth = () => setCurrentDate(subMonths(currentDate, 1));
   const handleNextMonth = () => setCurrentDate(addMonths(currentDate, 1));
 
+  // Handler for clicking on a date
   const handleDateClick = (date: Date) => {
     setSelectedDate(date);
   };
 
+  // Handler for adding a new event
   const handleAddEvent = () => {
     if (selectedDate && newEvent.title) {
       const newEventWithId: Event = {
@@ -70,17 +73,28 @@ export default function CalendarDemo() {
     }
   };
 
-  const monthStart = startOfMonth(currentDate);
-  const monthEnd = endOfMonth(currentDate);
-  const calendarStart = startOfWeek(monthStart);
-  const calendarEnd = endOfWeek(monthEnd);
+  // Memoize date calculations to avoid recalculating on every render
+  const monthStart = React.useMemo(
+    () => startOfMonth(currentDate),
+    [currentDate]
+  );
+  const monthEnd = React.useMemo(() => endOfMonth(currentDate), [currentDate]);
+  const calendarStart = React.useMemo(
+    () => startOfWeek(monthStart),
+    [monthStart]
+  );
+  const calendarEnd = React.useMemo(() => endOfWeek(monthEnd), [monthEnd]);
 
-  const calendarDays: Date[] = [];
-  let day = calendarStart;
-  while (day <= calendarEnd) {
-    calendarDays.push(day);
-    day = addDays(day, 1);
-  }
+  // Memoize the calendarDays array to avoid recalculating on each render
+  const calendarDays: Date[] = React.useMemo(() => {
+    const days: Date[] = [];
+    let day = calendarStart;
+    while (day <= calendarEnd) {
+      days.push(day);
+      day = addDays(day, 1);
+    }
+    return days;
+  }, [calendarStart, calendarEnd]);
 
   return (
     <div className="h-screen flex flex-col p-4">
@@ -95,6 +109,7 @@ export default function CalendarDemo() {
           <ChevronRight className="h-4 w-4" />
         </Button>
       </div>
+
       <div className="grid grid-cols-7 gap-1 mb-2">
         {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
           <div key={day} className="text-center font-semibold">
@@ -102,6 +117,7 @@ export default function CalendarDemo() {
           </div>
         ))}
       </div>
+
       <div className="grid grid-cols-7 gap-1 flex-grow">
         {calendarDays.map((day) => (
           <DayCell
@@ -115,6 +131,7 @@ export default function CalendarDemo() {
           />
         ))}
       </div>
+
       <Dialog>
         <DialogTrigger asChild>
           <Button className="mt-4">
