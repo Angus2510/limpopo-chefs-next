@@ -18,7 +18,9 @@ interface StudentPageProps {
   };
 }
 
-const StudentPage: React.FC<StudentPageProps> = ({ params }) => {
+// Make sure to wrap your code in async functions if you're fetching data asynchronously
+const StudentPage: React.FC<StudentPageProps> = async ({ params }) => {
+  // Handle the async logic for fetching data here if needed
   return (
     <ContentLayout title="Student">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
