@@ -1,25 +1,25 @@
-'use server';
+"use server";
 
-import prisma from '@/lib/db';
-import bcrypt from 'bcryptjs';
+import prisma from "@/lib/db";
+import bcrypt from "bcryptjs";
 
 enum Relation {
-  Father = 'Father',
-  Mother = 'Mother',
-  Guardian = 'Guardian',
-  Other = 'Other',
+  Father = "Father",
+  Mother = "Mother",
+  Guardian = "Guardian",
+  Other = "Other",
 }
 
 enum Gender {
-  Male = 'Male',
-  Female = 'Female',
-  Other = 'Other',
+  Male = "Male",
+  Female = "Female",
+  Other = "Other",
 }
 
 const generatePassword = (length: number) => {
   const chars =
-    'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  let password = '';
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+  let password = "";
   for (let i = 0; i < length; i++) {
     password += chars.charAt(Math.floor(Math.random() * chars.length));
   }
@@ -27,43 +27,43 @@ const generatePassword = (length: number) => {
 };
 
 export async function updateStudent(formData: FormData) {
-  const studentId = formData.get('id') as string;
+  const studentId = formData.get("id") as string;
 
   // Log all received form data
-  console.log('Received form data:', Array.from(formData.entries()));
+  console.log("Received form data:", Array.from(formData.entries()));
 
   // Extract data from FormData
-  const campus = formData.get('campus') as string;
-  const intakeGroup = formData.get('intakeGroup') as string;
-  const qualification = formData.get('qualification') as string;
-  const admissionNumber = formData.get('admissionNumber') as string;
-  const email = formData.get('email') as string;
+  const campus = formData.get("campus") as string;
+  const intakeGroup = formData.get("intakeGroup") as string;
+  const qualification = formData.get("qualification") as string;
+  const admissionNumber = formData.get("admissionNumber") as string;
+  const email = formData.get("email") as string;
   const profileData = {
-    firstName: formData.get('firstName') as string,
-    middleName: (formData.get('middleName') as string) || '',
-    lastName: formData.get('lastName') as string,
-    idNumber: formData.get('idNumber') as string,
-    dateOfBirth: (formData.get('dateOfBirth') as string) || '',
-    gender: formData.get('gender') as Gender,
-    homeLanguage: (formData.get('homeLanguage') as string) || '',
-    mobileNumber: formData.get('mobileNumber') as string,
-    cityAndGuildNumber: (formData.get('cityAndGuildNumber') as string) || '',
-    admissionDate: (formData.get('admissionDate') as string) || '',
+    firstName: formData.get("firstName") as string,
+    middleName: (formData.get("middleName") as string) || "",
+    lastName: formData.get("lastName") as string,
+    idNumber: formData.get("idNumber") as string,
+    dateOfBirth: (formData.get("dateOfBirth") as string) || "",
+    gender: formData.get("gender") as Gender,
+    homeLanguage: (formData.get("homeLanguage") as string) || "",
+    mobileNumber: formData.get("mobileNumber") as string,
+    cityAndGuildNumber: (formData.get("cityAndGuildNumber") as string) || "",
+    admissionDate: (formData.get("admissionDate") as string) || "",
     address: {
-      street1: formData.get('street1') as string,
-      street2: (formData.get('street2') as string) || '',
-      city: formData.get('city') as string,
-      province: formData.get('province') as string,
-      country: formData.get('country') as string,
-      postalCode: formData.get('postalCode') as string,
+      street1: formData.get("street1") as string,
+      street2: (formData.get("street2") as string) || "",
+      city: formData.get("city") as string,
+      province: formData.get("province") as string,
+      country: formData.get("country") as string,
+      postalCode: formData.get("postalCode") as string,
     },
     postalAddress: {
-      street1: formData.get('street1') as string,
-      street2: (formData.get('street2') as string) || '',
-      city: formData.get('city') as string,
-      province: formData.get('province') as string,
-      country: formData.get('country') as string,
-      postalCode: formData.get('postalCode') as string,
+      street1: formData.get("street1") as string,
+      street2: (formData.get("street2") as string) || "",
+      city: formData.get("city") as string,
+      province: formData.get("province") as string,
+      country: formData.get("country") as string,
+      postalCode: formData.get("postalCode") as string,
     },
   };
 
@@ -109,7 +109,7 @@ export async function updateStudent(formData: FormData) {
   }
 
   // Log extracted guardians data
-  console.log('Extracted guardians data:', guardiansData);
+  console.log("Extracted guardians data:", guardiansData);
 
   try {
     // Update or create guardians
@@ -118,18 +118,18 @@ export async function updateStudent(formData: FormData) {
         if (guardian.id) {
           // Update existing guardian
           const { id, ...updateData } = guardian;
-          console.log('Updating guardian:', id, updateData);
-          return prisma.guardian.update({
+          console.log("Updating guardian:", id, updateData);
+          return prisma.guardians.update({
             where: { id },
             data: updateData,
           });
         } else {
           // Create new guardian
-          console.log('Creating new guardian:', guardian);
-          const newGuardian = await prisma.guardian.create({
+          console.log("Creating new guardian:", guardian);
+          const newGuardian = await prisma.guardians.create({
             data: guardian,
           });
-          console.log('New guardian created:', newGuardian);
+          console.log("New guardian created:", newGuardian);
           return newGuardian;
         }
       })
@@ -138,13 +138,13 @@ export async function updateStudent(formData: FormData) {
     const guardianIds = updatedGuardians.map((guardian) => guardian.id);
 
     // Fetch existing student to preserve existing guardians
-    const existingStudent = await prisma.student.findUnique({
+    const existingStudent = await prisma.students.findUnique({
       where: { id: studentId },
       select: { guardians: true },
     });
 
     if (!existingStudent) {
-      throw new Error('Student not found');
+      throw new Error("Student not found");
     }
 
     // Combine existing and new guardian IDs, removing duplicates
@@ -153,7 +153,7 @@ export async function updateStudent(formData: FormData) {
     );
 
     // Update student data
-    const student = await prisma.student.update({
+    const student = await prisma.students.update({
       where: { id: studentId },
       data: {
         admissionNumber,
@@ -168,10 +168,10 @@ export async function updateStudent(formData: FormData) {
       },
     });
 
-    console.log('Student updated:', student);
+    console.log("Student updated:", student);
     return student;
   } catch (error) {
-    console.error('Error updating student:', error);
-    throw new Error('Failed to update student');
+    console.error("Error updating student:", error);
+    throw new Error("Failed to update student");
   }
 }

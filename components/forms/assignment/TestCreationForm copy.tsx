@@ -1,13 +1,13 @@
-'use client';
+"use client";
 
-import React, { useState } from 'react';
-import { useForm, useFieldArray } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { testFormSchema } from '@/schemas/assignment/testFormSchema'; // Ensure this schema is defined
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { useToast } from '@/components/ui/use-toast';
+import React, { useState } from "react";
+import { useForm, useFieldArray } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { testFormSchema } from "@/schemas/assignment/testFormSchema"; // Ensure this schema is defined
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useToast } from "@/components/ui/use-toast";
 import {
   Form,
   FormControl,
@@ -15,58 +15,77 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from '@/components/ui/form';
+} from "@/components/ui/form";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
+} from "@/components/ui/select";
 
 const TestCreationForm: React.FC = () => {
-  const form = useForm({
+  type FormData = {
+    title: string;
+    description: string;
+    type: string;
+    questions: {
+      questionText: string;
+      questionType: string;
+      correctAnswer: string;
+    }[];
+  };
+
+  const form = useForm<FormData>({
     resolver: zodResolver(testFormSchema),
     defaultValues: {
-      title: '',
-      description: '',
-      type: '',
+      title: "",
+      description: "",
+      type: "",
       questions: [],
     },
   });
 
   const { toast } = useToast();
-  const { control, handleSubmit, setValue, reset } = form;
+  const { control, handleSubmit, reset } = form;
 
   // Manage the questions array
-  const { fields: questionFields, append: addQuestion, remove: removeQuestion } = useFieldArray({
+  const {
+    fields: questionFields,
+    append: addQuestion,
+    remove: removeQuestion,
+  } = useFieldArray({
     control,
-    name: 'questions',
+    name: "questions",
   });
 
   const [newQuestion, setNewQuestion] = useState({
-    questionText: '',
-    questionType: 'short-answer',
-    correctAnswer: '',
+    questionText: "",
+    questionType: "short-answer",
+    correctAnswer: "",
   });
 
-  const onSubmit = async (data: any) => {
+  const onSubmit = async (data: FormData) => {
     // Log form data including the test details and the questions array
-    console.log('Form data:', data);
+    console.log("Form data:", data);
 
     try {
       // Simulate form submission
       toast({
-        title: 'Test created successfully',
-        description: 'The test data has been logged to the console.',
+        title: "Test created successfully",
+        description: "The test data has been logged to the console.",
       });
       reset(); // Reset form fields
-      setNewQuestion({ questionText: '', questionType: 'short-answer', correctAnswer: '' }); // Reset new question state
+      setNewQuestion({
+        questionText: "",
+        questionType: "short-answer",
+        correctAnswer: "",
+      }); // Reset new question state
     } catch (error) {
-      console.error('Error during form submission:', error);
+      console.error("Error during form submission:", error);
       toast({
-        title: 'Failed to create test',
-        description: 'There was an error processing your request.',
+        title: "Failed to create test",
+        description: "There was an error processing your request.",
       });
     }
   };
@@ -74,11 +93,15 @@ const TestCreationForm: React.FC = () => {
   const handleAddQuestion = () => {
     if (newQuestion.questionText) {
       addQuestion(newQuestion);
-      setNewQuestion({ questionText: '', questionType: 'short-answer', correctAnswer: '' }); // Reset new question state
+      setNewQuestion({
+        questionText: "",
+        questionType: "short-answer",
+        correctAnswer: "",
+      }); // Reset new question state
     } else {
       toast({
-        title: 'Please fill in the question text.',
-        description: 'Question text cannot be empty.',
+        title: "Please fill in the question text.",
+        description: "Question text cannot be empty.",
       });
     }
   };
@@ -146,7 +169,12 @@ const TestCreationForm: React.FC = () => {
                 <FormControl>
                   <Input
                     value={newQuestion.questionText}
-                    onChange={(e) => setNewQuestion({ ...newQuestion, questionText: e.target.value })}
+                    onChange={(e) =>
+                      setNewQuestion({
+                        ...newQuestion,
+                        questionText: e.target.value,
+                      })
+                    }
                     placeholder="Enter question text"
                   />
                 </FormControl>
@@ -157,7 +185,9 @@ const TestCreationForm: React.FC = () => {
                 <FormControl>
                   <Select
                     value={newQuestion.questionType}
-                    onValueChange={(value) => setNewQuestion({ ...newQuestion, questionType: value })}
+                    onValueChange={(value) =>
+                      setNewQuestion({ ...newQuestion, questionType: value })
+                    }
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select Question Type" />
@@ -170,13 +200,15 @@ const TestCreationForm: React.FC = () => {
                 </FormControl>
               </FormItem>
 
-              {newQuestion.questionType === 'true-false' && (
+              {newQuestion.questionType === "true-false" && (
                 <FormItem>
                   <FormLabel>Correct Answer</FormLabel>
                   <FormControl>
                     <Select
                       value={newQuestion.correctAnswer}
-                      onValueChange={(value) => setNewQuestion({ ...newQuestion, correctAnswer: value })}
+                      onValueChange={(value) =>
+                        setNewQuestion({ ...newQuestion, correctAnswer: value })
+                      }
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Select Correct Answer" />
@@ -190,20 +222,29 @@ const TestCreationForm: React.FC = () => {
                 </FormItem>
               )}
 
-              {newQuestion.questionType === 'short-answer' && (
+              {newQuestion.questionType === "short-answer" && (
                 <FormItem>
                   <FormLabel>Correct Answer</FormLabel>
                   <FormControl>
                     <Input
                       value={newQuestion.correctAnswer}
-                      onChange={(e) => setNewQuestion({ ...newQuestion, correctAnswer: e.target.value })}
+                      onChange={(e) =>
+                        setNewQuestion({
+                          ...newQuestion,
+                          correctAnswer: e.target.value,
+                        })
+                      }
                       placeholder="Enter correct answer"
                     />
                   </FormControl>
                 </FormItem>
               )}
 
-              <Button type="button" onClick={handleAddQuestion} className="sm:col-span-2">
+              <Button
+                type="button"
+                onClick={handleAddQuestion}
+                className="sm:col-span-2"
+              >
                 Add Question
               </Button>
             </CardContent>
@@ -219,9 +260,18 @@ const TestCreationForm: React.FC = () => {
                 <p>No questions added yet.</p>
               ) : (
                 questionFields.map((question, index) => (
-                  <div key={question.id} className="flex justify-between items-center mb-2">
-                    <p>{`Q${index + 1}: ${question.questionText} (${question.questionType}) - Correct Answer: ${question.correctAnswer}`}</p>
-                    <Button type="button" variant="ghost" onClick={() => removeQuestion(index)}>
+                  <div
+                    key={question.id}
+                    className="flex justify-between items-center mb-2"
+                  >
+                    <p>{`Q${index + 1}: ${question.questionText} (${
+                      question.questionType
+                    }) - Correct Answer: ${question.correctAnswer}`}</p>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={() => removeQuestion(index)}
+                    >
                       Remove
                     </Button>
                   </div>

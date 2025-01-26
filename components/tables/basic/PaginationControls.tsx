@@ -1,4 +1,4 @@
-import { Button } from '@/components/ui/button';
+import { Button } from "@/components/ui/button";
 
 interface PaginationControlsProps {
   table: any;
@@ -18,7 +18,7 @@ export function PaginationControls({
   pageSizeOptions,
 }: PaginationControlsProps) {
   return (
-    <div className='flex flex-col md:flex-row items-center justify-between space-y-2 md:space-y-0 md:space-x-2 py-4'>
+    <div className="flex flex-col md:flex-row items-center justify-between space-y-2 md:space-y-0 md:space-x-2 py-4">
       <div className="flex items-center space-x-2">
         <p className="whitespace-nowrap text-sm font-medium">Rows per page</p>
         <select
@@ -33,21 +33,21 @@ export function PaginationControls({
           ))}
         </select>
       </div>
-      <div className='flex items-center space-x-2'>
+      <div className="flex items-center space-x-2">
         <Button
-          variant='outline'
-          size='sm'
+          variant="outline"
+          size="sm"
           onClick={() => {
             table.setPageIndex(0);
             setPageIndex(0);
           }}
           disabled={!table.getCanPreviousPage()}
         >
-          {'<<'}
+          {"<<"}
         </Button>
         <Button
-          variant='outline'
-          size='sm'
+          variant="outline"
+          size="sm"
           onClick={() => {
             table.previousPage();
             setPageIndex(pageIndex - 1);
@@ -60,8 +60,8 @@ export function PaginationControls({
           Page {pageIndex + 1} of {pageCount}
         </span>
         <Button
-          variant='outline'
-          size='sm'
+          variant="outline"
+          size="sm"
           onClick={() => {
             table.nextPage();
             setPageIndex(pageIndex + 1);
@@ -71,15 +71,15 @@ export function PaginationControls({
           Next
         </Button>
         <Button
-          variant='outline'
-          size='sm'
+          variant="outline"
+          size="sm"
           onClick={() => {
             table.setPageIndex(pageCount - 1);
             setPageIndex(pageCount - 1);
           }}
           disabled={!table.getCanNextPage()}
         >
-          {'>>'}
+          {">>"}
         </Button>
       </div>
     </div>

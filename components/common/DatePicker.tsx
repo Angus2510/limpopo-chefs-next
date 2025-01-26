@@ -1,22 +1,30 @@
-'use client';
+"use client";
 
-import * as React from 'react';
-import { format, isValid } from 'date-fns';
-import { Calendar as CalendarIcon } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
-import { Calendar } from '@/components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Control, Controller } from 'react-hook-form';
+import * as React from "react";
+import { format, isValid } from "date-fns";
+import { Calendar as CalendarIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Control, Controller } from "react-hook-form";
 
 interface DatePickerProps {
-  control: Control<any>;
+  control: Control<Record<string, any>>;
   name: string;
   label: string;
   description?: string;
 }
 
-const DatePicker: React.FC<DatePickerProps> = ({ control, name, label, description }) => {
+const DatePicker: React.FC<DatePickerProps> = ({
+  control,
+  name,
+  description,
+}) => {
   return (
     <Controller
       control={control}
@@ -32,7 +40,11 @@ const DatePicker: React.FC<DatePickerProps> = ({ control, name, label, descripti
                   !field.value && "text-muted-foreground"
                 )}
               >
-                {field.value && isValid(new Date(field.value)) ? format(new Date(field.value), "PPP") : <span>Pick a date</span>}
+                {field.value && isValid(new Date(field.value)) ? (
+                  format(new Date(field.value), "PPP")
+                ) : (
+                  <span>Pick a date</span>
+                )}
                 <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
               </Button>
             </PopoverTrigger>

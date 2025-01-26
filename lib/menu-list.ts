@@ -1,5 +1,4 @@
 import {
-  Tag,
   Users,
   Settings,
   Bookmark,
@@ -7,16 +6,13 @@ import {
   LayoutGrid,
   LucideIcon,
   DollarSign,
-  Calendar,
   Building,
-  GraduationCap,
   ClipboardList,
   FileCheck,
   Bell,
   FileText,
   File,
   FilePlus,
-  FileMinus,
 } from "lucide-react";
 
 type Submenu = {

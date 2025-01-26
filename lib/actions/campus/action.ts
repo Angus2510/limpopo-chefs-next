@@ -1,11 +1,11 @@
-'use server';
+// "use server";
 
-import prisma from '@/lib/db';
+// import prisma from "@/lib/db";
 
-export async function createCampus(formData: FormData) {
-  await prisma.campus.create({
-    data: {
-      title: formData.get('title') as string,
-    },
-  });
-}
+// export async function createCampus(formData: FormData) {
+//   await prisma.campus.create({
+//     data: {
+//       title: formData.get("title") as string,
+//     },
+//   });
+// }

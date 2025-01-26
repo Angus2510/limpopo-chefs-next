@@ -1,41 +1,64 @@
-import React from 'react';
-import { Button } from '@/components/ui/button';
-import { CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { FormItem, FormLabel, FormControl } from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
+import React from "react";
+import { Button } from "@/components/ui/button";
+import { CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { FormItem, FormLabel, FormControl } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-import DynamicCorrectAnswer from './CorrectAnswerComponents/DynamicCorrectAnswer'; // Import the dynamic correct answer component
+} from "@/components/ui/select";
+import DynamicCorrectAnswer from "./CorrectAnswerComponents/DynamicCorrectAnswer"; // Import the dynamic correct answer component
+
+type QuestionType =
+  | "short-answer"
+  | "long-answer"
+  | "multiple-choice"
+  | "true-false"
+  | "match"
+  | "single-word-match";
 
 interface AddQuestionProps {
   newQuestion: {
     questionText: string;
-    questionType: string;
+    questionType: QuestionType;
     correctAnswer: string;
   };
-  setNewQuestion: React.Dispatch<React.SetStateAction<{
+  setNewQuestion: React.Dispatch<
+    React.SetStateAction<{
+      questionText: string;
+      questionType: QuestionType;
+      correctAnswer: string;
+    }>
+  >;
+  addQuestion: (question: {
     questionText: string;
-    questionType: string;
+    questionType: QuestionType;
     correctAnswer: string;
-  }>>;
-  addQuestion: (question: any) => void;
-  toast: any;
+  }) => void;
+  toast: (options: { title: string; description: string }) => void;
 }
 
-const AddQuestion: React.FC<AddQuestionProps> = ({ newQuestion, setNewQuestion, addQuestion, toast }) => {
+const AddQuestion: React.FC<AddQuestionProps> = ({
+  newQuestion,
+  setNewQuestion,
+  addQuestion,
+  toast,
+}) => {
   const handleAddQuestion = () => {
     if (newQuestion.questionText && newQuestion.correctAnswer) {
       addQuestion(newQuestion);
-      setNewQuestion({ questionText: '', questionType: 'short-answer', correctAnswer: '' });
+      setNewQuestion({
+        questionText: "",
+        questionType: "short-answer",
+        correctAnswer: "",
+      });
     } else {
       toast({
-        title: 'Please fill in the required fields.',
-        description: 'Both question text and correct answer cannot be empty.',
+        title: "Please fill in the required fields.",
+        description: "Both question text and correct answer cannot be empty.",
       });
     }
   };
@@ -52,7 +75,9 @@ const AddQuestion: React.FC<AddQuestionProps> = ({ newQuestion, setNewQuestion, 
           <FormControl>
             <Input
               value={newQuestion.questionText}
-              onChange={(e) => setNewQuestion({ ...newQuestion, questionText: e.target.value })}
+              onChange={(e) =>
+                setNewQuestion({ ...newQuestion, questionText: e.target.value })
+              }
               placeholder="Enter question text"
             />
           </FormControl>
@@ -64,7 +89,12 @@ const AddQuestion: React.FC<AddQuestionProps> = ({ newQuestion, setNewQuestion, 
           <FormControl>
             <Select
               value={newQuestion.questionType}
-              onValueChange={(value) => setNewQuestion({ ...newQuestion, questionType: value })}
+              onValueChange={(value) =>
+                setNewQuestion({
+                  ...newQuestion,
+                  questionType: value as QuestionType,
+                })
+              }
             >
               <SelectTrigger>
                 <SelectValue placeholder="Select Question Type" />
@@ -75,7 +105,9 @@ const AddQuestion: React.FC<AddQuestionProps> = ({ newQuestion, setNewQuestion, 
                 <SelectItem value="multiple-choice">Multiple Choice</SelectItem>
                 <SelectItem value="true-false">True/False</SelectItem>
                 <SelectItem value="match">Match</SelectItem>
-                <SelectItem value="single-word-match">Single Word Match</SelectItem>
+                <SelectItem value="single-word-match">
+                  Single Word Match
+                </SelectItem>
               </SelectContent>
             </Select>
           </FormControl>
@@ -88,13 +120,19 @@ const AddQuestion: React.FC<AddQuestionProps> = ({ newQuestion, setNewQuestion, 
             <DynamicCorrectAnswer
               questionType={newQuestion.questionType}
               correctAnswer={newQuestion.correctAnswer}
-              setCorrectAnswer={(value) => setNewQuestion({ ...newQuestion, correctAnswer: value })}
+              setCorrectAnswer={(value) =>
+                setNewQuestion({ ...newQuestion, correctAnswer: value })
+              }
             />
           </FormControl>
         </FormItem>
 
         {/* Add Question Button */}
-        <Button type="button" onClick={handleAddQuestion} className="sm:col-span-2">
+        <Button
+          type="button"
+          onClick={handleAddQuestion}
+          className="sm:col-span-2"
+        >
           Add Question
         </Button>
       </CardContent>

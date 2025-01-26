@@ -56,7 +56,7 @@ export default function ProtectedAdminDashboard() {
     };
 
     checkAuthentication();
-  }, [isAuthenticated, router]);
+  }, [isAuthenticated, router, getToken, user]);
 
   // Loading state to prevent flickering
   if (isLoading) {
@@ -71,7 +71,9 @@ export default function ProtectedAdminDashboard() {
   // Render dashboard content
   return (
     <div>
-      <ContentLayout title="Dashboard"></ContentLayout>
+      <ContentLayout title="Dashboard">
+        <div>Admin Dashboard</div>
+      </ContentLayout>
       <CalendarDemo />
     </div>
   );

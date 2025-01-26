@@ -1,5 +1,5 @@
 // /lib/actions/campuses.ts
-import prisma from '@/lib/db';
+import prisma from "@/lib/db";
 
 /**
  * Fetches all campuses.

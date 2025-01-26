@@ -1,14 +1,15 @@
-'use server';
+"use server";
 
-import { cookies } from 'next/headers';
+import { cookies } from "next/headers";
 
 export async function setToken(accessToken: string) {
-  cookies().set('accessToken', accessToken, {
+  const cookieStore = await cookies();
+  cookieStore.set("accessToken", accessToken, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
+    secure: process.env.NODE_ENV === "production",
     maxAge: 1 * 60, // 15 minutes
-    path: '/',
-    sameSite: 'lax',
+    path: "/",
+    sameSite: "lax",
   });
 
   return { success: true };
