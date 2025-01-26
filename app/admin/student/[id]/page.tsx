@@ -1,6 +1,9 @@
 // app/admin/student/[id]/page.tsx
-import React, { Suspense } from "react";
 import { Metadata } from "next";
+import { notFound } from "next/navigation";
+import React, { Suspense } from "react";
+
+// Content and feature imports
 import { ContentLayout } from "@/components/layout/content-layout";
 import StudentDetails from "@/components/features/students/view/StudentDetails";
 import GeneralInfo from "@/components/features/students/view/GeneralInfo";
@@ -8,36 +11,42 @@ import ImportantInfo from "@/components/features/students/view/ImportantInfo";
 import StudentSettings from "@/components/features/students/view/StudentSettings";
 import StudentTable from "@/components/features/students/view/StudentTable";
 
-// Skeleton components
+// Skeleton imports
 import StudentDetailsSkeleton from "@/components/features/students/view/skeletons/StudentDetailsSkeleton";
 import GeneralInfoSkeleton from "@/components/features/students/view/skeletons/GeneralInfoSkeleton";
 import ImportantInfoSkeleton from "@/components/features/students/view/skeletons/ImportantInfoSkeleton";
 import StudentSettingsSkeleton from "@/components/features/students/view/skeletons/StudentSettingsSkeleton";
 import StudentTableSkeleton from "@/components/features/students/view/skeletons/StudentTableSkeleton";
 
-// Comprehensive type definition that matches Next.js expectations
-export type PageProps<T extends Record<string, string> = {}> = {
-  params: T;
-  searchParams?: { [key: string]: string | string[] | undefined };
+// Advanced type definition to match Next.js expectations
+type StudentPageProps = {
+  params: {
+    id: string;
+  } & Promise<{
+    then: () => void;
+    catch: () => void;
+    finally: () => void;
+    [Symbol.toStringTag]: string;
+  }>;
+  searchParams?: {
+    [key: string]: string | string[] | undefined;
+  };
 };
 
-// Specific type for student page
-type StudentPageProps = PageProps<{ id: string }>;
-
-// Optional: Metadata generation for the page
+// Metadata generation
 export async function generateMetadata({
   params,
-}: StudentPageProps): Promise<Metadata> {
-  const { id } = params;
-
+}: {
+  params: { id: string };
+}): Promise<Metadata> {
   return {
-    title: `Student Details - ${id}`,
-    description: `Detailed information for student with ID ${id}`,
+    title: `Student Details - ${params.id}`,
+    description: `Detailed information for student with ID ${params.id}`,
   };
 }
 
 // Main page component
-export default function StudentPage({ params }: StudentPageProps) {
+export default function StudentPage({ params }: { params: { id: string } }) {
   const { id } = params;
 
   return (
