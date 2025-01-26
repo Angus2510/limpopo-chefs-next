@@ -1,10 +1,7 @@
-import React from 'react'
-import TestCreationForm from '@/components/forms/assignment/TestCreationForm';
+import React from "react";
 
-const page = () => {
-  return (
-    <TestCreationForm />
-  )
-}
+const TestCreationForm = () => {
+  return <div>TestCreationForm</div>;
+};
 
-export default page
+export default TestCreationForm;
