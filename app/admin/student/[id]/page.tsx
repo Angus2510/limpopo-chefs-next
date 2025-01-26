@@ -13,9 +13,9 @@ import StudentSettingsSkeleton from "@/components/features/students/view/skeleto
 import StudentTableSkeleton from "@/components/features/students/view/skeletons/StudentTableSkeleton";
 
 interface StudentPageProps {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 }
 
 // Make sure to wrap your code in async functions if you're fetching data asynchronously
