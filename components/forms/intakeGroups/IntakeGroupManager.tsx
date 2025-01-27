@@ -101,11 +101,7 @@ export default function AddIntakeGroup() {
           />
         </div>
         {error && <p className="text-red-500 text-sm">{error}</p>}
-        <Button
-          type="submit"
-          disabled={loading}
-          className="bg-blue-500 text-white p-2 rounded"
-        >
+        <Button type="submit" disabled={loading}>
           {loading ? "Creating..." : "Create Intake Group"}
         </Button>
       </form>
