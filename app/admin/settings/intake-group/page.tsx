@@ -1,9 +1,12 @@
-import React from 'react'
+import React from "react";
+import AddIntakeGroup from "@/components/forms/intakeGroups/IntakeGroupManager";
 
 const page = () => {
   return (
-    <div>page</div>
-  )
-}
+    <div>
+      <AddIntakeGroup />
+    </div>
+  );
+};
 
-export default page
+export default page;
