@@ -1,8 +1,8 @@
 // stores/authStore.ts
-// stores/authStore.ts
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { jwtDecode } from "jwt-decode";
+import Cookies from "js-cookie";
 
 // Define user types
 type UserType = "Staff" | "Student" | "Guardian";
@@ -31,6 +31,7 @@ interface AuthState {
   logout: () => void;
   isAuthenticated: () => boolean;
   getToken: () => string | null;
+  syncCookie: () => void;
 }
 
 const useAuthStore = create<AuthState>()(
@@ -40,7 +41,15 @@ const useAuthStore = create<AuthState>()(
       accessToken: null,
 
       login: ({ user, accessToken }) => {
-        console.log("Logging in with:", { user, accessToken }); // Debugging log
+        console.log("Logging in with:", { user, accessToken });
+
+        // Set the cookie along with the store update
+        Cookies.set("accessToken", accessToken, {
+          expires: 1 / 24, // 1 hour
+          secure: process.env.NODE_ENV === "production",
+          sameSite: "lax",
+        });
+
         set({
           user,
           accessToken,
@@ -48,12 +57,14 @@ const useAuthStore = create<AuthState>()(
       },
 
       logout: () => {
+        // Clear the cookie along with the store
+        Cookies.remove("accessToken");
         set({ user: null, accessToken: null });
       },
 
       isAuthenticated: () => {
         const { accessToken, user } = get();
-        console.log("Authentication Check:", { accessToken, user }); // Debugging log
+        console.log("Authentication Check:", { accessToken, user });
 
         if (!accessToken) {
           console.log("No access token found");
@@ -70,16 +81,51 @@ const useAuthStore = create<AuthState>()(
             expirationTime: new Date(decoded.exp * 1000),
           });
 
+          // If token is invalid, clear everything
+          if (!isValid) {
+            get().logout();
+            return false;
+          }
+
           return isValid;
         } catch (error) {
           console.error("Token verification error:", error);
+          get().logout();
           return false;
         }
       },
 
       getToken: () => {
         const { accessToken } = get();
-        return accessToken;
+        // First try to get from store, then fallback to cookie
+        return accessToken || Cookies.get("accessToken") || null;
+      },
+
+      // New method to sync cookie with store
+      syncCookie: () => {
+        const { accessToken } = get();
+        const cookieToken = Cookies.get("accessToken");
+
+        if (accessToken && !cookieToken) {
+          // If token exists in store but not in cookie, set cookie
+          Cookies.set("accessToken", accessToken, {
+            expires: 1 / 24, // 1 hour
+            secure: process.env.NODE_ENV === "production",
+            sameSite: "lax",
+          });
+        } else if (!accessToken && cookieToken) {
+          // If token exists in cookie but not in store, set store
+          try {
+            const decoded = jwtDecode<TokenPayload>(cookieToken);
+            if (decoded.exp > Date.now() / 1000) {
+              set({ accessToken: cookieToken });
+            } else {
+              Cookies.remove("accessToken");
+            }
+          } catch {
+            Cookies.remove("accessToken");
+          }
+        }
       },
     }),
     {
@@ -89,6 +135,12 @@ const useAuthStore = create<AuthState>()(
         user: state.user,
         accessToken: state.accessToken,
       }),
+      // Add onRehydrateStorage to sync cookie when store is rehydrated
+      onRehydrateStorage: () => (state) => {
+        if (state) {
+          state.syncCookie();
+        }
+      },
     }
   )
 );

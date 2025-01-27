@@ -69,18 +69,20 @@ export default function LoginForm() {
 
       // Attempt to log in
       const result = await loginAction(data);
+      console.log("Login Result:", result); // Add this
 
       // Log the entire result for inspection
 
       // Destructure with fallback to prevent undefined
       const { accessToken = "", user } = result;
-
+      console.log("User Object:", user); // Add this
+      console.log("User Type:", user?.userType);
       // Use the Zustand store's login method
       login({
         user,
         accessToken,
       });
-
+      console.log("About to route based on user type:", user?.userType);
       // Route based on user type
       switch (user.userType) {
         case "Staff":
@@ -89,7 +91,13 @@ export default function LoginForm() {
           break;
         case "Student":
           console.log("Routing to Student Dashboard");
-          router.push("/student/dashboard");
+          try {
+            router.refresh();
+            await router.push("/student/dashboard");
+            console.log("Router push completed");
+          } catch (e) {
+            console.error("Routing error:", e);
+          }
           break;
         case "Guardian":
           console.log("Routing to Guardian Dashboard");
