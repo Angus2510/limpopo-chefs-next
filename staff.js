@@ -20,11 +20,8 @@ async function getStaff() {
       // },
     });
 
-    console.log("Staff retrieved successfully:");
-    console.log(JSON.stringify(staff, null, 2));
     return staff;
   } catch (error) {
-    console.error("Error fetching staff:", error);
     throw error;
   } finally {
     await prisma.$disconnect();

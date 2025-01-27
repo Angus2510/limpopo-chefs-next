@@ -17,10 +17,8 @@ export default function ProtectedAdminDashboard() {
     const checkAuthentication = async () => {
       console.group("Authentication Check");
       console.log("Initial Authentication Status:", isAuthenticated());
-      console.log("Current User:", user);
 
       const token = getToken();
-      console.log("Token Present:", !!token);
 
       if (token) {
         try {

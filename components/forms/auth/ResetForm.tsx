@@ -28,7 +28,6 @@ export default function ResetPasswordForm() {
   const [isLoading] = useState<boolean>(false);
 
   const onSubmit = async (data: OTPFormData) => {
-    console.log("Submitted OTP:", data.otp);
     // Handle OTP submission logic here
   };
 

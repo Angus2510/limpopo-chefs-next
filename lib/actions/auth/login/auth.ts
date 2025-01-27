@@ -39,7 +39,6 @@ async function generateAccessToken(
   userType: UserType
 ): Promise<string> {
   if (!sessionId || !userType) {
-    console.error("Missing sessionId or userType:", { sessionId, userType });
     throw new Error("SessionId and userType are required for token generation");
   }
 
@@ -48,8 +47,6 @@ async function generateAccessToken(
     userType: userType,
     type: "access",
   };
-
-  console.log("Creating access token with payload:", payload);
 
   try {
     const token = await new jose.SignJWT(payload)
@@ -77,8 +74,6 @@ async function generateRefreshToken(sessionId: string): Promise<string> {
     type: "refresh",
   };
 
-  console.log("Creating refresh token with payload:", payload);
-
   try {
     const token = await new jose.SignJWT(payload)
       .setProtectedHeader({ alg: "HS256", typ: "JWT" })
@@ -104,8 +99,6 @@ export async function login({
   userAgent,
 }: LoginParams): Promise<LoginResponse> {
   try {
-    console.log("Login attempt for identifier:", identifier);
-
     const headersList = await headers();
     const ip = headersList.get("x-forwarded-for") || "0.0.0.0";
 
@@ -140,7 +133,7 @@ export async function login({
       userType = "Staff";
     } else {
       // Check Student
-      const student = await prisma.student.findFirst({
+      const student = await prisma.students.findFirst({
         where: {
           OR: [{ email: identifier }, { username: identifier }],
         },
@@ -167,7 +160,7 @@ export async function login({
         userType = "Student";
       } else {
         // Check Guardian
-        const guardian = await prisma.guardian.findFirst({
+        const guardian = await prisma.guardians.findFirst({
           where: {
             OR: [{ email: identifier }],
           },
@@ -201,7 +194,6 @@ export async function login({
 
     try {
       const sessionId = generateUniqueToken();
-      console.log("Generated sessionId:", sessionId);
 
       const accessToken = await generateAccessToken(sessionId, userType);
       const refreshToken = await generateRefreshToken(sessionId);

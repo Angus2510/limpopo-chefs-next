@@ -109,28 +109,22 @@ const NewStudentForm: React.FC<NewStudentFormProps> = ({
   });
 
   const onChangeIntakeGroup = (value: string) => {
-    console.log("Intake Group selected:", value);
     form.setValue("intakeGroup", value);
   };
 
   const onChangeCampus = (value: string) => {
-    console.log("Campus selected:", value);
     form.setValue("campus", value);
   };
 
   const onChangeQualification = (value: string) => {
-    console.log("Qualification selected:", value);
     form.setValue("qualification", value);
   };
 
   const onChangeAccommodation = (value: string) => {
-    console.log("Accommodation selected:", value);
     form.setValue("accommodation", value);
   };
 
   const onSubmit = async (data: any) => {
-    console.log("Form data before submission:", data);
-
     // Convert dates to ISO strings
     if (data.admissionDate) {
       data.admissionDate = data.admissionDate.toISOString();
@@ -156,7 +150,7 @@ const NewStudentForm: React.FC<NewStudentFormProps> = ({
           formData.append(key, data[key]);
         }
       });
-      console.log("FormData:", Array.from(formData.entries()));
+
       await createStudent(formData);
       toast({
         title: "Student created successfully",

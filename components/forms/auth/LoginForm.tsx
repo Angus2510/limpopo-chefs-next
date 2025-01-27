@@ -21,8 +21,6 @@ type LoginFormData = z.infer<typeof loginSchema>;
 
 async function loginAction(data: { identifier: string; password: string }) {
   try {
-    console.log("Login Action - Sending Request:", data);
-
     const response = await fetch("/api/auth/login", {
       method: "POST",
       headers: {
@@ -40,7 +38,7 @@ async function loginAction(data: { identifier: string; password: string }) {
     }
 
     const result = await response.json();
-    console.log("Login Successful - Received Data:", result);
+
     return result; // returns { accessToken, user }
   } catch (error) {
     console.error("Login Action Error:", error);
@@ -73,21 +71,15 @@ export default function LoginForm() {
       const result = await loginAction(data);
 
       // Log the entire result for inspection
-      console.log("FULL LOGIN RESULT:", result);
 
       // Destructure with fallback to prevent undefined
       const { accessToken = "", user } = result;
-
-      console.log("Extracted Token:", accessToken);
-      console.log("Extracted User:", user);
 
       // Use the Zustand store's login method
       login({
         user,
         accessToken,
       });
-
-      console.log("Login Successful - User Type:", user.userType);
 
       // Route based on user type
       switch (user.userType) {

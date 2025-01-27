@@ -1,11 +1,11 @@
-'use client';
+"use client";
 
-import React, { useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { learningMaterialSchema } from '@/schemas/uploads/addLearningMaterialSchema';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
+import React, { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { learningMaterialSchema } from "@/schemas/uploads/addLearningMaterialSchema";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { ButtonLoading } from "@/components/common/ButtonLoading";
 import {
   Form,
@@ -14,10 +14,10 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from '@/components/ui/form';
+} from "@/components/ui/form";
 import { MultiSelect } from "@/components/common/multiselect";
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
-import { uploadLearningMaterial } from '@/lib/actions/uploads/uploadLearningMaterial';
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { uploadLearningMaterial } from "@/lib/actions/uploads/uploadLearningMaterial";
 
 interface LearningMaterialFormValues {
   title: string;
@@ -32,43 +32,45 @@ interface UploadDialogProps {
   intakeGroups: { id: string; title: string }[];
 }
 
-export function UploadDialog({ isOpen, onClose, intakeGroups }: UploadDialogProps) {
+export function UploadDialog({
+  isOpen,
+  onClose,
+  intakeGroups,
+}: UploadDialogProps) {
   const form = useForm<LearningMaterialFormValues>({
     resolver: zodResolver(learningMaterialSchema),
     defaultValues: {
-      title: '',
-      description: '',
+      title: "",
+      description: "",
       intakeGroup: [],
       file: null,
     },
   });
 
-  const [selectedIntakeGroups, setSelectedIntakeGroups] = useState<string[]>([]);
+  const [selectedIntakeGroups, setSelectedIntakeGroups] = useState<string[]>(
+    []
+  );
   const [isLoading, setIsLoading] = useState(false);
 
   const handleIntakeGroupChange = (newGroups: string[]) => {
     setSelectedIntakeGroups(newGroups);
-    form.setValue('intakeGroup', newGroups);
+    form.setValue("intakeGroup", newGroups);
   };
 
   const onSubmit = async (data: LearningMaterialFormValues) => {
-    console.log("Form data before upload:", data);
-  
     try {
       const formData = new FormData();
-  
+
       // Append simple fields
-      formData.append('title', data.title);
-      formData.append('description', data.description);
-      formData.append('file', data.file as Blob);
-  
+      formData.append("title", data.title);
+      formData.append("description", data.description);
+      formData.append("file", data.file as Blob);
+
       // Handle intake groups array separately
       data.intakeGroup.forEach((groupId, index) => {
         formData.append(`intakeGroup[${index}]`, groupId);
       });
-  
-      console.log('FormData entries:', Array.from(formData.entries()));
-  
+
       // Simulate loading
       setIsLoading(true);
       await uploadLearningMaterial(formData);
@@ -77,12 +79,10 @@ export function UploadDialog({ isOpen, onClose, intakeGroups }: UploadDialogProp
       setSelectedIntakeGroups([]);
       onClose();
     } catch (error) {
-      console.error('Failed to upload learning material:', error);
+      console.error("Failed to upload learning material:", error);
       setIsLoading(false);
     }
   };
-  
-  
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>

@@ -19,8 +19,7 @@ interface IndexPageProps {
 
 export default async function Students({ searchParams }: IndexPageProps) {
   // Debug: Log the exact type and structure of searchParams
-  console.log("Type of searchParams:", typeof searchParams);
-  console.log("Actual searchParams:", searchParams);
+
   const resolvedSearchParams = await searchParams;
 
   const search: GetStudentsSchema =
