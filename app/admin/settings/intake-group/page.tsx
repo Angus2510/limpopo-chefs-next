@@ -1,9 +1,9 @@
-import React from 'react'
+import IntakeGroupManager from "@/components/forms/intakeGroups/IntakeGroupManager";
 
-const page = () => {
+export default function IntakeGroupsPage() {
   return (
-    <div>page</div>
-  )
+    <div>
+      <IntakeGroupManager />
+    </div>
+  );
 }
-
-export default page

@@ -1,15 +1,17 @@
-import prisma from '@/lib/db';
-import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
+import prisma from "@/lib/db";
+import React from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 
 interface ImportantInformationProps {
   studentId: string;
 }
 
-const ImportantInformation: React.FC<ImportantInformationProps> = async ({ studentId }) => {
-  const student = await prisma.student.findUnique({
+const ImportantInformation: React.FC<ImportantInformationProps> = async ({
+  studentId,
+}) => {
+  const student = await prisma.students.findUnique({
     where: { id: studentId },
   });
 
@@ -30,7 +32,7 @@ const ImportantInformation: React.FC<ImportantInformationProps> = async ({ stude
         <Textarea
           className="w-full mt-2 mb-4"
           placeholder="Enter important information here"
-          defaultValue={importantInformation || ''}
+          defaultValue={importantInformation || ""}
         />
         <Button variant="default">Save</Button>
       </CardContent>

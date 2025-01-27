@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import useAuthStore from "@/store/authStore";
+import { ContentLayout } from "@/components/layout/content-layout";
 
 export default function ProtectedStudentDashboard() {
   const router = useRouter();
@@ -100,23 +101,25 @@ export default function ProtectedStudentDashboard() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-6">Student Dashboard</h1>
+    <ContentLayout title="Student Dashboard">
+      <div className="container mx-auto px-4 py-8">
+        <h1 className="text-3xl font-bold mb-6">Student Dashboard</h1>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-white shadow-md rounded-lg p-6">
-          <h2 className="text-xl font-semibold mb-4">Personal Information</h2>
-          <p>
-            Name: {authData.user?.firstName} {authData.user?.lastName}
-          </p>
-          <p>User Type: {authData.user?.userType}</p>
-        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="bg-white shadow-md rounded-lg p-6">
+            <h2 className="text-xl font-semibold mb-4">Personal Information</h2>
+            <p>
+              Name: {authData.user?.firstName} {authData.user?.lastName}
+            </p>
+            <p>User Type: {authData.user?.userType}</p>
+          </div>
 
-        <div className="bg-white shadow-md rounded-lg p-6">
-          <h2 className="text-xl font-semibold mb-4">Courses</h2>
-          <p>Enrolled Courses: Loading...</p>
+          <div className="bg-white shadow-md rounded-lg p-6">
+            <h2 className="text-xl font-semibold mb-4">Courses</h2>
+            <p>Enrolled Courses: Loading...</p>
+          </div>
         </div>
       </div>
-    </div>
+    </ContentLayout>
   );
 }
