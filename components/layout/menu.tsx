@@ -13,8 +13,10 @@ import {
   Tooltip,
   TooltipTrigger,
   TooltipContent,
-  TooltipProvider
+  TooltipProvider,
 } from "@/components/ui/tooltip";
+import useAuthStore from "../../store/authStore";
+import { useRouter } from "next/navigation";
 
 interface MenuProps {
   isOpen: boolean | undefined;
@@ -23,6 +25,14 @@ interface MenuProps {
 export function Menu({ isOpen }: MenuProps) {
   const pathname = usePathname();
   const menuList = getMenuList(pathname);
+
+  const router = useRouter();
+  const logout = useAuthStore((state) => state.logout);
+
+  const handleLogout = () => {
+    logout();
+    router.push("/login"); // or whatever your login page route is
+  };
 
   return (
     <ScrollArea className="[&>div>div[style]]:!block">
@@ -108,7 +118,7 @@ export function Menu({ isOpen }: MenuProps) {
               <Tooltip delayDuration={100}>
                 <TooltipTrigger asChild>
                   <Button
-                    onClick={() => {}}
+                    onClick={handleLogout}
                     variant="outline"
                     className="w-full justify-center h-10 mt-5"
                   >
