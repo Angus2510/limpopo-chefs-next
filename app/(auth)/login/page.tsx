@@ -1,5 +1,6 @@
 import LoginForm from "@/components/forms/auth/LoginForm";
 import Image from "next/image";
+import Link from "next/link"; // Import Link for navigation
 
 export default function LoginPage() {
   return (
@@ -12,8 +13,15 @@ export default function LoginPage() {
           <p className="text-balance text-muted-foreground">
             Enter your email or username below to login to your account
           </p>
+          {/* Reset Password Link */}
         </div>
         <LoginForm />
+        <Link
+          href="/reset"
+          className="text-sm text-primary hover:underline mt-2"
+        >
+          Forgot Password?
+        </Link>
         <Image
           src="/img/auth/sponsors.jpg"
           alt="Sponsors"

@@ -1,8 +1,8 @@
-import ResetPasswordForm from '@/components/forms/auth/ResetForm';
+import ResetPasswordForm from "@/components/forms/auth/ResetForm";
 
 export default function ResetPasswordPage() {
   return (
-    <div className="w-full lg:grid lg:min-h-[600px] lg:grid-cols-2 xl:min-h-[800px]">
+    <div className="w-full h-full  ">
       {/* Left section: Reset Password form */}
       <div className="flex items-center justify-center py-12">
         <div className="mx-auto grid w-[350px] gap-6">

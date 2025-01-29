@@ -25,7 +25,7 @@ interface TokenPayload {
 
 // Authentication Store Interface
 interface AuthState {
-  user: User | null;
+  user: User;
   accessToken: string | null;
   login: (data: { user: User; accessToken: string }) => void;
   logout: () => void;

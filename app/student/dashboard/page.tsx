@@ -3,6 +3,12 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import useAuthStore from "@/store/authStore";
+import { StudentCard } from "@/components/students/student-card";
+import { ContentLayout } from "@/components/layout/content-layout";
+import { TodaysSchedule } from "@/components/students/todaysSchedule";
+import WeeklyCalendarCard from "@/components/students/weekly-calendar-card";
+import { FeesCard } from "@/components/students/student-fees";
+import WelHoursCard from "@/components/students/wel-card";
 
 export default function ProtectedStudentDashboard() {
   const router = useRouter();
@@ -100,23 +106,16 @@ export default function ProtectedStudentDashboard() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-6">Student Dashboard</h1>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-white shadow-md rounded-lg p-6">
-          <h2 className="text-xl font-semibold mb-4">Personal Information</h2>
-          <p>
-            Name: {authData.user?.firstName} {authData.user?.lastName}
-          </p>
-          <p>User Type: {authData.user?.userType}</p>
+    <div className="">
+      <ContentLayout title="Student Dashboard">
+        <div className="flex flex-wrap gap-2">
+          <StudentCard />
+          <TodaysSchedule />
+          <FeesCard />
+          <WelHoursCard />
+          <WeeklyCalendarCard />
         </div>
-
-        <div className="bg-white shadow-md rounded-lg p-6">
-          <h2 className="text-xl font-semibold mb-4">Courses</h2>
-          <p>Enrolled Courses: Loading...</p>
-        </div>
-      </div>
+      </ContentLayout>
     </div>
   );
 }

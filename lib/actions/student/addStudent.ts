@@ -2,6 +2,8 @@
 
 import prisma from "@/lib/db";
 import bcrypt from "bcryptjs";
+import { sendEmail } from "@/utils/emailService";
+import { studentCreationTemplate } from "@/lib/email-templates/addingStudent";
 
 // Enum definitions with explicit type safety
 enum Relation {
@@ -22,7 +24,7 @@ enum Gender {
  * @param length - Desired password length
  * @returns Randomly generated password string
  */
-const generatePassword = (length: number = 12): string => {
+const generatePassword = (length: number = 6): string => {
   const chars =
     "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()";
   return Array.from(crypto.getRandomValues(new Uint32Array(length)))
@@ -167,6 +169,22 @@ export async function createStudent(input: FormData | Record<string, any>) {
     const student = await prisma.students.create({
       data: studentData,
     });
+
+    // Generate the email content
+    const emailBody = studentCreationTemplate(
+      student.profile.firstName,
+      student.username,
+      studentPassword // Unhashed password
+    );
+
+    // Send the email
+    await sendEmail(
+      student.email,
+      "Welcome to Limpopo Chefs Academy",
+      emailBody
+    );
+
+    console.log("Student Successfully Created and Email Sent:", student.id);
 
     console.log("Student Successfully Created:", student.id);
     return student;
