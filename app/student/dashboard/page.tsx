@@ -22,42 +22,50 @@ interface Student {
   id: string;
   profile: Profile;
   intakeGroup: string[];
+  campus: string;
+  admissionNumber: string;
 }
 
 interface WellnessRecord {
   id: string;
   student: string;
-  // Add other wellness record fields
+  hours: number;
+  date: string;
+  activity: string;
+  status: string;
 }
 
 interface Result {
   id: string;
   participants: string[];
-  // Add other result fields
 }
 
 interface LearningMaterial {
   id: string;
   intakeGroup: string[];
-  // Add other learning material fields
 }
 
 interface Event {
   id: string;
   assignedTo: string[];
-  // Add other event fields
+  title: string;
+  startTime: string;
+  endTime: string;
+  type: "CLASS" | "MEETING" | "ASSIGNMENT" | "OTHER";
 }
 
 interface Finance {
   id: string;
   student: string;
-  // Add other finance fields
+  dueDate: string;
+  amount: number;
+  currency: string;
+  status: "PAID" | "PENDING" | "OVERDUE";
 }
 
 interface Document {
   id: string;
   student: string;
-  // Add other document fields
 }
 
 interface StudentData {
@@ -95,7 +103,6 @@ export default function ProtectedStudentDashboard() {
         const token = getToken();
         if (!token) throw new Error("No token found");
 
-        // Validate token with backend
         const response = await fetch("/api/validate-token", {
           method: "POST",
           headers: {
@@ -135,6 +142,7 @@ export default function ProtectedStudentDashboard() {
             Loading Student Dashboard...
           </div>
           <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full mx-auto"></div>
+          <p className="text-gray-500">Please wait...</p>
         </div>
       </div>
     );
@@ -152,7 +160,13 @@ export default function ProtectedStudentDashboard() {
   }
 
   if (!isAuthenticated() || !studentData) {
-    return null;
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <div className="text-center text-gray-500">
+          <p>Student data not available.</p>
+        </div>
+      </div>
+    );
   }
 
   const { student, wellnessRecords, results, events, finances } = studentData;
