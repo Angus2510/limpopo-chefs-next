@@ -30,7 +30,7 @@ export async function POST(request: Request) {
             id: user.id,
             userType: type,
           },
-          process.env.JWT_SECRET!,
+          process.env["JWT_SECRET"]!,
           { expiresIn: "1h" }
         );
 

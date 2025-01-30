@@ -1,37 +1,50 @@
-// stores/authStore.ts
-import { create } from "zustand";
-import { persist, createJSONStorage } from "zustand/middleware";
-import { jwtDecode } from "jwt-decode";
-import Cookies from "js-cookie";
+export type UserType = "Staff" | "Student" | "Guardian";
 
-// Define user types
-type UserType = "Staff" | "Student" | "Guardian";
-
-// User interface
-interface User {
-  id: number;
+export interface User {
+  id: string;
   firstName: string;
   lastName: string;
   userType: UserType;
   avatar?: string;
 }
 
-// Token payload interface
-interface TokenPayload {
-  id: number;
+export interface TokenPayload {
+  id: string;
   userType: UserType;
   exp: number;
 }
 
-// Authentication Store Interface
+export interface StudentData {
+  student: any; // Replace with your student type
+  wellnessRecords: any[];
+  results: any[];
+  learningMaterials: any[];
+  events: any[];
+  finances: any;
+  documents: any[];
+}
+
+// stores/authStore.ts
+import { create } from "zustand";
+import { persist, createJSONStorage } from "zustand/middleware";
+import { jwtDecode } from "jwt-decode";
+import Cookies from "js-cookie";
+import type { User, TokenPayload, StudentData } from "@/types/auth";
+
 interface AuthState {
-  user: User;
+  user: User | null;
   accessToken: string | null;
+  studentData: StudentData | null;
+  loading: boolean;
+  error: string | null;
   login: (data: { user: User; accessToken: string }) => void;
   logout: () => void;
   isAuthenticated: () => boolean;
   getToken: () => string | null;
   syncCookie: () => void;
+  fetchStudentData: () => Promise<void>;
+  setLoading: (loading: boolean) => void;
+  setError: (error: string | null) => void;
 }
 
 const useAuthStore = create<AuthState>()(
@@ -39,11 +52,13 @@ const useAuthStore = create<AuthState>()(
     (set, get) => ({
       user: null,
       accessToken: null,
+      studentData: null,
+      loading: false,
+      error: null,
 
       login: ({ user, accessToken }) => {
         console.log("Logging in with:", { user, accessToken });
 
-        // Set the cookie along with the store update
         Cookies.set("accessToken", accessToken, {
           expires: 1 / 24, // 1 hour
           secure: process.env.NODE_ENV === "production",
@@ -53,13 +68,19 @@ const useAuthStore = create<AuthState>()(
         set({
           user,
           accessToken,
+          studentData: null, // Reset student data on login
+          error: null,
         });
       },
 
       logout: () => {
-        // Clear the cookie along with the store
         Cookies.remove("accessToken");
-        set({ user: null, accessToken: null });
+        set({
+          user: null,
+          accessToken: null,
+          studentData: null,
+          error: null,
+        });
       },
 
       isAuthenticated: () => {
@@ -81,7 +102,6 @@ const useAuthStore = create<AuthState>()(
             expirationTime: new Date(decoded.exp * 1000),
           });
 
-          // If token is invalid, clear everything
           if (!isValid) {
             get().logout();
             return false;
@@ -97,24 +117,20 @@ const useAuthStore = create<AuthState>()(
 
       getToken: () => {
         const { accessToken } = get();
-        // First try to get from store, then fallback to cookie
         return accessToken || Cookies.get("accessToken") || null;
       },
 
-      // New method to sync cookie with store
       syncCookie: () => {
         const { accessToken } = get();
         const cookieToken = Cookies.get("accessToken");
 
         if (accessToken && !cookieToken) {
-          // If token exists in store but not in cookie, set cookie
           Cookies.set("accessToken", accessToken, {
-            expires: 1 / 24, // 1 hour
+            expires: 1 / 24,
             secure: process.env.NODE_ENV === "production",
             sameSite: "lax",
           });
         } else if (!accessToken && cookieToken) {
-          // If token exists in cookie but not in store, set store
           try {
             const decoded = jwtDecode<TokenPayload>(cookieToken);
             if (decoded.exp > Date.now() / 1000) {
@@ -127,6 +143,47 @@ const useAuthStore = create<AuthState>()(
           }
         }
       },
+
+      setLoading: (loading: boolean) => set({ loading }),
+
+      setError: (error: string | null) => set({ error }),
+
+      fetchStudentData: async () => {
+        const { user, isAuthenticated, logout, setLoading, setError } = get();
+
+        if (!isAuthenticated() || user?.userType !== "Student") {
+          setError("Unauthorized access");
+          return;
+        }
+
+        setLoading(true);
+        setError(null);
+
+        try {
+          const response = await fetch("/api/student/data");
+
+          if (!response.ok) {
+            throw new Error("Failed to fetch student data");
+          }
+
+          const data = await response.json();
+          set({ studentData: data });
+        } catch (error) {
+          if (error instanceof Error) {
+            setError(error.message);
+          } else {
+            setError(String(error));
+          }
+          if (
+            error instanceof Error &&
+            error.message.includes("Unauthorized")
+          ) {
+            logout();
+          }
+        } finally {
+          setLoading(false);
+        }
+      },
     }),
     {
       name: "auth-storage",
@@ -135,7 +192,6 @@ const useAuthStore = create<AuthState>()(
         user: state.user,
         accessToken: state.accessToken,
       }),
-      // Add onRehydrateStorage to sync cookie when store is rehydrated
       onRehydrateStorage: () => (state) => {
         if (state) {
           state.syncCookie();
