@@ -1,4 +1,3 @@
-import { ModeToggle } from "@/components/layout/mode-toggle";
 import { UserNav } from "@/components/layout/user-nav";
 import { SheetMenu } from "@/components/layout/sheet-menu";
 import { Input } from "@/components/ui/input";
@@ -18,14 +17,14 @@ export function Navbar({ title }: NavbarProps) {
         </div>
         <div className="flex flex-1 items-center space-x-2 justify-end">
           <form className="relative">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                type="search"
-                placeholder="Search ..."
-                className="w-full appearance-none bg-background pl-8 shadow-none md:w-64 lg:w-96"
-              />
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              type="search"
+              placeholder="Search ..."
+              className="w-full appearance-none bg-background pl-8 shadow-none md:w-64 lg:w-96"
+            />
           </form>
-          <ModeToggle />
+
           <UserNav />
         </div>
       </div>

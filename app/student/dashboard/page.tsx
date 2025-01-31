@@ -32,7 +32,7 @@ interface WellnessRecord {
   hours: number;
   date: string;
   activity: string;
-  status: string;
+  status: "PENDING" | "APPROVED" | "REJECTED";
 }
 
 interface Result {
@@ -172,16 +172,20 @@ export default function ProtectedStudentDashboard() {
   const { student, wellnessRecords, results, events, finances } = studentData;
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-primary-200">
       <ContentLayout title="Student Dashboard">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 grid-rows-2 gap-4 ">
           <StudentCard studentData={student} />
           <TodaysSchedule studentData={student} events={events} />
-          <FeesCard studentData={student} finances={finances} />
-          <WelHoursCard
-            studentData={student}
-            wellnessRecords={wellnessRecords}
-          />
+          <div className="mb-2">
+            <div className="mb-4">
+              <WelHoursCard
+                studentData={student}
+                wellnessRecords={wellnessRecords}
+              />
+            </div>
+            <FeesCard studentData={student} finances={finances} />
+          </div>
           <div className="md:col-span-2 lg:col-span-3">
             <WeeklyCalendarCard studentData={student} events={events} />
           </div>
