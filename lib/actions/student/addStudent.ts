@@ -2,7 +2,7 @@
 
 import prisma from "@/lib/db";
 import bcrypt from "bcryptjs";
-import { sendEmail } from "@/utils/emailService";
+import sendEmailNotification from "@/utils/emailService";
 import { studentCreationTemplate } from "@/lib/email-templates/addingStudent";
 
 // Enum definitions with explicit type safety
@@ -178,7 +178,7 @@ export async function createStudent(input: FormData | Record<string, any>) {
     );
 
     // Send the email
-    await sendEmail(
+    await sendEmailNotification(
       student.email,
       "Welcome to Limpopo Chefs Academy",
       emailBody

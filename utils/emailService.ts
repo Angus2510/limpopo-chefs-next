@@ -1,26 +1,49 @@
-// emailService.ts
-import { Resend } from "resend";
+import nodemailer from "nodemailer";
+import fs from "fs";
+import path from "path";
 
-const resend = new Resend(process.env["RESEND_API_KEY"]);
+// Create transporter object using environment variables
+const transporter = nodemailer.createTransport({
+  host: process.env["SMTP_HOST"],
+  port: 465,
+  secure: true,
+  auth: {
+    user: process.env["EMAIL_USER"],
+    pass: process.env["EMAIL_PASS"],
+  },
+  tls: {
+    rejectUnauthorized: false,
+  },
+});
 
 /**
- * Sends an email using Resend
- * @param to - Recipient's email address
- * @param subject - Email subject
- * @param body - Email body (HTML or plain text)
+ * Sends an email notification using an HTML template.
+ * @param email - Recipient's email address.
+ * @param title - Email subject.
+ * @param message - Email message or HTML.
  */
-export async function sendEmail(to: string, subject: string, body: string) {
+const sendEmailNotification = async (
+  email: string,
+  title: string,
+  message: string
+) => {
   try {
-    const response = await resend.emails.send({
-      from: "no-reply@mail.limpopochefs.co.za",
-      to,
-      subject,
-      html: body,
-    });
-    console.log("Email sent successfully:", response);
-    return response;
+    // Mail options
+    const mailOptions = {
+      from: process.env["EMAIL_USER"],
+      to: email,
+      subject: title,
+      html: message,
+    };
+
+    // Send email
+    const info = await transporter.sendMail(mailOptions);
+    console.log("Email sent:", info.response);
+    return info;
   } catch (error) {
-    console.error("Failed to send email:", error);
-    throw new Error("Email sending failed");
+    console.error("Error sending email:", error);
+    throw new Error("Failed to send email");
   }
-}
+};
+
+export default sendEmailNotification;
