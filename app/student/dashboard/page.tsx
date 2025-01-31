@@ -10,6 +10,7 @@ import { TodaysSchedule } from "@/components/students/todaysSchedule";
 import WeeklyCalendarCard from "@/components/students/weekly-calendar-card";
 import { FeesCard } from "@/components/students/student-fees";
 import WelHoursCard from "@/components/students/wel-card";
+import StudentMaterialsCard from "@/components/students/student-learning-materials-card";
 
 // Define interfaces based on your API response
 interface Profile {
@@ -187,7 +188,14 @@ export default function ProtectedStudentDashboard() {
             <FeesCard studentData={student} finances={finances} />
           </div>
           <div className="md:col-span-2 lg:col-span-3">
-            <WeeklyCalendarCard studentData={student} events={events} />
+            <div className="flex gap-4">
+              <WeeklyCalendarCard studentData={student} events={events} />
+
+              <StudentMaterialsCard
+                student={student}
+                learningMaterials={studentData.learningMaterials}
+              />
+            </div>
           </div>
         </div>
       </ContentLayout>
