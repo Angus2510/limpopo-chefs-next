@@ -16,8 +16,8 @@ interface Material {
   fileType?: string;
   uploadDate?: string;
   moduleNumber?: number;
-  fileKey: string;
-  fileName: string;
+  // Update to match your actual data structure:
+  filePath: string;
 }
 
 interface Student {
@@ -29,21 +29,30 @@ interface StudentMaterialsCardProps {
   student: Student;
 }
 
+// Helper function to extract file name from filePath.
+const getFileNameFromPath = (filePath: string): string => {
+  return filePath.split("/").pop() || "downloaded-file";
+};
+
 const StudentMaterialsCard: React.FC<StudentMaterialsCardProps> = ({
   learningMaterials,
   student,
 }) => {
-  const [downloadingId, setDownloadingId] = React.useState(null);
+  const [downloadingId, setDownloadingId] = React.useState<string | null>(null);
 
   const handleDownload = async (material: Material) => {
     try {
-      // Log the fileKey and fileName to verify they're correct
-      console.log(
-        "Sending fileKey:",
-        material.fileKey,
-        "fileName:",
-        material.fileName
-      );
+      console.log("Material object:", material);
+
+      // Derive the S3 key and file name from filePath.
+      const fileKey = material.filePath;
+      const fileName = getFileNameFromPath(material.filePath);
+
+      if (!fileKey || !fileName) {
+        throw new Error(
+          `Missing fileKey or fileName. Received fileKey: ${fileKey}, fileName: ${fileName}`
+        );
+      }
 
       const response = await fetch("/api/materials/download", {
         method: "POST",
@@ -51,8 +60,8 @@ const StudentMaterialsCard: React.FC<StudentMaterialsCardProps> = ({
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          fileKey: material.fileKey, // Pass the fileKey here
-          fileName: material.fileName, // Pass the fileName here
+          fileKey, // Using filePath as the S3 key.
+          fileName, // Derived file name.
         }),
       });
 
@@ -62,10 +71,10 @@ const StudentMaterialsCard: React.FC<StudentMaterialsCardProps> = ({
 
       const { signedUrl } = await response.json();
 
-      // Create a temporary link and trigger the download
+      // Create a temporary link and trigger the download.
       const link = document.createElement("a");
       link.href = signedUrl;
-      link.setAttribute("download", material.fileName); // Using the correct fileName
+      link.setAttribute("download", fileName);
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);

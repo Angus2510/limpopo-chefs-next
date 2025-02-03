@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
-import sendEmailNotification from "@/utils/emailService"; // Import Nodemailer function
-import { studentCreationTemplate } from "@/lib/email-templates/addingStudent"; // Import template
+import sendEmailNotification from "@/utils/emailService";
+import { studentCreationTemplate } from "@/lib/email-templates/addingStudent";
+import { passwordResetTemplate } from "@/lib/email-templates/passwordReset";
 
 export async function POST(request: Request) {
   const { email, emailType, placeholders } = await request.json();
@@ -24,6 +25,10 @@ export async function POST(request: Request) {
         placeholders.password
       );
       subject = "Your Student Account is Ready!";
+      break;
+    case "passwordReset":
+      emailHtml = passwordResetTemplate(placeholders.resetCode);
+      subject = "Password Reset Code";
       break;
     default:
       return NextResponse.json(

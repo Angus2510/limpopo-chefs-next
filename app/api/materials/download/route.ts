@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import AWS from "aws-sdk";
+import { generateSignedUrl } from "@/lib/actions/download/generateSignedUrl"; // adjust the path as needed
 
 const s3 = new AWS.S3();
 
@@ -8,10 +9,8 @@ export async function POST(req: Request) {
     // Parse the request body to get fileKey and fileName
     const { fileKey, fileName } = await req.json();
 
-    // Log the received data
     console.log("Received fileKey:", fileKey, "fileName:", fileName);
 
-    // Check if fileKey or fileName is missing
     if (!fileKey || !fileName) {
       return NextResponse.json(
         { error: "Missing fileKey or fileName" },
@@ -19,20 +18,10 @@ export async function POST(req: Request) {
       );
     }
 
-    // Your S3 Bucket Name
-    const bucketName = process.env["S3_BUCKET_NAME"];
-    if (!bucketName) {
-      throw new Error("Bucket name is not defined.");
-    }
+    // Optionally, you can either use your utility function or do it inline.
+    // Using the utility function:
+    const signedUrl = await generateSignedUrl(fileKey, fileName);
 
-    // Generate signed URL for the file
-    const signedUrl = s3.getSignedUrl("getObject", {
-      Bucket: bucketName,
-      Key: fileKey, // Use the received fileKey
-      Expires: 60 * 5, // URL expiry time in seconds (5 minutes)
-    });
-
-    // Return the signed URL
     return NextResponse.json({ signedUrl });
   } catch (error) {
     console.error("Error generating signed URL:", error);
