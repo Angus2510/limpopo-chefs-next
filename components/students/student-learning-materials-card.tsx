@@ -4,30 +4,55 @@ import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
-const StudentMaterialsCard = ({ learningMaterials, student }) => {
-  // State for tracking downloads
+interface Material {
+  id: string;
+  title: string;
+  description?: string;
+  fileType?: string;
+  uploadDate?: string;
+  moduleNumber?: number;
+  fileKey: string;
+  fileName: string;
+}
+
+interface Student {
+  intakeGroup: string;
+}
+
+interface StudentMaterialsCardProps {
+  learningMaterials: Material[];
+  student: Student;
+}
+
+const StudentMaterialsCard: React.FC<StudentMaterialsCardProps> = ({
+  learningMaterials,
+  student,
+}) => {
   const [downloadingId, setDownloadingId] = React.useState(null);
 
-  // Handle file downloads
-  const handleDownload = async (material) => {
+  const handleDownload = async (material: Material) => {
     try {
-      setDownloadingId(material.id);
+      // Log the fileKey and fileName to verify they're correct
+      console.log(
+        "Sending fileKey:",
+        material.fileKey,
+        "fileName:",
+        material.fileName
+      );
 
-      // Assuming your S3 signed URL endpoint
       const response = await fetch("/api/materials/download", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          fileKey: material.fileKey, // Your S3 file key
-          fileName: material.fileName,
+          fileKey: material.fileKey, // Pass the fileKey here
+          fileName: material.fileName, // Pass the fileName here
         }),
       });
 
@@ -37,10 +62,10 @@ const StudentMaterialsCard = ({ learningMaterials, student }) => {
 
       const { signedUrl } = await response.json();
 
-      // Create a temporary link and trigger download
+      // Create a temporary link and trigger the download
       const link = document.createElement("a");
       link.href = signedUrl;
-      link.setAttribute("download", material.fileName);
+      link.setAttribute("download", material.fileName); // Using the correct fileName
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -51,7 +76,6 @@ const StudentMaterialsCard = ({ learningMaterials, student }) => {
     }
   };
 
-  // Show message if no materials are available
   if (!learningMaterials?.length) {
     return (
       <Card className="w-full max-w-4xl">

@@ -1,14 +1,14 @@
 "use client";
 
 import React from "react";
-import { useForm, useFieldArray, Controller } from "react-hook-form";
+import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { studentFormSchema } from "@/schemas/student/studentFormSchema";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import DatePicker from "@/components/common/DatePicker";
 import { createStudent } from "@/lib/actions/student/addStudent";
-import { Separator } from "@/components/ui/separator";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/components/ui/use-toast";
 import {
