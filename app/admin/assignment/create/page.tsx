@@ -1,7 +1,8 @@
 import React from "react";
+import TestCreationForm from "@/components/forms/assignment/TestCreationForm";
 
-const TestCreationForm = () => {
-  return <div>TestCreationForm</div>;
+const page = () => {
+  return <TestCreationForm />;
 };
 
-export default TestCreationForm;
+export default page;
