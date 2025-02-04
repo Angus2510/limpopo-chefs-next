@@ -16,13 +16,12 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import { toast } from "@/components/ui/use-toast";
 
-// Step 1: Schema for requesting a reset code
 const requestResetSchema = z.object({
   email: z.string().email("Invalid email address"),
 });
 
-// Step 2: Schema for resetting password
 const resetPasswordSchema = z
   .object({
     otp: z.string().length(6, "OTP must be exactly 6 digits"),
@@ -41,11 +40,10 @@ const resetPasswordSchema = z
   });
 
 export default function ResetPasswordForm() {
-  const [step, setStep] = useState(1); // Step 1 = Request Reset, Step 2 = Enter OTP & New Password
+  const [step, setStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [email, setEmail] = useState(""); // Store email for later use
+  const [email, setEmail] = useState("");
 
   const requestForm = useForm({
     resolver: zodResolver(requestResetSchema),
@@ -57,64 +55,84 @@ export default function ResetPasswordForm() {
     defaultValues: { otp: "", password: "", confirmPassword: "" },
   });
 
-  // Step 1: Request Password Reset Code
   async function handleRequestReset(values: { email: string }) {
     setIsLoading(true);
-    setError(null);
 
     try {
-      const response = await fetch(
-        "/lib/actions/auth/password-reset/password-reset.ts",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: values.email }),
-        }
-      );
+      const response = await fetch("/api/auth/reset-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "request",
+          email: values.email,
+        }),
+      });
 
-      const result = await response.json();
-      if (!response.ok)
-        throw new Error(result.message || "Failed to send reset code.");
+      const data = await response.json();
 
-      alert("A reset code has been sent to your email.");
-      setEmail(values.email); // Store email for Step 2
+      if (!response.ok) {
+        throw new Error(data.message || "Failed to send reset code");
+      }
+
+      toast({
+        title: "Reset Code Sent",
+        description: "Check your email for the reset code.",
+        variant: "default",
+      });
+
+      setEmail(values.email);
       setStep(2);
-    } catch (err) {
-      setError(err.message);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: (error as Error).message,
+        variant: "destructive",
+      });
     } finally {
       setIsLoading(false);
     }
   }
 
-  // Step 2: Submit OTP & New Password
   async function handleResetPassword(values: {
     otp: string;
     password: string;
   }) {
     setIsLoading(true);
-    setError(null);
 
     try {
-      const response = await fetch("/api/reset-password", {
+      const response = await fetch("/api/auth/reset-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          action: "reset",
           email,
-          otp: values.otp,
+          resetCode: values.otp,
           newPassword: values.password,
         }),
       });
 
-      const result = await response.json();
-      if (!response.ok)
-        throw new Error(result.message || "Failed to reset password.");
+      const data = await response.json();
 
-      alert("Password reset successful! You can now log in.");
-      setStep(1); // Reset form
+      if (!response.ok) {
+        throw new Error(data.message || "Failed to reset password");
+      }
+
+      toast({
+        title: "Success",
+        description: "Your password has been reset successfully.",
+        variant: "default",
+      });
+
+      // Reset forms and state
+      setStep(1);
       requestForm.reset();
       resetForm.reset();
-    } catch (err) {
-      setError(err.message);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: (error as Error).message,
+        variant: "destructive",
+      });
     } finally {
       setIsLoading(false);
     }
@@ -143,7 +161,7 @@ export default function ResetPasswordForm() {
               )}
             />
 
-            {error && <p className="text-sm text-red-500">{error}</p>}
+            {/* {error && <p className="text-sm text-red-500">{error}</p>} */}
 
             <Button type="submit" className="w-full" disabled={isLoading}>
               {isLoading ? "Sending..." : "Send Reset Code"}
@@ -222,8 +240,6 @@ export default function ResetPasswordForm() {
                 </FormItem>
               )}
             />
-
-            {error && <p className="text-sm text-red-500">{error}</p>}
 
             <Button type="submit" className="w-full" disabled={isLoading}>
               {isLoading ? "Resetting..." : "Reset Password"}
