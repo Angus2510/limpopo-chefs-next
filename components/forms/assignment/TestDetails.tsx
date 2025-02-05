@@ -1,8 +1,13 @@
-import React from 'react';
-import { Control, Controller } from 'react-hook-form';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import React from "react";
+import { Control } from "react-hook-form";
+import { CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import {
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 
 interface TestDetailsProps {
   control: Control<any>;
@@ -25,17 +30,7 @@ const TestDetails: React.FC<TestDetailsProps> = ({ control }) => (
           </FormItem>
         )}
       />
-      <FormField
-        control={control}
-        name="description"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>Description</FormLabel>
-            <Input {...field} placeholder="Test Description" />
-            <FormMessage />
-          </FormItem>
-        )}
-      />
+
       <FormField
         control={control}
         name="type"
