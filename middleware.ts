@@ -103,6 +103,5 @@ export const config = {
     "/student/:path*",
     "/staff/:path*",
     "/guardian/:path*",
-    "!/api/:path*",
   ],
 };
