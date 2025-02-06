@@ -14,7 +14,7 @@ export async function getAllIntakeGroups() {
         title: true,
       },
     });
-  } catch (error) {
+  } catch {
     throw new Error("Failed to fetch intake groups");
   }
 }
@@ -27,7 +27,7 @@ export async function createIntakeGroup(title: string) {
         v: 1,
       },
     });
-  } catch (error) {
+  } catch {
     throw new Error("Failed to create intake group");
   }
 }
@@ -38,7 +38,7 @@ export async function updateIntakeGroup(id: string, title: string) {
       where: { id },
       data: { title },
     });
-  } catch (error) {
+  } catch {
     throw new Error("Failed to update intake group");
   }
 }
@@ -48,7 +48,7 @@ export async function deleteIntakeGroup(id: string) {
     return await prisma.intakegroups.delete({
       where: { id },
     });
-  } catch (error) {
+  } catch {
     throw new Error("Failed to delete intake group");
   }
 }

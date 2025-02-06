@@ -30,18 +30,6 @@ const TestDetails: React.FC<TestDetailsProps> = ({ control }) => (
           </FormItem>
         )}
       />
-
-      <FormField
-        control={control}
-        name="type"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>Type</FormLabel>
-            <Input {...field} placeholder="Test Type" />
-            <FormMessage />
-          </FormItem>
-        )}
-      />
     </CardContent>
   </div>
 );

@@ -25,11 +25,45 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+} from "@/components/ui/command";
+import { Badge } from "@/components/ui/badge";
+import { X } from "lucide-react";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Input } from "@/components/ui/input";
 
 import DatePicker from "@/components/common/DatePicker";
-import { AssignmentService } from "@/utils/assignmentServices"; // Import the service
+import { AssignmentService } from "@/utils/assignmentServices";
 
-const assignmentService = new AssignmentService(); // Instantiate service
+const assignmentService = new AssignmentService();
+
+const ASSIGNMENT_TYPES = {
+  TEST: "test",
+  TASK: "task",
+} as const;
+
+type AssignmentType = (typeof ASSIGNMENT_TYPES)[keyof typeof ASSIGNMENT_TYPES];
+
+// Create an array of hours for the dropdown (0-24)
+const HOURS_OPTIONS = Array.from({ length: 25 }, (_, i) => ({
+  value: i.toString(),
+  label: i === 1 ? "1 hour" : `${i} hours`,
+}));
+
+// Create an array of minutes for the dropdown (0-59)
+const MINUTES_OPTIONS = Array.from({ length: 60 }, (_, i) => ({
+  value: i.toString(),
+  label: i === 1 ? "1 minute" : `${i} minutes`,
+}));
 
 interface IntakeGroup {
   id: string;
@@ -53,26 +87,21 @@ const TestCreationForm: React.FC<TestCreationFormProps> = ({
   intakeGroups,
   outcomes,
 }) => {
-  console.log("Rendering TestCreationForm Component");
-
   const form = useForm({
     resolver: zodResolver(testFormSchema),
     defaultValues: {
       title: "",
-      type: "",
-      intakeGroup: "",
-      outcome: "",
+      type: ASSIGNMENT_TYPES.TEST, // Default to test
+      intakeGroups: [],
+      outcomes: [],
       duration: {
-        hours: 0,
-        minutes: 0,
-        seconds: 0,
+        hours: "1", // Default to 1 hour
+        minutes: "0", // Default to 0 minutes
       },
       testDateTime: undefined,
       questions: [],
     },
   });
-
-  console.log("Form initialized with default values:", form.getValues());
 
   const { toast } = useToast();
   const { control, handleSubmit, reset, setValue, watch } = form;
@@ -92,52 +121,43 @@ const TestCreationForm: React.FC<TestCreationFormProps> = ({
     correctAnswer: "",
   });
 
-  // Watch for changes
-  console.log("Current Intake Group:", watch("intakeGroup"));
-  console.log("Current Outcome:", watch("outcome"));
-  console.log("Current Test DateTime:", watch("testDateTime"));
+  // Watch for changes in fields
+  const selectedIntakeGroups = watch("intakeGroups") || [];
+  const selectedOutcomes = watch("outcomes") || [];
+  const selectedType = watch("type");
+  const duration = watch("duration");
 
   const onSubmit = async (data: any) => {
-    console.log("Submitting form with data:", data);
-
-    const totalSeconds =
-      data.duration.hours * 3600 +
-      data.duration.minutes * 60 +
-      data.duration.seconds;
+    // Convert duration to total minutes for API
+    const totalMinutes =
+      parseInt(data.duration.hours) * 60 + parseInt(data.duration.minutes);
 
     const formData = {
       title: data.title,
       type: data.type,
-      duration: totalSeconds,
+      duration: totalMinutes,
       availableFrom: new Date(data.testDateTime),
-      availableUntil: null, // You can modify this if needed
-      campus: [], // Assuming this needs to be handled dynamically
-      intakeGroups: [data.intakeGroup],
-      individualStudents: [], // Modify as necessary
-      outcome: data.outcome,
-      lecturer: "", // Assign appropriate lecturer ID
+      availableUntil: null,
+      campus: [],
+      intakeGroups: data.intakeGroups,
+      individualStudents: [],
+      outcomes: data.outcomes,
+      lecturer: "",
       questions: data.questions,
     };
 
-    console.log("Final formData before submission:", formData);
-
     try {
       await assignmentService.createAssignment(formData);
-
-      console.log("Assignment created successfully!");
       toast({
         title: "Success",
         description: "Assignment created successfully",
       });
-
       reset();
       setNewQuestion({
         questionText: "",
         questionType: "short-answer",
         correctAnswer: "",
       });
-
-      console.log("Form reset after submission");
     } catch (error) {
       console.error("Error during form submission:", error);
       toast({
@@ -148,17 +168,18 @@ const TestCreationForm: React.FC<TestCreationFormProps> = ({
     }
   };
 
+  const removeSelected = (field: string, value: string) => {
+    const currentValues = watch(field) || [];
+    setValue(
+      field,
+      currentValues.filter((v: string) => v !== value)
+    );
+  };
+
   return (
     <Card>
       <Form {...form}>
-        <form
-          onSubmit={(e) => {
-            console.log("Form submit event triggered");
-            e.preventDefault();
-            handleSubmit(onSubmit)();
-          }}
-          className="space-y-6"
-        >
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
           <CardHeader>
             <CardTitle className="w-full">Test Configuration</CardTitle>
           </CardHeader>
@@ -167,67 +188,239 @@ const TestCreationForm: React.FC<TestCreationFormProps> = ({
               <TestDetails control={control} />
             </div>
 
-            {/* Intake Group Selection */}
+            {/* Assignment Type Selection */}
             <FormField
               control={control}
-              name="intakeGroup"
+              name="type"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Intake Group</FormLabel>
-                  <FormControl>
-                    <Select
-                      value={field.value}
-                      onValueChange={(value) => {
-                        console.log("Intake Group changed to:", value);
-                        setValue("intakeGroup", value);
-                      }}
-                    >
+                  <FormLabel>Assignment Type</FormLabel>
+                  <Select
+                    onValueChange={field.onChange}
+                    defaultValue={field.value}
+                  >
+                    <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="Select Intake Group" />
+                        <SelectValue placeholder="Select type" />
                       </SelectTrigger>
-                      <SelectContent>
-                        {intakeGroups.map((group) => (
-                          <SelectItem key={group.id} value={group.id}>
-                            {group.title}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </FormControl>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value={ASSIGNMENT_TYPES.TEST}>
+                        Test
+                      </SelectItem>
+                      <SelectItem value={ASSIGNMENT_TYPES.TASK}>
+                        Task
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}
             />
 
-            {/* Outcome Selection */}
-            <FormField
-              control={control}
-              name="outcome"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Overall Outcome</FormLabel>
-                  <FormControl>
-                    <Select
-                      value={field.value}
-                      onValueChange={(value) => {
-                        console.log("Outcome changed to:", value);
-                        setValue("outcome", value);
-                      }}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select Outcome" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {outcomes
-                          .filter((outcome) => !outcome.hidden)
-                          .map((outcome) => (
-                            <SelectItem key={outcome.id} value={outcome.id}>
-                              {outcome.title}
+            {/* Duration Controls */}
+            <div className="flex flex-col space-y-2">
+              <FormLabel>Time Limit</FormLabel>
+              <div className="flex space-x-2">
+                <FormField
+                  control={control}
+                  name="duration.hours"
+                  render={({ field }) => (
+                    <FormItem className="flex-1">
+                      <Select
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Hours" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {HOURS_OPTIONS.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
                             </SelectItem>
                           ))}
-                      </SelectContent>
-                    </Select>
-                  </FormControl>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={control}
+                  name="duration.minutes"
+                  render={({ field }) => (
+                    <FormItem className="flex-1">
+                      <Select
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Minutes" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {MINUTES_OPTIONS.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </div>
+
+            {/* Multi-select Intake Groups */}
+            <FormField
+              control={control}
+              name="intakeGroups"
+              render={({ field }) => (
+                <FormItem className="flex flex-col">
+                  <FormLabel>Intake Groups</FormLabel>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <FormControl>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          className={`w-full justify-between ${
+                            !field.value?.length && "text-muted-foreground"
+                          }`}
+                        >
+                          {field.value?.length > 0
+                            ? `${field.value.length} groups selected`
+                            : "Select intake groups"}
+                        </Button>
+                      </FormControl>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-full p-0">
+                      <Command>
+                        <CommandInput placeholder="Search intake groups..." />
+                        <CommandEmpty>No intake group found.</CommandEmpty>
+                        <CommandGroup>
+                          {intakeGroups.map((group) => (
+                            <CommandItem
+                              key={group.id}
+                              onSelect={() => {
+                                const current = field.value || [];
+                                const updated = current.includes(group.id)
+                                  ? current.filter(
+                                      (id: string) => id !== group.id
+                                    )
+                                  : [...current, group.id];
+                                setValue("intakeGroups", updated);
+                              }}
+                            >
+                              {group.title}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {selectedIntakeGroups.map((groupId: string) => {
+                      const group = intakeGroups.find((g) => g.id === groupId);
+                      return (
+                        <Badge
+                          key={groupId}
+                          variant="secondary"
+                          className="flex items-center gap-1"
+                        >
+                          {group?.title}
+                          <X
+                            className="h-3 w-3 cursor-pointer"
+                            onClick={() =>
+                              removeSelected("intakeGroups", groupId)
+                            }
+                          />
+                        </Badge>
+                      );
+                    })}
+                  </div>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* Multi-select Outcomes */}
+            <FormField
+              control={control}
+              name="outcomes"
+              render={({ field }) => (
+                <FormItem className="flex flex-col">
+                  <FormLabel>Outcomes</FormLabel>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <FormControl>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          className={`w-full justify-between ${
+                            !field.value?.length && "text-muted-foreground"
+                          }`}
+                        >
+                          {field.value?.length > 0
+                            ? `${field.value.length} outcomes selected`
+                            : "Select outcomes"}
+                        </Button>
+                      </FormControl>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-full p-0">
+                      <Command>
+                        <CommandInput placeholder="Search outcomes..." />
+                        <CommandEmpty>No outcome found.</CommandEmpty>
+                        <CommandGroup>
+                          {outcomes
+                            .filter((outcome) => !outcome.hidden)
+                            .map((outcome) => (
+                              <CommandItem
+                                key={outcome.id}
+                                onSelect={() => {
+                                  const current = field.value || [];
+                                  const updated = current.includes(outcome.id)
+                                    ? current.filter(
+                                        (id: string) => id !== outcome.id
+                                      )
+                                    : [...current, outcome.id];
+                                  setValue("outcomes", updated);
+                                }}
+                              >
+                                {outcome.title}
+                              </CommandItem>
+                            ))}
+                        </CommandGroup>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {selectedOutcomes.map((outcomeId: string) => {
+                      const outcome = outcomes.find((o) => o.id === outcomeId);
+                      return (
+                        <Badge
+                          key={outcomeId}
+                          variant="secondary"
+                          className="flex items-center gap-1"
+                        >
+                          {outcome?.title}
+                          <X
+                            className="h-3 w-3 cursor-pointer"
+                            onClick={() =>
+                              removeSelected("outcomes", outcomeId)
+                            }
+                          />
+                        </Badge>
+                      );
+                    })}
+                  </div>
                   <FormMessage />
                 </FormItem>
               )}
@@ -252,31 +445,20 @@ const TestCreationForm: React.FC<TestCreationFormProps> = ({
             />
           </CardContent>
 
-          {/* Question Management */}
           <AddQuestion
             newQuestion={newQuestion}
             setNewQuestion={setNewQuestion}
-            addQuestion={(question) => {
-              console.log("Adding question:", question);
-              addQuestion(question);
-            }}
+            addQuestion={addQuestion}
             toast={toast}
           />
           <QuestionsList
             questionFields={questionFields}
-            removeQuestion={(index) => {
-              console.log("Removing question at index:", index);
-              removeQuestion(index);
-            }}
+            removeQuestion={removeQuestion}
           />
 
           <div className="flex justify-end px-5 py-5">
-            <Button
-              type="submit"
-              className="w-auto"
-              onClick={() => console.log("Submit button clicked")}
-            >
-              Save Test
+            <Button type="submit" className="w-auto">
+              Save {selectedType === ASSIGNMENT_TYPES.TEST ? "Test" : "Task"}
             </Button>
           </div>
         </form>
