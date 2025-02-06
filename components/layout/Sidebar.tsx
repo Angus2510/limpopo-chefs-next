@@ -8,42 +8,18 @@ import { Button } from "@/components/ui/button";
 import { Menu } from "@/components/layout/menu";
 import { useSidebarToggle } from "@/hooks/use-sidebar-toggle";
 import { SidebarToggle } from "@/components/layout/sidebar-toggle";
-import { useTheme } from "next-themes"; // Add this import
-import { useState, useEffect } from "react"; // Add these imports
 
 export function Sidebar() {
   const sidebar = useStore(useSidebarToggle, (state) => state);
-  const { resolvedTheme } = useTheme(); // Get current theme
-  const [mounted, setMounted] = useState(false); // Prevent hydration issues
 
-  // Ensure component is mounted client-side
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  // Logo selection logic
-  const getLogoSrc = () => {
-    // Define logo paths based on theme and sidebar state
-    const logos = {
-      light: {
-        open: "/img/logo.png",
-        closed: "/img/logo-normal-simple.png",
-      },
-      dark: {
-        open: "/img/logo-light.png",
-        closed: "/img/logo-white-simple.png",
-      },
-    };
-
-    // Default fallback
-    if (!mounted || !resolvedTheme) {
-      return "/img/logo-default.png";
-    }
-
-    // Select logo based on theme and sidebar state
-    const themeLogos = logos[resolvedTheme as "light" | "dark"];
-    return sidebar?.isOpen ? themeLogos.open : themeLogos.closed;
+  // Define logo paths for the light theme only
+  const lightLogos = {
+    open: "/img/logo.png",
+    closed: "/img/logo-normal-simple.png",
   };
+
+  // Select logo based on sidebar state
+  const logoSrc = sidebar?.isOpen ? lightLogos.open : lightLogos.closed;
 
   if (!sidebar) return null;
 
@@ -67,8 +43,8 @@ export function Sidebar() {
         >
           <Link href="/dashboard" className="flex items-center gap-2">
             <Image
-              src={getLogoSrc()}
-              alt="Adaptive Logo"
+              src={logoSrc}
+              alt="Logo"
               width={sidebar?.isOpen ? 150 : 50} // Responsive width
               height={50}
               priority // Important for faster loading

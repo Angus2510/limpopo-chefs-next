@@ -1,3 +1,4 @@
+"use server";
 import prisma from "@/lib/db"; // ✅ Use the existing Prisma client
 
 // Define our types for better type safety
