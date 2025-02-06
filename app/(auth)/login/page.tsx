@@ -23,7 +23,7 @@ export default function LoginPage() {
           Forgot Password?
         </Link>
         <Image
-          src="/img/auth/sponsors.jpg"
+          src="/img/auth/sponsors-new.png"
           alt="Sponsors"
           width="350"
           height="350"
@@ -32,13 +32,13 @@ export default function LoginPage() {
       </div>
 
       {/* Right section: Background image or illustration */}
-      <div className="hidden lg:block w-1/2">
+      <div className="hidden lg:block w-2/3 rounded-bl-full overflow-hidden">
         <Image
           src="/img/auth/auth.jpg"
           alt="Auth background"
           width="1000"
           height="1000"
-          className="h-full w-full object-cover"
+          className="h-full w-full object-cover "
         />
       </div>
     </div>
