@@ -63,7 +63,7 @@ const NewStudentForm: React.FC<NewStudentFormProps> = ({
   const form = useForm({
     resolver: zodResolver(studentFormSchema),
     defaultValues: {
-      admissionNumber: "",
+      studentNumber: "",
       cityAndGuildNumber: "",
       intakeGroup: "",
       campus: "",
@@ -178,12 +178,12 @@ const NewStudentForm: React.FC<NewStudentFormProps> = ({
             <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
-                name="admissionNumber"
+                name="studentNumber"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Admission Number</FormLabel>
+                    <FormLabel>Student Number</FormLabel>
                     <FormControl>
-                      <Input {...field} placeholder="Admission Number" />
+                      <Input {...field} placeholder="Student Number" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
