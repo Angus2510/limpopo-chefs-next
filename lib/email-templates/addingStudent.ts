@@ -8,7 +8,7 @@ export const studentCreationTemplate = (
       <h2>Welcome to Limpopo Chefs Academy, ${studentName}!</h2>
       <p>Your student account has been created successfully. Below are your login details:</p>
       <ul>
-        <li><strong>Username:</strong> ${username}</li>
+        <li><strong>Student Number:</strong> ${username}</li>
         <li><strong>Password:</strong> ${password}</li>
       </ul>
       <p>Please log in and change your password as soon as possible.</p>

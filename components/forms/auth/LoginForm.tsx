@@ -122,11 +122,11 @@ export default function LoginForm() {
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
       <div>
-        <Label htmlFor="identifier">Email or Username</Label>
+        <Label htmlFor="identifier">Student Number</Label>
         <Input
           id="identifier"
           type="text"
-          placeholder="Email or Username"
+          placeholder="Student Number"
           {...register("identifier")}
           className="mt-1"
         />
