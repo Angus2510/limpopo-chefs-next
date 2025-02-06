@@ -2,7 +2,7 @@
 import { z } from "zod";
 
 export const studentFormSchema = z.object({
-  studentNumber: z.string().nonempty("Admission Number is required"),
+  admissionNumber: z.string().nonempty("Admission Number is required"),
   cityAndGuildNumber: z.string().optional(),
   intakeGroup: z.string().nonempty("Intake Group is required"),
   campus: z.string().nonempty("Campus is required"),

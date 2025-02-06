@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import DatePicker from "@/components/common/DatePicker";
 import { createStudent } from "@/lib/actions/student/addStudent";
-
+import { Separator } from "@/components/ui/separator";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/components/ui/use-toast";
 import {
@@ -63,7 +63,7 @@ const NewStudentForm: React.FC<NewStudentFormProps> = ({
   const form = useForm({
     resolver: zodResolver(studentFormSchema),
     defaultValues: {
-      studentNumber: "",
+      admissionNumber: "",
       cityAndGuildNumber: "",
       intakeGroup: "",
       campus: "",
@@ -178,7 +178,7 @@ const NewStudentForm: React.FC<NewStudentFormProps> = ({
             <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
-                name="studentNumber"
+                name="admissionNumber"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Student Number</FormLabel>
