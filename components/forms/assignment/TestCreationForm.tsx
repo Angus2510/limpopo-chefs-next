@@ -25,10 +25,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
-import DatePicker from "@/components/common/DatePicker";
 
-// Updated interfaces to match Prisma models
+import DatePicker from "@/components/common/DatePicker";
+import { AssignmentService } from "@/utils/assignmentServices"; // Import the service
+
+const assignmentService = new AssignmentService(); // Instantiate service
+
 interface IntakeGroup {
   id: string;
   title: string;
@@ -51,11 +53,12 @@ const TestCreationForm: React.FC<TestCreationFormProps> = ({
   intakeGroups,
   outcomes,
 }) => {
+  console.log("Rendering TestCreationForm Component");
+
   const form = useForm({
     resolver: zodResolver(testFormSchema),
     defaultValues: {
       title: "",
-
       type: "",
       intakeGroup: "",
       outcome: "",
@@ -69,20 +72,11 @@ const TestCreationForm: React.FC<TestCreationFormProps> = ({
     },
   });
 
+  console.log("Form initialized with default values:", form.getValues());
+
   const { toast } = useToast();
-  const { control, handleSubmit, reset } = form;
+  const { control, handleSubmit, reset, setValue, watch } = form;
 
-  // Handle intake group change
-  const onChangeIntakeGroup = (value: string) => {
-    form.setValue("intakeGroup", value);
-  };
-
-  // Handle outcome change
-  const onChangeOutcome = (value: string) => {
-    form.setValue("outcome", value);
-  };
-
-  // Rest of the component logic...
   const {
     fields: questionFields,
     append: addQuestion,
@@ -98,222 +92,190 @@ const TestCreationForm: React.FC<TestCreationFormProps> = ({
     correctAnswer: "",
   });
 
+  // Watch for changes
+  console.log("Current Intake Group:", watch("intakeGroup"));
+  console.log("Current Outcome:", watch("outcome"));
+  console.log("Current Test DateTime:", watch("testDateTime"));
+
   const onSubmit = async (data: any) => {
+    console.log("Submitting form with data:", data);
+
     const totalSeconds =
       data.duration.hours * 3600 +
       data.duration.minutes * 60 +
       data.duration.seconds;
 
     const formData = {
-      ...data,
+      title: data.title,
+      type: data.type,
       duration: totalSeconds,
-      testDateTime: data.testDateTime?.toISOString(),
+      availableFrom: new Date(data.testDateTime),
+      availableUntil: null, // You can modify this if needed
+      campus: [], // Assuming this needs to be handled dynamically
+      intakeGroups: [data.intakeGroup],
+      individualStudents: [], // Modify as necessary
+      outcome: data.outcome,
+      lecturer: "", // Assign appropriate lecturer ID
+      questions: data.questions,
     };
 
+    console.log("Final formData before submission:", formData);
+
     try {
+      await assignmentService.createAssignment(formData);
+
+      console.log("Assignment created successfully!");
       toast({
-        title: "Test created successfully",
+        title: "Success",
+        description: "Assignment created successfully",
       });
+
       reset();
       setNewQuestion({
         questionText: "",
         questionType: "short-answer",
         correctAnswer: "",
       });
+
+      console.log("Form reset after submission");
     } catch (error) {
       console.error("Error during form submission:", error);
       toast({
-        title: "Failed to create test",
-        description: "There was an error processing your request.",
+        title: "Error",
+        description: "Failed to create assignment",
+        variant: "destructive",
       });
     }
   };
 
-  // Filter out hidden outcomes
-  const visibleOutcomes = outcomes.filter((outcome) => !outcome.hidden);
-
   return (
     <Card>
       <Form {...form}>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-          <div className="space-y-4">
-            <CardHeader>
-              <CardTitle className="w-full">Test Configuration</CardTitle>
-            </CardHeader>
-            <CardContent className="grid grid-cols-2 sm:grid-cols-2 gap-4">
-              <div className="col-span-2 ">
-                <TestDetails control={control} />
-              </div>
+        <form
+          onSubmit={(e) => {
+            console.log("Form submit event triggered");
+            e.preventDefault();
+            handleSubmit(onSubmit)();
+          }}
+          className="space-y-6"
+        >
+          <CardHeader>
+            <CardTitle className="w-full">Test Configuration</CardTitle>
+          </CardHeader>
+          <CardContent className="grid grid-cols-2 sm:grid-cols-2 gap-4">
+            <div className="col-span-2">
+              <TestDetails control={control} />
+            </div>
 
-              {/* Intake Group Selection */}
-              <FormField
-                control={control}
-                name="intakeGroup"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Intake Group</FormLabel>
-                    <FormControl>
-                      <Select
-                        value={field.value}
-                        onValueChange={onChangeIntakeGroup}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select Intake Group" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {intakeGroups.map((group) => (
-                            <SelectItem key={group.id} value={group.id}>
-                              {group.title}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+            {/* Intake Group Selection */}
+            <FormField
+              control={control}
+              name="intakeGroup"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Intake Group</FormLabel>
+                  <FormControl>
+                    <Select
+                      value={field.value}
+                      onValueChange={(value) => {
+                        console.log("Intake Group changed to:", value);
+                        setValue("intakeGroup", value);
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select Intake Group" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {intakeGroups.map((group) => (
+                          <SelectItem key={group.id} value={group.id}>
+                            {group.title}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-              {/* Outcome Selection */}
-              <FormField
-                control={control}
-                name="outcome"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Overall Outcome</FormLabel>
-                    <FormControl>
-                      <Select
-                        value={field.value}
-                        onValueChange={onChangeOutcome}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select Outcome" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {visibleOutcomes.map((outcome) => (
+            {/* Outcome Selection */}
+            <FormField
+              control={control}
+              name="outcome"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Overall Outcome</FormLabel>
+                  <FormControl>
+                    <Select
+                      value={field.value}
+                      onValueChange={(value) => {
+                        console.log("Outcome changed to:", value);
+                        setValue("outcome", value);
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select Outcome" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {outcomes
+                          .filter((outcome) => !outcome.hidden)
+                          .map((outcome) => (
                             <SelectItem key={outcome.id} value={outcome.id}>
                               {outcome.title}
                             </SelectItem>
                           ))}
-                        </SelectContent>
-                      </Select>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              {/* Test Duration */}
-              <div className="sm:col-span-2">
-                <FormLabel>Test Duration</FormLabel>
-                <div className="grid grid-cols-3 gap-4">
-                  <FormField
-                    control={control}
-                    name="duration.hours"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormControl>
-                          <Input
-                            {...field}
-                            type="number"
-                            min="0"
-                            placeholder="Hours"
-                            onChange={(e) =>
-                              setValue(
-                                "duration.hours",
-                                parseInt(e.target.value) || 0
-                              )
-                            }
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={control}
-                    name="duration.minutes"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormControl>
-                          <Input
-                            {...field}
-                            type="number"
-                            min="0"
-                            max="59"
-                            placeholder="Minutes"
-                            onChange={(e) =>
-                              setValue(
-                                "duration.minutes",
-                                parseInt(e.target.value) || 0
-                              )
-                            }
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={control}
-                    name="duration.seconds"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormControl>
-                          <Input
-                            {...field}
-                            type="number"
-                            min="0"
-                            max="59"
-                            placeholder="Seconds"
-                            onChange={(e) =>
-                              setValue(
-                                "duration.seconds",
-                                parseInt(e.target.value) || 0
-                              )
-                            }
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-              </div>
+                      </SelectContent>
+                    </Select>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-              {/* Test Date and Time */}
-              <FormField
-                control={control}
-                name="testDateTime"
-                render={({ field }) => (
-                  <FormItem className="sm:col-span-2">
-                    <FormLabel>Test Date and Time</FormLabel>
-                    <DatePicker
-                      control={control}
-                      name="testDateTime"
-                      label="Test Date and Time"
-                      showTime={true}
-                    />
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </CardContent>
-          </div>
+            {/* Test Date and Time */}
+            <FormField
+              control={control}
+              name="testDateTime"
+              render={({ field }) => (
+                <FormItem className="sm:col-span-2">
+                  <FormLabel>Test Date and Time</FormLabel>
+                  <DatePicker
+                    control={control}
+                    name="testDateTime"
+                    label="Test Date and Time"
+                    showTime={true}
+                  />
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </CardContent>
 
+          {/* Question Management */}
           <AddQuestion
             newQuestion={newQuestion}
             setNewQuestion={setNewQuestion}
-            addQuestion={addQuestion}
+            addQuestion={(question) => {
+              console.log("Adding question:", question);
+              addQuestion(question);
+            }}
             toast={toast}
           />
-
           <QuestionsList
             questionFields={questionFields}
-            removeQuestion={removeQuestion}
+            removeQuestion={(index) => {
+              console.log("Removing question at index:", index);
+              removeQuestion(index);
+            }}
           />
 
           <div className="flex justify-end px-5 py-5">
-            <Button type="submit" className="w-auto">
+            <Button
+              type="submit"
+              className="w-auto"
+              onClick={() => console.log("Submit button clicked")}
+            >
               Save Test
             </Button>
           </div>
