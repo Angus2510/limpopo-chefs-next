@@ -32,7 +32,7 @@ export default function LoginPage() {
       </div>
 
       {/* Right section: Background image or illustration */}
-      <div className="hidden lg:block w-2/3 rounded-bl-full overflow-hidden">
+      <div className="hidden lg:block w-2/3 rounded-bl-[250px] overflow-hidden">
         <Image
           src="/img/auth/auth.jpg"
           alt="Auth background"
