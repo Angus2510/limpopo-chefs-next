@@ -1,22 +1,26 @@
-import EditStudentForm from '@/components/forms/student/editStudent';
+import EditStudentForm from "@/components/forms/student/editStudent";
 import { ContentLayout } from "@/components/layout/content-layout";
-import { getAllIntakeGroups } from '@/lib/actions/intakegroup/intakeGroups';
-import { getAllCampuses } from '@/lib/actions/campus/campuses';
-import { getAllQualifications } from '@/lib/actions/qualification/action';
-import { getAllAccommodations } from '@/lib/actions/accommodation/action';
-import prisma from '@/lib/db';
+import { getAllIntakeGroups } from "@/lib/actions/intakegroup/intakeGroups";
+import { getAllCampuses } from "@/lib/actions/campus/campuses";
+import { getAllQualifications } from "@/lib/actions/qualification/action";
+import { getAllAccommodations } from "@/lib/actions/accommodation/action";
+import prisma from "@/lib/db";
 
 interface EditStudentPageParams {
   id: string;
 }
 
-export default async function EditStudentPage({ params }: { params: EditStudentPageParams }) {
+export default async function EditStudentPage({
+  params,
+}: {
+  params: EditStudentPageParams;
+}) {
   const intakeGroups = await getAllIntakeGroups();
   const campuses = await getAllCampuses();
   const qualifications = await getAllQualifications();
   const accommodations = await getAllAccommodations();
 
-  const student = await prisma.student.findUnique({
+  const student = await prisma.students.findUnique({
     where: { id: params.id },
     include: { profile: true },
   });
@@ -26,7 +30,7 @@ export default async function EditStudentPage({ params }: { params: EditStudentP
   }
 
   // Fetch guardians separately
-  const guardians = await prisma.guardian.findMany({
+  const guardians = await prisma.guardians.findMany({
     where: {
       id: {
         in: student.guardians,
@@ -40,7 +44,7 @@ export default async function EditStudentPage({ params }: { params: EditStudentP
         student={student}
         intakeGroups={intakeGroups}
         campuses={campuses}
-        qualifications={qualifications} 
+        qualifications={qualifications}
         accommodations={accommodations}
         guardians={guardians}
       />
