@@ -4,7 +4,7 @@ import { jwtDecode } from "jwt-decode";
 import prisma from "@/lib/db";
 import useAuthStore from "@/store/authStore"; // Adjust this import according to your project structure
 
-export async function fetchStudentData() {
+export async function fetchStudentData(studentId?: string) {
   try {
     // Retrieve token from both cookies and the auth store
     const tokenFromStore = useAuthStore.getState().getToken(); // From auth store
@@ -26,13 +26,22 @@ export async function fetchStudentData() {
       throw new Error("Token expired");
     }
 
-    if (decoded.userType !== "Student") {
+    // Allow **only Staff and Student** roles
+    if (!["Student", "Staff"].includes(decoded.userType)) {
       throw new Error("Unauthorized access");
+    }
+
+    // Determine student ID based on the user type:
+    const targetStudentId =
+      decoded.userType === "Student" ? decoded.id : studentId;
+
+    if (!targetStudentId) {
+      throw new Error("Student ID is required for staff members");
     }
 
     // Query the database directly using Prisma
     const student = await prisma.students.findUnique({
-      where: { id: decoded.id },
+      where: { id: targetStudentId },
       include: { profile: true }, // Adjust as necessary
     });
 
@@ -50,12 +59,12 @@ export async function fetchStudentData() {
       documents,
     ] = await Promise.all([
       prisma.studentwelrecords.findMany({
-        where: { student: decoded.id },
+        where: { student: targetStudentId },
       }),
       prisma.results.findMany({
         where: {
           participants: {
-            has: decoded.id,
+            has: targetStudentId,
           },
         },
       }),
@@ -69,18 +78,18 @@ export async function fetchStudentData() {
       prisma.events.findMany({
         where: {
           assignedTo: {
-            has: decoded.id,
+            has: targetStudentId,
           },
         },
       }),
       prisma.finances.findFirst({
         where: {
-          student: decoded.id,
+          student: targetStudentId,
         },
       }),
       prisma.generaldocuments.findMany({
         where: {
-          student: decoded.id,
+          student: targetStudentId,
         },
       }),
     ]);

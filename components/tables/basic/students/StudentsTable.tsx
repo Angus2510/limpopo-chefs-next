@@ -77,7 +77,7 @@ const columns = (
     cell: ({ row }) => {
       const student = row.original;
       const viewStudent = () => {
-        router.push(`/admin/student/${student.id}`);
+        router.push(`/admin/student/studentView/${student.id}`);
       };
       const editStudent = () => {
         router.push(`/admin/student/edit/${student.id}`);
