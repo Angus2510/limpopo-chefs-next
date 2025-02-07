@@ -104,7 +104,11 @@ export async function fetchStudentData(studentId?: string) {
       documents,
     };
   } catch (error) {
-    console.error("Error fetching student data:", error.message);
+    if (error instanceof Error) {
+      console.error("Error fetching student data:", error.message);
+    } else {
+      console.error("Error fetching student data:", error);
+    }
     throw error; // Rethrow to be handled by calling code
   }
 }

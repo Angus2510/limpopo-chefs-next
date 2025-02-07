@@ -3,7 +3,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import Image from "next/image";
-import fetchStudentData from "@/lib/actions/student/fetchStudentData";
 
 const StudentView = ({
   student,
@@ -20,7 +19,7 @@ const StudentView = ({
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <div className="space-y-1">
             <CardTitle className="text-2xl font-bold">
-              {student.profile.firstName} {student.profile.lastName}
+              {student.firstName} {student.lastName}
             </CardTitle>
             <div className="flex space-x-2">
               <Badge variant="outline">{student.admissionNumber}</Badge>
@@ -29,9 +28,9 @@ const StudentView = ({
               </Badge>
             </div>
           </div>
-          {student.profile.avatar && (
+          {student.avatar && (
             <Image
-              src={student.profile.avatar}
+              src={student.avatar}
               alt="Student"
               className="w-20 h-20 rounded-full"
             />
@@ -58,11 +57,11 @@ const StudentView = ({
                 <h3 className="font-semibold">Personal Information</h3>
                 <div className="grid grid-cols-2 gap-2">
                   <span className="text-gray-500">Date of Birth:</span>
-                  <span>{student.profile.dateOfBirth}</span>
+                  <span>{student.dateOfBirth}</span>
                   <span className="text-gray-500">Gender:</span>
-                  <span>{student.profile.gender}</span>
+                  <span>{student.gender}</span>
                   <span className="text-gray-500">Mobile:</span>
-                  <span>{student.profile.mobileNumber}</span>
+                  <span>{student.mobileNumber}</span>
                   <span className="text-gray-500">Email:</span>
                   <span>{student.email}</span>
                 </div>
@@ -72,11 +71,11 @@ const StudentView = ({
                 <h3 className="font-semibold">Academic Information</h3>
                 <div className="grid grid-cols-2 gap-2">
                   <span className="text-gray-500">Admission Date:</span>
-                  <span>{student.profile.admissionDate}</span>
+                  <span>{student.admissionDate}</span>
                   <span className="text-gray-500">Campus:</span>
-                  <span>{student.campus.join(", ")}</span>
+                  <span>{student.campus}</span>
                   <span className="text-gray-500">Intake Groups:</span>
-                  <span>{student.intakeGroup.join(", ")}</span>
+                  <span>{student.intakeGroup}</span>
                 </div>
               </div>
             </CardContent>
