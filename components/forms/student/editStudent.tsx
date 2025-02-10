@@ -1,21 +1,17 @@
-'use client';
+"use client";
 
-import React from 'react';
-import { useForm, useFieldArray } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { editStudentFormSchema } from '@/schemas/student/editStudentFormSchema';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import DatePicker from '@/components/common/DatePicker';
-import { updateStudent } from '@/lib/actions/student/editStudent';
-import { Separator } from "@/components/ui/separator";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+import React, { useState } from "react";
+import { useForm, useFieldArray } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { editStudentFormSchema } from "@/schemas/student/editStudentFormSchema";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import DatePicker from "@/components/common/DatePicker";
+import Image from "next/image";
+import { updateStudent } from "@/lib/actions/student/editStudent";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/components/ui/use-toast";
+import { Label } from "@/components/ui/label";
 import {
   Form,
   FormControl,
@@ -23,14 +19,14 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from '@/components/ui/form';
+} from "@/components/ui/form";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
+} from "@/components/ui/select";
 
 interface IntakeGroup {
   id: string;
@@ -61,50 +57,91 @@ interface EditStudentFormProps {
   guardians: any[];
 }
 
-const EditStudentForm: React.FC<EditStudentFormProps> = ({ student, intakeGroups, campuses, accommodations, qualifications, guardians }) => {
+const EditStudentForm: React.FC<EditStudentFormProps> = ({
+  student,
+  intakeGroups,
+  campuses,
+  accommodations,
+  qualifications,
+  guardians,
+}) => {
   const form = useForm({
     resolver: zodResolver(editStudentFormSchema),
     defaultValues: {
-      admissionNumber: student.admissionNumber || '',
-      cityAndGuildNumber: student.profile.cityAndGuildNumber || '',
-      intakeGroup: student.intakeGroup[0] || '',
-      campus: student.campus[0] || '',
-      qualification: student.qualification[0] || '',
-      accommodation: '',
-      admissionDate: student.profile.admissionDate ? new Date(student.profile.admissionDate) : undefined,
-      firstName: student.profile.firstName || '',
-      middleName: student.profile.middleName || '',
-      lastName: student.profile.lastName || '',
-      dateOfBirth: student.profile.dateOfBirth ? new Date(student.profile.dateOfBirth) : undefined,
-      idNumber: student.profile.idNumber || '',
-      email: student.email || '',
-      mobileNumber: student.profile.mobileNumber || '',
-      gender: student.profile.gender || '',
-      homeLanguage: student.profile.homeLanguage || '',
-      street1: student.profile.address?.street1 || '',
-      street2: student.profile.address?.street2 || '',
-      city: student.profile.address?.city || '',
-      province: student.profile.address?.province || '',
-      country: student.profile.address?.country || '',
-      postalCode: student.profile.address?.postalCode || '',
-      guardians: guardians.map(g => ({
-        id: g.id || '',
-        firstName: g.firstName || '',
-        lastName: g.lastName || '',
-        email: g.email || '',
-        phoneNumber: g.mobileNumber || '',
-        relation: g.relation || '',
+      admissionNumber: student.admissionNumber || "",
+      cityAndGuildNumber: student.profile.cityAndGuildNumber || "",
+      intakeGroup: student.intakeGroup[0] || "",
+      campus: student.campus[0] || "",
+      qualification: student.qualification[0] || "",
+      accommodation: student.accommodation || "",
+      admissionDate: student.profile.admissionDate
+        ? new Date(student.profile.admissionDate)
+        : undefined,
+      firstName: student.profile.firstName || "",
+      middleName: student.profile.middleName || "",
+      lastName: student.profile.lastName || "",
+      dateOfBirth: student.profile.dateOfBirth
+        ? new Date(student.profile.dateOfBirth)
+        : undefined,
+      idNumber: student.profile.idNumber || "",
+      email: student.email || "",
+      mobileNumber: student.profile.mobileNumber || "",
+      gender: student.profile.gender || "",
+      homeLanguage: student.profile.homeLanguage || "",
+      street1: student.profile.address?.street1 || "",
+      street2: student.profile.address?.street2 || "",
+      city: student.profile.address?.city || "",
+      province: student.profile.address?.province || "",
+      country: student.profile.address?.country || "",
+      postalCode: student.profile.address?.postalCode || "",
+      guardians: guardians.map((g) => ({
+        id: g.id || "",
+        firstName: g.firstName || "",
+        lastName: g.lastName || "",
+        email: g.email || "",
+        phoneNumber: g.mobileNumber || "",
+        relation: g.relation || "",
       })),
     },
   });
 
   const { toast } = useToast();
 
-  const { fields: guardianFields, append: addGuardian, remove: removeGuardian } = useFieldArray({
+  const {
+    fields: guardianFields,
+    append: addGuardian,
+    remove: removeGuardian,
+  } = useFieldArray({
     control: form.control,
-    name: 'guardians',
+    name: "guardians",
   });
 
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(
+    student.profile.avatar || null
+  );
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        toast({
+          title: "Error",
+          description: "Image size should be less than 5MB",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setAvatarPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+      form.setValue("avatar", file);
+    }
+  };
+
+  // Handlers for select fields
   const onChangeIntakeGroup = (value: string) => {
     form.setValue("intakeGroup", value);
   };
@@ -131,36 +168,42 @@ const EditStudentForm: React.FC<EditStudentFormProps> = ({ student, intakeGroups
 
     try {
       const formData = new FormData();
-      formData.append('id', student.id); // Add student ID to form data
-      Object.keys(data).forEach(key => {
-        if (typeof data[key] === 'object' && !Array.isArray(data[key])) {
-          Object.keys(data[key]).forEach(subKey => {
+      formData.append("id", student.id);
+
+      // Append avatar if it exists
+      if (data.avatar) {
+        formData.append("avatar", data.avatar);
+      }
+
+      Object.keys(data).forEach((key) => {
+        if (typeof data[key] === "object" && !Array.isArray(data[key])) {
+          Object.keys(data[key]).forEach((subKey) => {
             formData.append(`${key}.${subKey}`, data[key][subKey]);
           });
         } else if (Array.isArray(data[key])) {
           data[key].forEach((item, index) => {
-            Object.keys(item).forEach(subKey => {
+            Object.keys(item).forEach((subKey) => {
               formData.append(`${key}[${index}].${subKey}`, item[subKey]);
             });
-            formData.append(`${key}[${index}].id`, item.id); // Include guardian ID
+            formData.append(`${key}[${index}].id`, item.id);
           });
         } else {
           formData.append(key, data[key]);
         }
       });
 
-      console.log('FormData:', Array.from(formData.entries()));
       await updateStudent(formData);
       toast({
         title: "Student updated successfully",
-        description: "success",
+        description: "The student's details have been successfully updated.",
       });
       form.reset();
     } catch (error) {
-      console.error('Error during form submission:', error);
+      console.error("Error during form submission:", error);
       toast({
         title: "Failed to update student",
-        description: "error",
+        description: "There was an error updating the student's details.",
+        variant: "destructive",
       });
     }
   };
@@ -270,7 +313,10 @@ const EditStudentForm: React.FC<EditStudentFormProps> = ({ student, intakeGroups
                         </SelectTrigger>
                         <SelectContent>
                           {qualifications.map((qualification) => (
-                            <SelectItem key={qualification.id} value={qualification.id}>
+                            <SelectItem
+                              key={qualification.id}
+                              value={qualification.id}
+                            >
                               {qualification.title}
                             </SelectItem>
                           ))}
@@ -298,7 +344,10 @@ const EditStudentForm: React.FC<EditStudentFormProps> = ({ student, intakeGroups
                         <SelectContent>
                           <SelectItem value="none">No Accommodation</SelectItem>
                           {accommodations.map((accommodation) => (
-                            <SelectItem key={accommodation.id} value={accommodation.id}>
+                            <SelectItem
+                              key={accommodation.id}
+                              value={accommodation.id}
+                            >
                               {accommodation.title}
                             </SelectItem>
                           ))}
@@ -371,20 +420,20 @@ const EditStudentForm: React.FC<EditStudentFormProps> = ({ student, intakeGroups
                 )}
               />
               <FormField
-                  control={form.control}
-                  name="dateOfBirth"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Date of Birth</FormLabel>
-                      <DatePicker
-                        control={form.control}
-                        name="dateOfBirth"
-                        label="Date of Birth"
-                      />
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                control={form.control}
+                name="dateOfBirth"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Date of Birth</FormLabel>
+                    <DatePicker
+                      control={form.control}
+                      name="dateOfBirth"
+                      label="Date of Birth"
+                    />
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               <FormField
                 control={form.control}
                 name="idNumber"
@@ -437,7 +486,7 @@ const EditStudentForm: React.FC<EditStudentFormProps> = ({ student, intakeGroups
                   </FormItem>
                 )}
               />
-               <FormField
+              <FormField
                 control={form.control}
                 name="gender"
                 render={({ field }) => (
@@ -446,7 +495,9 @@ const EditStudentForm: React.FC<EditStudentFormProps> = ({ student, intakeGroups
                     <FormControl>
                       <Select
                         value={field.value}
-                        onValueChange={value => form.setValue('gender', value)}
+                        onValueChange={(value) =>
+                          form.setValue("gender", value)
+                        }
                       >
                         <SelectTrigger>
                           <SelectValue placeholder="Select Gender" />
@@ -463,6 +514,37 @@ const EditStudentForm: React.FC<EditStudentFormProps> = ({ student, intakeGroups
                 )}
               />
             </CardContent>
+            <div className="flex justify-center space-y-2">
+              <Label htmlFor="avatar">Profile Picture</Label>
+              <div className="flex items-center gap-4">
+                <div className="relative h-24 w-24 overflow-hidden rounded-full border-2 border-gray-200">
+                  {avatarPreview ? (
+                    <Image
+                      src={avatarPreview}
+                      alt="Avatar preview"
+                      layout="fill"
+                      className="object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center bg-gray-50">
+                      <span className="text-sm text-gray-400">No image</span>
+                    </div>
+                  )}
+                </div>
+                <div className="flex flex-col gap-2">
+                  <Input
+                    id="avatar"
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageChange}
+                    className="cursor-pointer"
+                  />
+                  <p className="text-xs text-gray-500">
+                    Max file size: 5MB. Supported formats: JPG, PNG, GIF
+                  </p>
+                </div>
+              </div>
+            </div>
           </div>
 
           <div className="space-y-4">
@@ -556,13 +638,14 @@ const EditStudentForm: React.FC<EditStudentFormProps> = ({ student, intakeGroups
               <CardTitle>Guardian Details</CardTitle>
             </CardHeader>
             {guardianFields.map((guardian, index) => (
-              <CardContent key={guardian.id} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <CardContent
+                key={guardian.id}
+                className="grid grid-cols-1 sm:grid-cols-2 gap-4"
+              >
                 <FormField
                   control={form.control}
                   name={`guardians.${index}.id`}
-                  render={({ field }) => (
-                    <input type="hidden" {...field} />
-                  )}
+                  render={({ field }) => <input type="hidden" {...field} />}
                 />
                 <FormField
                   control={form.control}
@@ -616,7 +699,7 @@ const EditStudentForm: React.FC<EditStudentFormProps> = ({ student, intakeGroups
                     </FormItem>
                   )}
                 />
-                 <FormField
+                <FormField
                   control={form.control}
                   name={`guardians.${index}.relation`}
                   render={({ field }) => (
@@ -625,7 +708,9 @@ const EditStudentForm: React.FC<EditStudentFormProps> = ({ student, intakeGroups
                       <FormControl>
                         <Select
                           value={field.value}
-                          onValueChange={value => form.setValue(`guardians.${index}.relation`, value)}
+                          onValueChange={(value) =>
+                            form.setValue(`guardians.${index}.relation`, value)
+                          }
                         >
                           <SelectTrigger>
                             <SelectValue placeholder="Select Relation" />
@@ -654,7 +739,19 @@ const EditStudentForm: React.FC<EditStudentFormProps> = ({ student, intakeGroups
               </CardContent>
             ))}
             <CardContent>
-              <Button type="button" onClick={() => addGuardian({ id: '', firstName: '', lastName: '', email: '', phoneNumber: '', relation: '' })}>
+              <Button
+                type="button"
+                onClick={() =>
+                  addGuardian({
+                    id: "",
+                    firstName: "",
+                    lastName: "",
+                    email: "",
+                    phoneNumber: "",
+                    relation: "",
+                  })
+                }
+              >
                 Add Guardian
               </Button>
             </CardContent>

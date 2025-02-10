@@ -6,6 +6,7 @@ export interface User {
   lastName: string;
   userType: UserType;
   avatar?: string;
+  email: string;
 }
 
 export interface TokenPayload {

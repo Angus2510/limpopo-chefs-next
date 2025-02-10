@@ -3,8 +3,6 @@
 import Link from "next/link";
 import { LayoutGrid, LogOut, User } from "lucide-react";
 import { useEffect, useState } from "react";
-import Cookies from "js-cookie";
-
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -28,26 +26,9 @@ import { useRouter } from "next/navigation";
 export function UserNav() {
   const router = useRouter();
   const logout = useAuthStore((state) => state.logout);
-
-  const [user, setUser] = useState<{
-    name: string;
-    email: string;
-    avatar?: string;
-  } | null>(null);
-
-  useEffect(() => {
-    const userData = Cookies.get("user"); // Assuming user info is stored in a cookie named "user"
-    if (userData) {
-      try {
-        setUser(JSON.parse(userData)); // Parse JSON string to object
-      } catch (error) {
-        console.error("Error parsing user data from cookies:", error);
-      }
-    }
-  }, []);
+  const user = useAuthStore((state) => state.user); // Get user from authStore
 
   const handleLogout = () => {
-    Cookies.remove("user"); // Clear user cookie on logout
     logout();
     router.push("/login");
   };
@@ -68,7 +49,9 @@ export function UserNav() {
                     alt="Avatar"
                   />
                   <AvatarFallback className="bg-transparent">
-                    {user?.name ? user.name.charAt(0).toUpperCase() : "JD"}
+                    {user?.firstName
+                      ? user.firstName.charAt(0).toUpperCase()
+                      : "JD"}
                   </AvatarFallback>
                 </Avatar>
               </Button>
@@ -82,7 +65,7 @@ export function UserNav() {
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col space-y-1">
             <p className="text-sm font-medium leading-none">
-              {user?.name || "John Doe"}
+              {user?.firstName} {user?.lastName}
             </p>
             <p className="text-xs leading-none text-muted-foreground">
               {user?.email || "johndoe@example.com"}
