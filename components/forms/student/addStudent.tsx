@@ -1,12 +1,13 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { studentFormSchema } from "@/schemas/student/studentFormSchema";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import DatePicker from "@/components/common/DatePicker";
+import Image from "next/image";
 import { createStudent } from "@/lib/actions/student/addStudent";
 import { Separator } from "@/components/ui/separator";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -26,6 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 
 interface IntakeGroup {
   id: string;
@@ -124,6 +126,30 @@ const NewStudentForm: React.FC<NewStudentFormProps> = ({
     form.setValue("accommodation", value);
   };
 
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        // 5MB limit
+        toast({
+          title: "Error",
+          description: "Image size should be less than 5MB",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setAvatarPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+      form.setValue("avatar", file);
+    }
+  };
+
   const onSubmit = async (data: any) => {
     // Convert dates to ISO strings
     if (data.admissionDate) {
@@ -135,33 +161,46 @@ const NewStudentForm: React.FC<NewStudentFormProps> = ({
 
     try {
       const formData = new FormData();
+
+      // Append avatar if it exists
+      if (data.avatar) {
+        formData.append("avatar", data.avatar);
+      }
+
+      // Append other form data
       Object.keys(data).forEach((key) => {
-        if (typeof data[key] === "object" && !Array.isArray(data[key])) {
-          Object.keys(data[key]).forEach((subKey) => {
-            formData.append(`${key}.${subKey}`, data[key][subKey]);
-          });
-        } else if (Array.isArray(data[key])) {
-          data[key].forEach((item, index) => {
-            Object.keys(item).forEach((subKey) => {
-              formData.append(`${key}[${index}].${subKey}`, item[subKey]);
+        if (key !== "avatar") {
+          // Skip avatar as it's already handled
+          if (data[key] instanceof File) {
+            formData.append(key, data[key]);
+          } else if (Array.isArray(data[key])) {
+            data[key].forEach((item, index) => {
+              Object.keys(item).forEach((subKey) => {
+                formData.append(`${key}[${index}].${subKey}`, item[subKey]);
+              });
             });
-          });
-        } else {
-          formData.append(key, data[key]);
+          } else if (typeof data[key] === "object" && data[key] !== null) {
+            Object.keys(data[key]).forEach((subKey) => {
+              formData.append(`${key}.${subKey}`, data[key][subKey]);
+            });
+          } else {
+            formData.append(key, data[key]);
+          }
         }
       });
 
       await createStudent(formData);
       toast({
         title: "Student created successfully",
-        description: "success",
+        description: "Student data has been successfully submitted.",
       });
       form.reset();
     } catch (error) {
       console.error("Error during form submission:", error);
       toast({
         title: "Failed to create student",
-        description: "error",
+        description: "There was an error submitting the form.",
+        variant: "destructive",
       });
     }
   };
@@ -474,6 +513,37 @@ const NewStudentForm: React.FC<NewStudentFormProps> = ({
                 )}
               />
             </CardContent>
+            <div className="flex justify-center space-y-2">
+              <Label htmlFor="avatar">Profile Picture</Label>
+              <div className="flex items-center gap-4">
+                <div className="relative h-24 w-24 overflow-hidden rounded-full border-2 border-gray-200">
+                  {avatarPreview ? (
+                    <Image
+                      src={avatarPreview}
+                      alt="Avatar preview"
+                      layout="fill"
+                      className="object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center bg-gray-50">
+                      <span className="text-sm text-gray-400">No image</span>
+                    </div>
+                  )}
+                </div>
+                <div className="flex flex-col gap-2">
+                  <Input
+                    id="avatar"
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageChange}
+                    className="cursor-pointer"
+                  />
+                  <p className="text-xs text-gray-500">
+                    Max file size: 5MB. Supported formats: JPG, PNG, GIF
+                  </p>
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* Address Information */}

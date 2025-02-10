@@ -4,8 +4,8 @@ import prisma from "@/lib/db";
 import bcrypt from "bcryptjs";
 import sendEmailNotification from "@/utils/emailService";
 import { studentCreationTemplate } from "@/lib/email-templates/addingStudent";
+import { uploadAvatar } from "@/lib/actions/uploads/uploadAvatar"; // Adjust the path if needed
 
-// Enum definitions with explicit type safety
 enum Relation {
   Father = "Father",
   Mother = "Mother",
@@ -19,11 +19,6 @@ enum Gender {
   Other = "Other",
 }
 
-/**
- * Generates a secure random password
- * @param length - Desired password length
- * @returns Randomly generated password string
- */
 const generatePassword = (length: number = 6): string => {
   const chars =
     "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()";
@@ -32,13 +27,6 @@ const generatePassword = (length: number = 6): string => {
     .join("");
 };
 
-/**
- * Type-safe method to extract form data with fallback and type conversion
- * @param formData - FormData object
- * @param key - Key to extract
- * @param defaultValue - Fallback value if key not found
- * @returns Extracted and type-converted value
- */
 const safeFormDataGet = (
   formData: FormData,
   key: string,
@@ -48,13 +36,8 @@ const safeFormDataGet = (
   return value ? String(value) : defaultValue;
 };
 
-/**
- * Comprehensive student creation function with enhanced error handling
- * @param input - FormData or plain object input for student creation
- * @returns Created student record
- */
 export async function createStudent(input: FormData | Record<string, any>) {
-  // Refined input normalization
+  // Normalize input to FormData
   const formData =
     input instanceof FormData
       ? input
@@ -63,19 +46,15 @@ export async function createStudent(input: FormData | Record<string, any>) {
           return fd;
         }, new FormData());
 
-  // Comprehensive input logging for debugging
-  console.log("Input Processing:", {
-    inputType: input.constructor.name,
-    inputKeys: Array.from(formData.keys()),
-  });
+  console.log("Input keys:", Array.from(formData.keys()));
 
   try {
-    // Extract and validate core academic references
+    // Extract common fields
     const campus = safeFormDataGet(formData, "campus");
     const intakeGroup = safeFormDataGet(formData, "intakeGroup");
     const qualification = safeFormDataGet(formData, "qualification");
 
-    // Guardian Creation Process
+    // Process guardians (if any)
     const guardiansData = [];
     for (let i = 0; formData.has(`guardians[${i}].firstName`); i++) {
       const relationValue = safeFormDataGet(
@@ -100,7 +79,7 @@ export async function createStudent(input: FormData | Record<string, any>) {
       });
     }
 
-    // Create guardians and collect their IDs
+    // Create guardian records
     const createdGuardians = await Promise.all(
       guardiansData.map((guardian) =>
         prisma.guardians.create({ data: guardian })
@@ -108,15 +87,15 @@ export async function createStudent(input: FormData | Record<string, any>) {
     );
     const guardianIds = createdGuardians.map((guardian) => guardian.id);
 
-    // Gender validation with fallback
+    // Validate gender with fallback
     const genderValue = safeFormDataGet(formData, "gender");
     const gender = Gender[genderValue as keyof typeof Gender] || Gender.Other;
 
-    // Generate and hash student password
+    // Create student password
     const studentPassword = generatePassword();
     const hashedStudentPassword = await bcrypt.hash(studentPassword, 10);
 
-    // Comprehensive student data preparation
+    // Prepare student data
     const studentData = {
       admissionNumber: safeFormDataGet(formData, "admissionNumber"),
       email: safeFormDataGet(formData, "email"),
@@ -162,47 +141,53 @@ export async function createStudent(input: FormData | Record<string, any>) {
       userType: "student",
     };
 
-    // Detailed logging before database insertion
-    console.log("Prepared Student Data:", JSON.stringify(studentData, null, 2));
+    console.log("Creating student with data:", studentData);
 
-    // Student creation with comprehensive error handling
+    // Create the student record first
     const student = await prisma.students.create({
       data: studentData,
     });
 
-    // Generate the email content
+    // If an avatar file is provided, upload it and update the student record
+    if (formData.has("avatar")) {
+      // IMPORTANT: Append the student ID to the form data so the uploadAvatar function knows which student to update.
+      formData.append("userId", student.id);
+      try {
+        const avatarResult = await uploadAvatar(formData);
+        console.log("Avatar upload result:", avatarResult);
+      } catch (avatarError) {
+        console.error("Avatar upload failed:", avatarError);
+        // Optionally, you could decide whether to roll back the student creation or continue without the avatar.
+      }
+    }
+
+    // Generate and send the welcome email
     const emailBody = studentCreationTemplate(
       student.profile.firstName,
       student.username,
-      studentPassword // Unhashed password
+      studentPassword // Send the unhashed password via email
     );
-
-    // Send the email
     await sendEmailNotification(
       student.email,
       "Welcome to Limpopo Chefs Academy",
       emailBody
     );
 
-    console.log("Student Successfully Created and Email Sent:", student.id);
-
-    console.log("Student Successfully Created:", student.id);
+    console.log("Student created and email sent:", student.id);
     return student;
   } catch (error) {
-    // Enhanced error logging and reporting
     if (error instanceof Error) {
       console.error("Student Creation Error", {
         message: error.message,
         stack: error.stack,
-        inputKeys: Array.from(formData.keys()),
+        keys: Array.from(formData.keys()),
       });
     } else {
       console.error("Student Creation Error", {
         message: String(error),
-        inputKeys: Array.from(formData.keys()),
+        keys: Array.from(formData.keys()),
       });
     }
-
     throw new Error(
       `Student Creation Failed: ${
         error instanceof Error ? error.message : String(error)

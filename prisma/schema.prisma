@@ -140,6 +140,7 @@ type StudentsProfile {
   middleName         String
   mobileNumber       String
   postalAddress      StudentsProfilePostalAddress
+  
 }
 
 type StudentsProfileAddress {
@@ -464,11 +465,12 @@ model students {
   id                    String          @id @default(auto()) @map("_id") @db.ObjectId
   v                     Int             @map("__v")
   active                Boolean
+  avatarUrl             String?
   admissionNumber       String          @unique(map: "admissionNumber_1")
   agreementAccepted     Boolean
   agreementAcceptedDate DateTime?       @db.Date
   alumni                Boolean?
-  /// Could not determine type: the field only had null or empty values in the sample set.
+
   assignments           Json?
   campus                String[]
   createdAt             DateTime?       @db.Date

@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { LayoutGrid, LogOut, User } from "lucide-react";
+import { useEffect, useState } from "react";
+import Cookies from "js-cookie";
 
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -27,9 +29,27 @@ export function UserNav() {
   const router = useRouter();
   const logout = useAuthStore((state) => state.logout);
 
+  const [user, setUser] = useState<{
+    name: string;
+    email: string;
+    avatar?: string;
+  } | null>(null);
+
+  useEffect(() => {
+    const userData = Cookies.get("user"); // Assuming user info is stored in a cookie named "user"
+    if (userData) {
+      try {
+        setUser(JSON.parse(userData)); // Parse JSON string to object
+      } catch (error) {
+        console.error("Error parsing user data from cookies:", error);
+      }
+    }
+  }, []);
+
   const handleLogout = () => {
+    Cookies.remove("user"); // Clear user cookie on logout
     logout();
-    router.push("/login"); // or whatever your login page route is
+    router.push("/login");
   };
 
   return (
@@ -43,8 +63,13 @@ export function UserNav() {
                 className="relative h-8 w-8 rounded-full"
               >
                 <Avatar className="h-8 w-8">
-                  <AvatarImage src="#" alt="Avatar" />
-                  <AvatarFallback className="bg-transparent">JD</AvatarFallback>
+                  <AvatarImage
+                    src={user?.avatar || "/default-avatar.png"}
+                    alt="Avatar"
+                  />
+                  <AvatarFallback className="bg-transparent">
+                    {user?.name ? user.name.charAt(0).toUpperCase() : "JD"}
+                  </AvatarFallback>
                 </Avatar>
               </Button>
             </DropdownMenuTrigger>
@@ -56,9 +81,11 @@ export function UserNav() {
       <DropdownMenuContent className="w-56" align="end" forceMount>
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col space-y-1">
-            <p className="text-sm font-medium leading-none">John Doe</p>
+            <p className="text-sm font-medium leading-none">
+              {user?.name || "John Doe"}
+            </p>
             <p className="text-xs leading-none text-muted-foreground">
-              johndoe@example.com
+              {user?.email || "johndoe@example.com"}
             </p>
           </div>
         </DropdownMenuLabel>

@@ -1,6 +1,14 @@
 // src/schemas/studentFormSchema.ts
 import { z } from "zod";
 
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+const ACCEPTED_IMAGE_TYPES = [
+  "image/jpeg",
+  "image/jpg",
+  "image/png",
+  "image/webp",
+];
+
 export const studentFormSchema = z.object({
   admissionNumber: z.string().nonempty("Admission Number is required"),
   cityAndGuildNumber: z.string().optional(),
@@ -12,6 +20,14 @@ export const studentFormSchema = z.object({
   firstName: z.string().nonempty("First Name is required"),
   middleName: z.string().optional(),
   lastName: z.string().nonempty("Last Name is required"),
+  avatar: z
+    .any()
+    .refine((file) => file?.size <= MAX_FILE_SIZE, `Max file size is 5MB.`)
+    .refine(
+      (file) => ACCEPTED_IMAGE_TYPES.includes(file?.type),
+      "Only .jpg, .jpeg, .png and .webp formats are supported."
+    )
+    .optional(),
   dateOfBirth: z.date().optional(),
   idNumber: z.string().nonempty("ID Number is required"),
   email: z

@@ -29,7 +29,7 @@ import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { jwtDecode } from "jwt-decode";
 import Cookies from "js-cookie";
-import type { User, TokenPayload, StudentData } from "@/types/auth";
+import type { User, TokenPayload, StudentData } from "@/types/auth/auth";
 
 interface AuthState {
   user: User | null;
