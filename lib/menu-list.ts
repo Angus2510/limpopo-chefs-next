@@ -260,6 +260,11 @@ export function getMenuList(pathname: string): Group[] {
                 label: "Staff",
                 active: pathname === "/admin/settings/staff",
               },
+              {
+                href: "/admin/settings/accommodations",
+                label: "Accommodation",
+                active: pathname === "/admin/settings/accommodation",
+              },
             ],
           },
         ],
