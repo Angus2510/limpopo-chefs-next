@@ -1,8 +1,8 @@
-// app/api/auth/login/route.ts
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import prisma from "@/lib/db";
+import Cookies from "js-cookie";
 
 // app/api/auth/login/route.ts
 export async function POST(request: Request) {
@@ -33,6 +33,19 @@ export async function POST(request: Request) {
           process.env["JWT_SECRET"]!,
           { expiresIn: "1h" }
         );
+
+        // Store user data and token in cookies
+        Cookies.set(
+          "user",
+          JSON.stringify({
+            id: user.id,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            userType: type,
+          }),
+          { expires: 1 / 24 }
+        ); // 1 hour expiration for cookie
+        Cookies.set("accessToken", token, { expires: 1 / 24 }); // 1 hour expiration for token
 
         // IMPORTANT: Explicitly return both user and accessToken
         return NextResponse.json({

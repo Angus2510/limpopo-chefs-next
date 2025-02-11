@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { LayoutGrid, LogOut, User } from "lucide-react";
 import { useEffect, useState } from "react";
+import Cookies from "js-cookie";
+
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -26,9 +28,34 @@ import { useRouter } from "next/navigation";
 export function UserNav() {
   const router = useRouter();
   const logout = useAuthStore((state) => state.logout);
-  const user = useAuthStore((state) => state.user); // Get user from authStore
+
+  const [user, setUser] = useState<{
+    name: string;
+    email: string;
+    avatar?: string;
+  } | null>(null);
+  const [accessToken, setAccessToken] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Retrieve user data and token from cookies
+    const userData = Cookies.get("user"); // Check for user data cookie
+    const token = Cookies.get("accessToken"); // Check for token cookie
+
+    if (userData && token) {
+      try {
+        const parsedUser = JSON.parse(userData);
+        setUser(parsedUser); // Set user in state
+        setAccessToken(token); // Set token in state
+      } catch (error) {
+        console.error("Error parsing user data from cookies:", error);
+      }
+    }
+  }, []);
 
   const handleLogout = () => {
+    // Clear cookies and log out the user
+    Cookies.remove("user"); // Remove user cookie on logout
+    Cookies.remove("accessToken"); // Remove token cookie on logout
     logout();
     router.push("/login");
   };
@@ -49,9 +76,7 @@ export function UserNav() {
                     alt="Avatar"
                   />
                   <AvatarFallback className="bg-transparent">
-                    {user?.firstName
-                      ? user.firstName.charAt(0).toUpperCase()
-                      : "JD"}
+                    {user?.name ? user.name.charAt(0).toUpperCase() : "JD"}
                   </AvatarFallback>
                 </Avatar>
               </Button>
@@ -65,7 +90,7 @@ export function UserNav() {
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col space-y-1">
             <p className="text-sm font-medium leading-none">
-              {user?.firstName} {user?.lastName}
+              {user?.name || "John Doe"}
             </p>
             <p className="text-xs leading-none text-muted-foreground">
               {user?.email || "johndoe@example.com"}
