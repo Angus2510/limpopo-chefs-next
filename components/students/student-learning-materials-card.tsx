@@ -1,5 +1,5 @@
 import React from "react";
-import { Download, File, Loader2, BookOpen } from "lucide-react";
+import { Download, File, Loader2, BookOpen, Eye } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -16,7 +16,6 @@ interface Material {
   fileType?: string;
   uploadDate?: string;
   moduleNumber?: number;
-  // Update to match your actual data structure:
   filePath: string;
 }
 
@@ -40,11 +39,11 @@ const StudentMaterialsCard: React.FC<StudentMaterialsCardProps> = ({
 }) => {
   const [downloadingId, setDownloadingId] = React.useState<string | null>(null);
 
+  // Handle the file download
   const handleDownload = async (material: Material) => {
     try {
       console.log("Material object:", material);
 
-      // Derive the S3 key and file name from filePath.
       const fileKey = material.filePath;
       const fileName = getFileNameFromPath(material.filePath);
 
@@ -60,8 +59,8 @@ const StudentMaterialsCard: React.FC<StudentMaterialsCardProps> = ({
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          fileKey, // Using filePath as the S3 key.
-          fileName, // Derived file name.
+          fileKey,
+          fileName,
         }),
       });
 
@@ -82,6 +81,27 @@ const StudentMaterialsCard: React.FC<StudentMaterialsCardProps> = ({
       console.error("Error downloading file:", error);
     } finally {
       setDownloadingId(null);
+    }
+  };
+
+  // Handle the file viewing
+  const handleView = async (material: Material) => {
+    try {
+      console.log("Material object:", material);
+
+      const fileKey = material.filePath;
+
+      if (!fileKey) {
+        throw new Error(`Missing fileKey. Received: ${fileKey}`);
+      }
+
+      // Assuming the URL to view is built from your backend route
+      const url = `/api/admin/learning-materials/view?documentId=${material.id}`;
+
+      // Open the file in a new window (tab)
+      window.open(url, "_blank");
+    } catch (error) {
+      console.error("Error viewing file:", error);
     }
   };
 
@@ -147,24 +167,34 @@ const StudentMaterialsCard: React.FC<StudentMaterialsCardProps> = ({
                 </div>
               </div>
 
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => handleDownload(material)}
-                disabled={downloadingId === material.id}
-              >
-                {downloadingId === material.id ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Downloading...
-                  </>
-                ) : (
-                  <>
-                    <Download className="mr-2 h-4 w-4" />
-                    Download
-                  </>
-                )}
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => handleView(material)}
+                >
+                  <Eye className="mr-2 h-4 w-4" />
+                  View
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => handleDownload(material)}
+                  disabled={downloadingId === material.id}
+                >
+                  {downloadingId === material.id ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Downloading...
+                    </>
+                  ) : (
+                    <>
+                      <Download className="mr-2 h-4 w-4" />
+                      Download
+                    </>
+                  )}
+                </Button>
+              </div>
             </div>
           ))}
         </CardContent>
