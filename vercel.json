@@ -1,0 +1,7 @@
+{
+  "functions": {
+    "api/*": {
+      "bodyLimit": "50mb"
+    }
+  }
+}
