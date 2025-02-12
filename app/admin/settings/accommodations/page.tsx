@@ -16,23 +16,35 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/components/ui/use-toast";
 import { Pencil, Trash, Plus } from "lucide-react";
 import { getAllAccommodations } from "@/lib/actions/accommodation/action";
 
 const AccommodationManager = () => {
-  const [accommodations, setAccommodations] = useState([]);
+  interface Accommodation {
+    id: string;
+    roomNumber: string;
+    address: string;
+    costPerBed: number;
+    numberOfOccupants: number;
+    occupantType: string;
+    occupants: string[];
+    roomType: string;
+  }
+
+  const [accommodations, setAccommodations] = useState<Accommodation[]>([]);
   const [isOpen, setIsOpen] = useState(false);
-  const [editingAccommodation, setEditingAccommodation] = useState(null);
+  const [editingAccommodation, setEditingAccommodation] =
+    useState<Accommodation | null>(null);
+  const [formData, setFormData] = useState({
+    roomNumber: "",
+    address: "",
+    costPerBed: 0,
+    numberOfOccupants: 0,
+    occupantType: "",
+    roomType: "",
+  });
 
   useEffect(() => {
     fetchAccommodations();
@@ -42,7 +54,7 @@ const AccommodationManager = () => {
     try {
       const data = await getAllAccommodations();
       setAccommodations(data);
-    } catch {
+    } catch (error) {
       toast({
         title: "Error",
         description: "Failed to fetch accommodations",
@@ -51,31 +63,45 @@ const AccommodationManager = () => {
     }
   };
 
-  const initialValues = {
-    address: "",
-    costPerBed: 0,
-    numberOfOccupants: 0,
-    occupantType: "",
-    occupants: [],
-    roomNumber: "",
-    roomType: "",
+  // Open form and set initial values
+  const openForm = (accommodation: Accommodation | null) => {
+    setEditingAccommodation(accommodation);
+    setFormData(
+      accommodation || {
+        roomNumber: "",
+        address: "",
+        costPerBed: 0,
+        numberOfOccupants: 0,
+        occupantType: "",
+        roomType: "",
+      }
+    );
+    setIsOpen(true);
   };
 
-  const handleSubmit = async (values) => {
+  // Handle form changes
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData({ ...formData, [name]: value });
+  };
+
+  // Handle form submission
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
     try {
       if (editingAccommodation) {
         // Update existing accommodation
         await fetch(`/api/accommodations/${editingAccommodation.id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(values),
+          body: JSON.stringify(formData),
         });
       } else {
         // Create new accommodation
         await fetch("/api/accommodations", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(values),
+          body: JSON.stringify(formData),
         });
       }
 
@@ -99,17 +125,16 @@ const AccommodationManager = () => {
     }
   };
 
-  const handleDelete = async (id) => {
+  // Handle delete
+  const handleDelete = async (id: string) => {
     try {
-      await fetch(`/api/accommodations/${id}`, {
-        method: "DELETE",
-      });
+      await fetch(`/api/accommodations/${id}`, { method: "DELETE" });
       fetchAccommodations();
       toast({
         title: "Success",
         description: "Accommodation deleted successfully",
       });
-    } catch (error) {
+    } catch {
       toast({
         title: "Error",
         description: "Failed to delete accommodation",
@@ -124,7 +149,7 @@ const AccommodationManager = () => {
         <h1 className="text-2xl font-bold">Accommodations</h1>
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
           <DialogTrigger asChild>
-            <Button onClick={() => setEditingAccommodation(null)}>
+            <Button onClick={() => openForm(null)}>
               <Plus className="w-4 h-4 mr-2" />
               Add Accommodation
             </Button>
@@ -135,84 +160,51 @@ const AccommodationManager = () => {
                 {editingAccommodation ? "Edit" : "Add"} Accommodation
               </DialogTitle>
             </DialogHeader>
-            <Form
-              initialValues={editingAccommodation || initialValues}
-              onSubmit={handleSubmit}
-            >
-              <div className="grid gap-4 py-4">
-                <FormField
-                  name="roomNumber"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Room Number</FormLabel>
-                      <FormControl>
-                        <Input {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  name="address"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Address</FormLabel>
-                      <FormControl>
-                        <Input {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  name="costPerBed"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Cost Per Bed</FormLabel>
-                      <FormControl>
-                        <Input type="number" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  name="numberOfOccupants"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Number of Occupants</FormLabel>
-                      <FormControl>
-                        <Input type="number" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  name="occupantType"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Occupant Type</FormLabel>
-                      <FormControl>
-                        <Input {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  name="roomType"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Room Type</FormLabel>
-                      <FormControl>
-                        <Input {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
+            <form onSubmit={handleSubmit} className="grid gap-4 py-4">
+              <Input
+                name="roomNumber"
+                value={formData.roomNumber}
+                onChange={handleChange}
+                placeholder="Room Number"
+                required
+              />
+              <Input
+                name="address"
+                value={formData.address}
+                onChange={handleChange}
+                placeholder="Address"
+                required
+              />
+              <Input
+                type="number"
+                name="costPerBed"
+                value={formData.costPerBed}
+                onChange={handleChange}
+                placeholder="Cost Per Bed"
+                required
+              />
+              <Input
+                type="number"
+                name="numberOfOccupants"
+                value={formData.numberOfOccupants}
+                onChange={handleChange}
+                placeholder="Number of Occupants"
+                required
+              />
+              <Input
+                name="occupantType"
+                value={formData.occupantType}
+                onChange={handleChange}
+                placeholder="Occupant Type"
+                required
+              />
+              <Input
+                name="roomType"
+                value={formData.roomType}
+                onChange={handleChange}
+                placeholder="Room Type"
+                required
+              />
               <div className="flex justify-end gap-4">
                 <Button
                   type="button"
@@ -225,7 +217,7 @@ const AccommodationManager = () => {
                   {editingAccommodation ? "Update" : "Create"}
                 </Button>
               </div>
-            </Form>
+            </form>
           </DialogContent>
         </Dialog>
       </div>
@@ -253,10 +245,7 @@ const AccommodationManager = () => {
                 <Button
                   variant="outline"
                   size="icon"
-                  onClick={() => {
-                    setEditingAccommodation(accommodation);
-                    setIsOpen(true);
-                  }}
+                  onClick={() => openForm(accommodation)}
                 >
                   <Pencil className="w-4 h-4" />
                 </Button>

@@ -70,6 +70,7 @@ export const getUploadsData = async (input: UploadsSearchParams) => {
       title: true,
       description: true,
       intakeGroup: true,
+      filePath: true,
     },
     skip: offset,
     take: per_page,

@@ -10,7 +10,6 @@ import { Button } from "@/components/ui/button";
 import { Filter } from "@/types/tables/select/filterTypes";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Download, Loader2, Eye } from "lucide-react";
-
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -21,9 +20,19 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { MoreHorizontal } from "lucide-react";
 
-// Helper function from StudentMaterialsCard
+// Helper function to extract the file name from a file path.
 const getFileNameFromPath = (filePath: string): string => {
   return filePath.split("/").pop() || "downloaded-file";
+};
+
+/**
+ * Helper to extract the file path from an upload object.
+ * Adjust the fallback properties as necessary.
+ */
+const getUploadFilePath = (upload: any): string => {
+  // Log the upload for debugging purposes.
+  console.log("getUploadFilePath - upload object:", upload);
+  return upload.filePath || upload.fileKey || "";
 };
 
 interface UploadsTableProps {
@@ -33,32 +42,19 @@ interface UploadsTableProps {
   intakeGroups: { id: string; title: string }[];
 }
 
-// Define the view and download handlers
-const handleView = async (upload: any) => {
+/**
+ * Updated download handler:
+ * - Extracts the fileName from the provided filePath.
+ * - Sends both fileKey and fileName to the API route.
+ * - Uses fileName for the download attribute of the link.
+ */
+const handleDownload = async (filePath: string): Promise<void> => {
   try {
-    if (!upload?.id) {
-      throw new Error(`Missing upload ID`);
+    if (!filePath) {
+      throw new Error("Missing file path for download");
     }
-
-    const url = `/api/admin/learning-materials/view?documentId=${upload.id}`;
-    window.open(url, "_blank");
-  } catch (error) {
-    console.error("Error viewing file:", error);
-  }
-};
-
-const handleDownload = async (material: Material) => {
-  try {
-    console.log("Material object:", material);
-
-    const fileKey = material.filePath;
-    const fileName = getFileNameFromPath(material.filePath);
-
-    if (!fileKey || !fileName) {
-      throw new Error(
-        `Missing fileKey or fileName. Received fileKey: ${fileKey}, fileName: ${fileName}`
-      );
-    }
+    // Extract the file name from the file path.
+    const fileName = getFileNameFromPath(filePath);
 
     const response = await fetch("/api/materials/download", {
       method: "POST",
@@ -66,13 +62,13 @@ const handleDownload = async (material: Material) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        fileKey,
+        fileKey: filePath,
         fileName,
       }),
     });
 
     if (!response.ok) {
-      throw new Error("Download failed");
+      throw new Error(`Download failed with status: ${response.status}`);
     }
 
     const { signedUrl } = await response.json();
@@ -85,27 +81,77 @@ const handleDownload = async (material: Material) => {
     link.click();
     document.body.removeChild(link);
   } catch (error) {
-    console.error("Error downloading file:", error);
-  } finally {
-    setDownloadingId(null);
+    console.error("Download error:", error);
+    throw error;
   }
 };
 
-// Update bulk actions to include download functionality
-const handleBulkDownload = async (selectedIds: string[], uploads: any[]) => {
+// View handler remains unchanged.
+const handleView = async (upload: any) => {
   try {
-    for (const id of selectedIds) {
-      const upload = uploads.find((u) => u.id === id);
-      if (upload) {
-        await handleDownload(upload);
-      }
+    if (!upload?.id) {
+      throw new Error("Missing document ID for viewing");
     }
+    const url = `/api/admin/learning-materials/view?documentId=${upload.id}`;
+    window.open(url, "_blank");
   } catch (error) {
-    console.error("Error in bulk download:", error);
+    console.error("Error viewing file:", error);
+    throw error;
   }
 };
 
-// Define table columns
+// Delete handler remains unchanged.
+const handleDelete = async (id: string): Promise<void> => {
+  const response = await fetch(`/api/materials/${id}`, {
+    method: "DELETE",
+  });
+
+  if (!response.ok) {
+    throw new Error(`Delete failed with status: ${response.status}`);
+  }
+};
+
+/**
+ * Bulk operations handler.
+ * For downloads, it now uses the helper getUploadFilePath.
+ */
+const handleBulkOperations = async (
+  selectedIds: string[],
+  uploads: any[],
+  operation: "download" | "delete"
+) => {
+  const errors: string[] = [];
+
+  for (const id of selectedIds) {
+    const upload = uploads.find((u) => u.id === id);
+    try {
+      if (operation === "download" && upload) {
+        const filePath = getUploadFilePath(upload);
+        if (!filePath) {
+          throw new Error(
+            `Missing file path or file key for download. Upload object: ${JSON.stringify(
+              upload
+            )}`
+          );
+        }
+        await handleDownload(filePath);
+      } else if (operation === "delete") {
+        await handleDelete(id);
+      }
+    } catch (error) {
+      errors.push(
+        `Failed to ${operation} ${upload?.title || id}: ${
+          (error as Error).message
+        }`
+      );
+    }
+  }
+
+  if (errors.length > 0) {
+    throw new Error(errors.join("\n"));
+  }
+};
+
 const columns = (
   router: ReturnType<typeof useRouter>,
   uploads: any[]
@@ -153,13 +199,33 @@ const columns = (
     cell: ({ row }) => {
       const upload = row.original;
       const [isDownloading, setIsDownloading] = React.useState(false);
+      const [isDeleting, setIsDeleting] = React.useState(false);
 
+      // Updated download function uses the helper getUploadFilePath.
       const downloadWithIndicator = async () => {
         setIsDownloading(true);
         try {
-          await handleDownload(upload);
+          console.log("Download requested for upload:", upload);
+          const filePath = getUploadFilePath(upload);
+          if (!filePath) {
+            throw new Error("Missing file path or file key for download");
+          }
+          await handleDownload(filePath);
+        } catch (error) {
+          console.error("Error in downloadWithIndicator:", error);
+          // Optionally, you could display an error toast/notification here.
         } finally {
           setIsDownloading(false);
+        }
+      };
+
+      const deleteWithIndicator = async () => {
+        setIsDeleting(true);
+        try {
+          await handleDelete(upload.id);
+          router.refresh();
+        } finally {
+          setIsDeleting(false);
         }
       };
 
@@ -205,10 +271,11 @@ const columns = (
               )}
             </DropdownMenuItem>
             <DropdownMenuItem
-              onClick={() => StudentMaterialsCard.delete(upload.id, router)}
+              onClick={deleteWithIndicator}
+              disabled={isDeleting}
               className="text-red-500"
             >
-              Delete Document
+              {isDeleting ? "Deleting..." : "Delete Document"}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -249,17 +316,21 @@ export function UploadsTable({
     { label: "Download", value: "download" },
   ];
 
-  // Function to handle bulk actions
   const handleAction = async (action: string, selectedIds: string[]) => {
-    console.log("Action:", action);
-    console.log("Selected IDs:", selectedIds);
-
-    if (action === "download") {
-      await handleBulkDownload(selectedIds, uploads);
-    }
-
-    if (action === "delete") {
-      await StudentMaterialsCard.bulkDelete(selectedIds, router);
+    try {
+      if (action === "download" || action === "delete") {
+        await handleBulkOperations(
+          selectedIds,
+          uploads,
+          action as "download" | "delete"
+        );
+        if (action === "delete") {
+          router.refresh();
+        }
+      }
+    } catch (error) {
+      console.error(`Error performing ${action} action:`, error);
+      throw error;
     }
   };
 

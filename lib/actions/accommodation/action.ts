@@ -1,3 +1,4 @@
+"use server";
 import prisma from "@/lib/db";
 
 export const getAllAccommodations = async () => {
@@ -7,6 +8,10 @@ export const getAllAccommodations = async () => {
       roomNumber: true,
       address: true,
       roomType: true,
+      costPerBed: true,
+      numberOfOccupants: true,
+      occupantType: true,
+      occupants: true,
     },
   });
 
@@ -16,5 +21,12 @@ export const getAllAccommodations = async () => {
     title: `${acc.roomNumber || ""} - ${acc.address || ""} - ${
       acc.roomType || ""
     }`,
+    roomNumber: acc.roomNumber,
+    address: acc.address,
+    roomType: acc.roomType,
+    costPerBed: acc.costPerBed,
+    numberOfOccupants: acc.numberOfOccupants,
+    occupantType: acc.occupantType,
+    occupants: acc.occupants,
   }));
 };
