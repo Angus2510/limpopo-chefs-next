@@ -152,22 +152,27 @@ const StudentView = ({
                   <div>
                     <h3 className="font-semibold mb-2">General Documents</h3>
                     <div className="grid gap-2">
-                      {documents?.map((doc, index) => (
-                        <div key={index} className="p-2 border rounded">
-                          <h4 className="font-medium">{doc.title}</h4>
-                          <p className="text-sm text-gray-500">
-                            {doc.description}
-                          </p>
-                          <a
-                            href={doc.documentUrl}
-                            className="text-blue-500 hover:underline"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                          >
-                            View Document
-                          </a>
-                        </div>
-                      ))}
+                      {/* Ensure documents is an array before calling .map */}
+                      {Array.isArray(documents) && documents.length > 0 ? (
+                        documents.map((doc, index) => (
+                          <div key={index} className="p-2 border rounded">
+                            <h4 className="font-medium">{doc.title}</h4>
+                            <p className="text-sm text-gray-500">
+                              {doc.description}
+                            </p>
+                            <a
+                              href={doc.documentUrl}
+                              className="text-blue-500 hover:underline"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              View Document
+                            </a>
+                          </div>
+                        ))
+                      ) : (
+                        <p>No documents available</p>
+                      )}
                     </div>
                   </div>
                 </div>

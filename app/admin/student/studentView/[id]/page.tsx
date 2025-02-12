@@ -3,11 +3,25 @@
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import StudentView from "@/components/students/StudentView";
-import { fetchStudentData } from "@/lib/actions/student/fetchStudentData";
+import { fetchCompleteStudentData } from "@/lib/actions/student/fetchCompleteStudentData";
 
 type Student = {
   id: string;
-  welRecords?: any[]; // Change to the actual type if known
+  firstName: string;
+  lastName: string;
+  avatar: string;
+  admissionNumber: string;
+  active: boolean;
+  dateOfBirth: string;
+  gender: string;
+  mobileNumber: string;
+  email: string;
+  admissionDate: string;
+  campus: string;
+  intakeGroup: string;
+  qualification?: string[];
+  currentResult?: string;
+  welRecords?: any[];
   finances?: any[];
   documents?: any[];
   guardians?: any[];
@@ -21,12 +35,12 @@ const StudentViewPage = () => {
   const [studentData, setStudentData] = useState<Student | null>(null);
 
   useEffect(() => {
-    const getStudentData = async () => {
+    const fetchStudentData = async () => {
       if (!id) return;
 
       try {
         setLoading(true);
-        const data = await fetchStudentData(id);
+        const data = await fetchCompleteStudentData(id);
         setStudentData(data);
       } catch (err) {
         setError((err as Error).message);
@@ -35,7 +49,7 @@ const StudentViewPage = () => {
       }
     };
 
-    getStudentData();
+    fetchStudentData(); // Correct the typo
   }, [id]);
 
   if (loading) {

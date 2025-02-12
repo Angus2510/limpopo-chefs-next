@@ -1,3 +1,4 @@
+"use server";
 import EditStudentForm from "@/components/forms/student/editStudent";
 import { ContentLayout } from "@/components/layout/content-layout";
 import { getAllIntakeGroups } from "@/lib/actions/intakegroup/intakeGroups";
