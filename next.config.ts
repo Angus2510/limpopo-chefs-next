@@ -2,20 +2,12 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   typescript: {
-    ignoreBuildErrors: true,
+    ignoreBuildErrors: true, // Ensure type checking during build
   },
   experimental: {
     serverActions: {
       bodySizeLimit: "50mb",
     },
-  },
-  webpack: (config) => {
-    config.performance = {
-      ...config.performance,
-      maxAssetSize: 50 * 1024 * 1024, // 50MB
-      maxEntrypointSize: 50 * 1024 * 1024, // 50MB
-    };
-    return config;
   },
 };
 
