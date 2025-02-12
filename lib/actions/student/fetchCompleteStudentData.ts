@@ -1,188 +1,222 @@
 "use server";
-import { PrismaClient } from "@prisma/client";
 
-const prisma = new PrismaClient();
+import prisma from "../../db";
 
-async function fetchCompleteStudentData(studentId: string) {
-  try {
-    // Fetch basic student information
-    const student = await prisma.students.findUnique({
-      where: { id: studentId },
-    });
-
-    if (!student) {
-      throw new Error("Student not found");
-    }
-
-    // Fetch all related data in parallel for better performance
-    const [
-      answers,
-      assignmentResults,
-      attendances,
-      finances,
-      generalDocuments,
-      legalDocuments,
-      results,
-      welRecords,
-      // Fetch guardians using the guardians array from student
-      guardians,
-    ] = await Promise.all([
-      // Get all student's answers
-      prisma.answers.findMany({
-        where: { student: studentId },
-      }),
-
-      // Get assignment results
-      prisma.assignmentresults.findMany({
-        where: { student: studentId },
-      }),
-
-      // Get attendance records
-      prisma.attendances.findMany({
-        where: {
-          attendees: {
-            some: {
-              student: studentId,
-            },
-          },
-        },
-      }),
-
-      // Get financial records
-      prisma.finances.findFirst({
-        where: { student: studentId },
-      }),
-
-      // Get general documents
-      prisma.generaldocuments.findMany({
-        where: { student: studentId },
-      }),
-
-      // Get legal documents
-      prisma.legaldocuments.findMany({
-        where: { student: studentId },
-      }),
-
-      // Get academic results
-      prisma.results.findMany({
-        where: {
-          results: {
-            some: {
-              student: studentId,
-            },
-          },
-        },
-      }),
-
-      // Get WEL records
-      prisma.studentwelrecords.findFirst({
-        where: { student: studentId },
-      }),
-
-      // Get guardian information
-      prisma.guardians.findMany({
-        where: {
-          id: {
-            in: student.guardians,
-          },
-        },
-      }),
-    ]);
-
-    // Get accommodation information if the student is listed as an occupant
-    const accommodation = await prisma.accommodations.findFirst({
-      where: {
-        occupants: {
-          has: studentId,
-        },
-      },
-    });
-
-    // Compile all data into a single object
-    const completeStudentData = {
-      personalInfo: student,
-      academic: {
-        answers,
-        assignmentResults,
-        results,
-      },
-      attendance: {
-        regularAttendance: attendances,
-        welRecords,
-      },
-      documents: {
-        general: generalDocuments,
-        legal: legalDocuments,
-      },
-      financial: finances,
-      living: accommodation,
-      guardianInfo: guardians,
-    };
-
-    return completeStudentData;
-  } catch (error) {
-    console.error("Error fetching student data:", error);
-    throw error;
-  }
-}
-
-// Type definition for the return value
-type CompleteStudentData = {
-  personalInfo: {
+// Define types for our data structure
+export interface StudentData {
+  student: {
     id: string;
     admissionNumber: string;
     email: string;
+    active: boolean;
+    alumni: boolean;
+    avatarUrl?: string;
+    campus: string[];
+    intakeGroup: string[];
+    qualification: string[];
     profile: {
       firstName: string;
-      lastName: string;
       middleName: string;
+      lastName: string;
       dateOfBirth: string;
       gender: string;
-      mobileNumber: string;
       idNumber: string;
-      cityAndGuildNumber: string;
+      mobileNumber: string;
       admissionDate: string;
+      cityAndGuildNumber: string;
       homeLanguage: string;
       address: {
         street1: string;
         street2: string;
         city: string;
         province: string;
-        postalCode: string;
         country: string;
+        postalCode: string;
       };
       postalAddress: {
         street1: string;
         street2: string;
         city: string;
         province: string;
-        postalCode: string;
         country: string;
+        postalCode: string;
       };
     };
-    campus: string[];
-    intakeGroup: string[];
-    qualification: string[];
-    active: boolean;
-    alumni?: boolean;
-    // ... other student fields
+    importantInformation?: string;
   };
-  academic: {
-    answers: any[];
-    assignmentResults: any[];
-    results: any[];
-  };
-  attendance: {
-    regularAttendance: any[];
-    welRecords: any;
+  attendance: Array<{
+    date: Date;
+    status: string;
+    timeCheckedIn?: Date;
+  }>;
+  assignments: Array<{
+    assignment: string;
+    dateTaken: Date;
+    scores?: number;
+    moderatedscores?: number;
+    percent?: number;
+    status: string;
+  }>;
+  welRecords: Array<{
+    establishmentName: string;
+    establishmentContact: string;
+    startDate: Date;
+    endDate: Date;
+    totalHours: number;
+    evaluated: boolean;
+  }>;
+  finances: {
+    collectedFees: Array<{
+      description: string;
+      credit?: number;
+      debit?: number;
+      balance: string;
+      transactionDate?: Date;
+    }>;
+    payableFees: Array<{
+      amount: number;
+      arrears: number;
+      dueDate?: Date;
+    }>;
   };
   documents: {
-    general: any[];
-    legal: any[];
+    legal: Array<{
+      id: string;
+      title: string;
+      description: string;
+      documentUrl: string;
+      uploadDate?: Date;
+    }>;
+    general: Array<{
+      id: string;
+      title: string;
+      description: string;
+      documentUrl: string;
+      uploadDate?: Date;
+    }>;
   };
-  financial: any;
-  living: any;
-  guardianInfo: any[];
-};
+}
 
-export { fetchCompleteStudentData };
+export async function fetchStudentData(
+  studentId: string
+): Promise<StudentData> {
+  try {
+    // Fetch basic student information
+    const student = await prisma.students.findUnique({
+      where: { id: studentId },
+      select: {
+        id: true,
+        admissionNumber: true,
+        email: true,
+        active: true,
+        alumni: true,
+        avatarUrl: true,
+        campus: true,
+        intakeGroup: true,
+        qualification: true,
+        profile: true,
+        importantInformation: true,
+      },
+    });
+
+    if (!student) {
+      throw new Error("Student not found");
+    }
+
+    // Fetch attendance records
+    const attendances = await prisma.attendances.findMany({
+      where: {
+        // Filter attendance records where at least one attendee has the given studentId.
+        attendees: {
+          some: {
+            // Use the correct field name from your schema.
+            studentId: studentId,
+          },
+        },
+      },
+      select: {
+        attendanceDate: true,
+        attendees: {
+          select: {
+            status: true,
+            timeCheckedIn: true,
+          },
+        },
+      },
+      orderBy: { attendanceDate: "desc" },
+    });
+
+    // Fetch assignments with results
+    const assignments = await prisma.assignmentresults.findMany({
+      where: { student: studentId },
+      select: {
+        assignment: true,
+        dateTaken: true,
+        scores: true,
+        moderatedscores: true,
+        percent: true,
+        status: true,
+      },
+      orderBy: { dateTaken: "desc" },
+    });
+
+    // Fetch WEL records
+    const welRecords = await prisma.studentwelrecords.findFirst({
+      where: { student: studentId },
+      select: { welRecords: true },
+    });
+
+    // Fetch financial records
+    const finances = await prisma.finances.findFirst({
+      where: { student: studentId },
+      select: {
+        collectedFees: true,
+        payableFees: true,
+      },
+    });
+
+    // Fetch documents
+    const [legalDocs, generalDocs] = await Promise.all([
+      prisma.legaldocuments.findMany({
+        where: { student: studentId },
+        select: {
+          id: true,
+          title: true,
+          description: true,
+          documentUrl: true,
+          uploadDate: true,
+        },
+      }),
+      prisma.generaldocuments.findMany({
+        where: { student: studentId },
+        select: {
+          id: true,
+          title: true,
+          description: true,
+          documentUrl: true,
+          uploadDate: true,
+        },
+      }),
+    ]);
+
+    // Return the structured data
+    return {
+      student,
+      attendance: attendances.map((record) => ({
+        date: record.attendanceDate,
+        status: record.attendees[0]?.status,
+        timeCheckedIn: record.attendees[0]?.timeCheckedIn,
+      })),
+      assignments,
+      welRecords: welRecords?.welRecords ?? [],
+      finances: finances ?? { collectedFees: [], payableFees: [] },
+      documents: {
+        legal: legalDocs,
+        general: generalDocs,
+      },
+    };
+  } catch (error) {
+    console.error("Error fetching student data:", error);
+    throw error;
+  }
+}
