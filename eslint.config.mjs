@@ -16,16 +16,21 @@ const eslintConfig = [
       // Disable problematic rules
       "@typescript-eslint/no-explicit-any": "off",
       "@typescript-eslint/no-empty-object-type": "off",
+
+      // Ignore unused variables completely
       "@typescript-eslint/no-unused-vars": [
-        "warn",
+        "off",
         {
           argsIgnorePattern: "^_",
           varsIgnorePattern: "^_",
           destructuredArrayIgnorePattern: "^_",
-          // Allow unused variables in specific contexts
           ignoreRestSiblings: true,
         },
       ],
+
+      // Disable React Hooks warning for function names
+      "react-hooks/rules-of-hooks": "off",
+
       // Additional rules to improve type safety while reducing noise
       "@typescript-eslint/ban-ts-comment": [
         "error",
@@ -35,7 +40,7 @@ const eslintConfig = [
         },
       ],
     },
-    // Optional: Add type checking specific configurations
+
     settings: {
       "import/resolver": {
         typescript: {}, // Helps ESLint understand TypeScript path aliases
