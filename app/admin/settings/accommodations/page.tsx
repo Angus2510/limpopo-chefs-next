@@ -238,7 +238,7 @@ const AccommodationManager = () => {
             <TableRow key={accommodation.id}>
               <TableCell>{accommodation.roomNumber}</TableCell>
               <TableCell>{accommodation.address}</TableCell>
-              <TableCell>${accommodation.costPerBed}</TableCell>
+              <TableCell>R {accommodation.costPerBed}</TableCell>
               <TableCell>{accommodation.numberOfOccupants}</TableCell>
               <TableCell>{accommodation.roomType}</TableCell>
               <TableCell className="space-x-2">
