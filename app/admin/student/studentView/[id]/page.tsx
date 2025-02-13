@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import StudentView from "@/components/students/StudentView";
 import { fetchStudentData } from "@/lib/actions/student/fetchStudentData";
+import { ContentLayout } from "@/components/layout/content-layout";
 
 const StudentPage = async ({
   params,
@@ -29,9 +30,11 @@ const StudentPage = async ({
     }
 
     return (
-      <Suspense fallback={<div>Loading...</div>}>
-        <StudentView data={data} />
-      </Suspense>
+      <ContentLayout title={"student View"}>
+        <Suspense fallback={<div>Loading...</div>}>
+          <StudentView data={data} />
+        </Suspense>
+      </ContentLayout>
     );
   } catch (error) {
     console.error("Error in StudentPage:", error);

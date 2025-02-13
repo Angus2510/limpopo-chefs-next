@@ -1,7 +1,6 @@
-"use server";
-
 import prisma from "@/lib/db";
 import bcrypt from "bcryptjs";
+import { uploadAvatar } from "@/lib/actions/uploads/uploadAvatar"; // Adjust the path if needed
 
 enum Relation {
   Father = "Father",
@@ -29,10 +28,8 @@ const generatePassword = (length: number) => {
 export async function updateStudent(formData: FormData) {
   const studentId = formData.get("id") as string;
 
-  // Log all received form data
   console.log("Received form data:", Array.from(formData.entries()));
 
-  // Extract data from FormData
   const campus = formData.get("campus") as string;
   const intakeGroup = formData.get("intakeGroup") as string;
   const qualification = formData.get("qualification") as string;
@@ -67,11 +64,9 @@ export async function updateStudent(formData: FormData) {
     },
   };
 
-  // Extract and log guardians data
   const guardiansData: any[] = [];
   const guardianIndices: Set<number> = new Set();
 
-  // Identify guardian indices
   for (const [key] of formData.entries()) {
     const match = key.match(/guardians\[(\d+)\]\./);
     if (match) {
@@ -79,7 +74,6 @@ export async function updateStudent(formData: FormData) {
     }
   }
 
-  // Create guardian objects from extracted data
   for (const index of guardianIndices) {
     const guardianId = formData.get(`guardians[${index}].id`) as string;
     const password = generatePassword(12);
@@ -88,7 +82,7 @@ export async function updateStudent(formData: FormData) {
       : await bcrypt.hash(password, 10);
 
     const guardian = {
-      id: guardianId || undefined, // If ID is empty, it's a new guardian
+      id: guardianId || undefined,
       firstName: formData.get(`guardians[${index}].firstName`) as string,
       lastName: formData.get(`guardians[${index}].lastName`) as string,
       email: formData.get(`guardians[${index}].email`) as string,
@@ -97,7 +91,6 @@ export async function updateStudent(formData: FormData) {
       password: hashedPassword,
     };
 
-    // Ensure no duplicate guardians are pushed
     if (
       !guardiansData.some(
         (g) =>
@@ -108,28 +101,18 @@ export async function updateStudent(formData: FormData) {
     }
   }
 
-  // Log extracted guardians data
-  console.log("Extracted guardians data:", guardiansData);
-
   try {
-    // Update or create guardians
     const updatedGuardians = await Promise.all(
       guardiansData.map(async (guardian) => {
         if (guardian.id) {
-          // Update existing guardian
-          const { id, ...updateData } = guardian;
-          console.log("Updating guardian:", id, updateData);
           return prisma.guardians.update({
-            where: { id },
-            data: updateData,
+            where: { id: guardian.id },
+            data: guardian,
           });
         } else {
-          // Create new guardian
-          console.log("Creating new guardian:", guardian);
           const newGuardian = await prisma.guardians.create({
             data: guardian,
           });
-          console.log("New guardian created:", newGuardian);
           return newGuardian;
         }
       })
@@ -137,7 +120,6 @@ export async function updateStudent(formData: FormData) {
 
     const guardianIds = updatedGuardians.map((guardian) => guardian.id);
 
-    // Fetch existing student to preserve existing guardians
     const existingStudent = await prisma.students.findUnique({
       where: { id: studentId },
       select: { guardians: true },
@@ -147,12 +129,10 @@ export async function updateStudent(formData: FormData) {
       throw new Error("Student not found");
     }
 
-    // Combine existing and new guardian IDs, removing duplicates
     const allGuardianIds = Array.from(
       new Set([...existingStudent.guardians, ...guardianIds])
     );
 
-    // Update student data
     const student = await prisma.students.update({
       where: { id: studentId },
       data: {
@@ -169,6 +149,18 @@ export async function updateStudent(formData: FormData) {
     });
 
     console.log("Student updated:", student);
+
+    // Check if the avatar is present in the FormData and upload it
+    if (formData.has("avatar")) {
+      formData.append("userId", student.id); // Attach student ID for avatar upload
+      try {
+        const avatarResult = await uploadAvatar(formData);
+        console.log("Avatar upload result:", avatarResult);
+      } catch (avatarError) {
+        console.error("Avatar upload failed:", avatarError);
+      }
+    }
+
     return student;
   } catch (error) {
     console.error("Error updating student:", error);

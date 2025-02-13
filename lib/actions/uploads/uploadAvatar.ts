@@ -13,6 +13,7 @@ export const uploadAvatar = async (formData: FormData) => {
     type: file.type,
     size: file.size,
   });
+
   const userId = formData.get("userId");
   if (!userId) {
     throw new Error("User ID not provided in form data");
@@ -22,29 +23,26 @@ export const uploadAvatar = async (formData: FormData) => {
   const fileType = file.type;
   const fileBuffer = Buffer.from(await file.arrayBuffer());
 
-  // Generate the file name (you could use a unique identifier for the user, e.g., user ID)
-  const fileName = `profile-picture/${file.name
-    .split(".")
-    .slice(0, -1)
-    .join(".")}`;
+  // Generate the file name (using the userId and file name for uniqueness)
+  const fileName = `profile-picture/${userId}-${file.name}`;
 
   try {
     // Upload the avatar to S3
     const s3FilePath = await uploadFileToS3(
       fileBuffer,
-      "profile-picture", // Make sure this is the correct bucket name
+      "limpopochefs-media", // Make sure this is the correct bucket name
       fileType,
       fileName
     );
 
-    // Log to verify the file path
-    console.log("S3 file path:", s3FilePath);
+    // Construct the full URL to access the uploaded file
+    const avatarURL = `https://limpopochefs-media.s3.eu-north-1.amazonaws.com/${s3FilePath}`;
 
-    // Save the avatar URL or path in your database (e.g., to the user's profile)
+    // Save the avatar URL in the user's profile in the database
     const user = await prisma.students.update({
-      where: { id: formData.get("userId") }, // Assuming user ID is passed in the form data
+      where: { id: userId }, // Assuming user ID is passed in the form data
       data: {
-        avatarUrl: s3FilePath, // Store the S3 file path in the user table
+        avatarUrl: avatarURL, // Store the full S3 URL in the user table
       },
     });
 

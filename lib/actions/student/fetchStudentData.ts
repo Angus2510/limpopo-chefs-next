@@ -41,6 +41,7 @@ export async function fetchStudentData(studentId?: string) {
         id: true,
         admissionNumber: true,
         email: true,
+        avatarUrl: true,
         profile: {
           select: {
             firstName: true,
