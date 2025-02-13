@@ -29,7 +29,7 @@ export default function RootLayout({
           fontSans.variable
         )}
       >
-        <AuthProvider>{children}</AuthProvider>
+        <AuthProvider autoLogoutTime={10 * 60 * 1000}>{children}</AuthProvider>
         <Toaster />
       </body>
     </html>
