@@ -37,9 +37,9 @@ export default function LoginPage() {
         <Image
           src="/img/auth/sponsors-new.png"
           alt="Sponsors"
-          width={350}
-          height={350}
-          className="w-56 h-56 md:w-44 md:h-44 lg:w-60 lg:h-60 mt-6"
+          width={550}
+          height={450}
+          className="w-64 h-64 md:w-44 md:h-44 lg:w-60 lg:h-60 mt-6"
         />
       </div>
 
