@@ -34,7 +34,7 @@ export async function fetchStudentData(studentId?: string) {
       throw new Error("Student ID is required for staff members");
     }
 
-    // Query the database using Prisma. We use `select` because campus and intakeGroup are scalar fields.
+    // Query the database using Prisma for the student record.
     const student = await prisma.students.findUnique({
       where: { id: targetStudentId },
       select: {
@@ -50,8 +50,8 @@ export async function fetchStudentData(studentId?: string) {
           },
         },
         inactiveReason: true,
-        campus: true, // Expected to be stored as an array, a comma-separated string, or a single value
-        intakeGroup: true, // Expected to be stored similarly
+        campus: true, // Stored as an array, a comma-separated string, or a single value
+        intakeGroup: true, // Stored similarly
       },
     });
     if (!student) {
@@ -59,10 +59,9 @@ export async function fetchStudentData(studentId?: string) {
     }
 
     // --- Coerce the campus and intakeGroup values into arrays ---
-    // If the value is a comma-separated string, split it into an array.
     const campusArray =
       typeof student.campus === "string"
-        ? (student.campus as string)
+        ? student.campus
             .split(",")
             .map((s) => s.trim())
             .filter(Boolean)
@@ -73,7 +72,7 @@ export async function fetchStudentData(studentId?: string) {
         : [];
     const intakeGroupArray =
       typeof student.intakeGroup === "string"
-        ? (student.intakeGroup as string)
+        ? student.intakeGroup
             .split(",")
             .map((s) => s.trim())
             .filter(Boolean)
@@ -83,8 +82,7 @@ export async function fetchStudentData(studentId?: string) {
         ? [student.intakeGroup]
         : [];
 
-    // --- Fetch the related titles using the same logic as in getStudentsData ---
-    // Fetch campus titles for the campusArray IDs
+    // --- Fetch related campus and intake group titles ---
     const campuses = await prisma.campus.findMany({
       where: { id: { in: campusArray } },
       select: { id: true, title: true },
@@ -94,7 +92,6 @@ export async function fetchStudentData(studentId?: string) {
       return acc;
     }, {} as Record<string, string>);
 
-    // Fetch intake group titles for the intakeGroupArray IDs
     const intakeGroups = await prisma.intakegroups.findMany({
       where: { id: { in: intakeGroupArray } },
       select: { id: true, title: true },
@@ -105,8 +102,6 @@ export async function fetchStudentData(studentId?: string) {
     }, {} as Record<string, string>);
 
     // Map the IDs to their corresponding titles.
-    // For campus, join the titles into a string.
-    // For intakeGroup, return an array of titles.
     const studentWithTitles = {
       ...student,
       campus: campusArray.map((id: string) => campusMap[id] || id).join(", "),
@@ -117,8 +112,9 @@ export async function fetchStudentData(studentId?: string) {
 
     // Fetch related data from the database in parallel
     const [
+      // Fetch wellness records with all details.
       wellnessRecords,
-      results,
+      rawResults,
       learningMaterials,
       events,
       finances,
@@ -126,9 +122,29 @@ export async function fetchStudentData(studentId?: string) {
     ] = await Promise.all([
       prisma.studentwelrecords.findMany({
         where: { student: targetStudentId },
+        select: {
+          id: true, // _id mapped to id in Prisma
+          student: true,
+          welRecords: true, // Array of well record details
+          createdAt: true,
+          updatedAt: true,
+          // Removed __v because it's not defined in the model
+        },
       }),
+      // Fetch results records with nested filtering on the student's id.
       prisma.results.findMany({
-        where: { participants: { has: targetStudentId } },
+        where: {
+          results: {
+            some: {
+              student: targetStudentId,
+            },
+          },
+        },
+        select: {
+          id: true,
+          title: true,
+          results: true, // We'll filter the nested results in JavaScript.
+        },
       }),
       prisma.learningmaterials.findMany({
         where: { intakeGroup: { hasSome: intakeGroupArray } },
@@ -143,6 +159,14 @@ export async function fetchStudentData(studentId?: string) {
         where: { student: targetStudentId },
       }),
     ]);
+
+    // Now, filter the nested `results` for each record so only those with student === targetStudentId remain
+    const results = rawResults.map((record) => ({
+      ...record,
+      results: record.results.filter(
+        (nestedResult) => nestedResult.student === targetStudentId
+      ),
+    }));
 
     return {
       student: studentWithTitles,

@@ -16,6 +16,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { MultiSelect } from "@/components/common/multiselect";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { uploadLearningMaterial } from "@/lib/actions/uploads/uploadLearningMaterial";
 
@@ -121,15 +122,17 @@ export function UploadDialog({
             <FormItem>
               <FormLabel>Intake Group</FormLabel>
               <FormControl>
-                <MultiSelect
-                  options={intakeGroups.map((group) => ({
-                    value: group.id,
-                    label: group.title,
-                  }))}
-                  onValueChange={handleIntakeGroupChange}
-                  defaultValue={selectedIntakeGroups}
-                  placeholder="Select Intake Groups"
-                />
+                <ScrollArea style={{ maxHeight: "10rem" }}>
+                  <MultiSelect
+                    options={intakeGroups.map((group) => ({
+                      value: group.id,
+                      label: group.title,
+                    }))}
+                    onValueChange={handleIntakeGroupChange}
+                    defaultValue={selectedIntakeGroups}
+                    placeholder="Select Intake Groups"
+                  />
+                </ScrollArea>
               </FormControl>
               <FormMessage />
             </FormItem>

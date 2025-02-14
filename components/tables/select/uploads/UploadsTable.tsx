@@ -20,41 +20,34 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { MoreHorizontal } from "lucide-react";
 
-// Helper function to extract the file name from a file path.
-const getFileNameFromPath = (filePath: string): string => {
-  return filePath.split("/").pop() || "downloaded-file";
-};
-
-/**
- * Helper to extract the file path from an upload object.
- * Adjust the fallback properties as necessary.
- */
-const getUploadFilePath = (upload: any): string => {
-  // Log the upload for debugging purposes.
-  console.log("getUploadFilePath - upload object:", upload);
-  return upload.filePath || upload.fileKey || "";
-};
+interface Material {
+  id: string;
+  title: string;
+  description?: string;
+  fileType?: string;
+  uploadDate?: string;
+  moduleNumber?: number;
+  filePath: string;
+}
 
 interface UploadsTableProps {
-  uploads: any[];
+  uploads: Material[];
   pageCount: number;
   initialSearch: any;
   intakeGroups: { id: string; title: string }[];
 }
 
-/**
- * Updated download handler:
- * - Extracts the fileName from the provided filePath.
- * - Sends both fileKey and fileName to the API route.
- * - Uses fileName for the download attribute of the link.
- */
-const handleDownload = async (filePath: string): Promise<void> => {
+// Helper function to extract filename from path
+const getFileNameFromPath = (filePath: string): string => {
+  return filePath.split("/").pop() || "downloaded-file";
+};
+
+// Helper function to handle downloads
+const handleDownload = async (material: Material): Promise<void> => {
   try {
-    if (!filePath) {
-      throw new Error("Missing file path for download");
+    if (!material.filePath) {
+      throw new Error("No file path provided");
     }
-    // Extract the file name from the file path.
-    const fileName = getFileNameFromPath(filePath);
 
     const response = await fetch("/api/materials/download", {
       method: "POST",
@@ -62,18 +55,20 @@ const handleDownload = async (filePath: string): Promise<void> => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        fileKey: filePath,
-        fileName,
+        fileKey: material.filePath,
       }),
     });
 
     if (!response.ok) {
-      throw new Error(`Download failed with status: ${response.status}`);
+      throw new Error("Failed to get download URL");
     }
 
     const { signedUrl } = await response.json();
+    if (!signedUrl) {
+      throw new Error("No signed URL received");
+    }
 
-    // Create a temporary link and trigger the download.
+    const fileName = getFileNameFromPath(material.filePath);
     const link = document.createElement("a");
     link.href = signedUrl;
     link.setAttribute("download", fileName);
@@ -81,13 +76,12 @@ const handleDownload = async (filePath: string): Promise<void> => {
     link.click();
     document.body.removeChild(link);
   } catch (error) {
-    console.error("Download error:", error);
+    console.error("Download failed:", error);
     throw error;
   }
 };
 
-// View handler remains unchanged.
-const handleView = async (upload: any) => {
+const handleView = async (upload: Material) => {
   try {
     if (!upload?.id) {
       throw new Error("Missing document ID for viewing");
@@ -100,7 +94,6 @@ const handleView = async (upload: any) => {
   }
 };
 
-// Delete handler remains unchanged.
 const handleDelete = async (id: string): Promise<void> => {
   const response = await fetch(`/api/materials/${id}`, {
     method: "DELETE",
@@ -111,13 +104,9 @@ const handleDelete = async (id: string): Promise<void> => {
   }
 };
 
-/**
- * Bulk operations handler.
- * For downloads, it now uses the helper getUploadFilePath.
- */
 const handleBulkOperations = async (
   selectedIds: string[],
-  uploads: any[],
+  uploads: Material[],
   operation: "download" | "delete"
 ) => {
   const errors: string[] = [];
@@ -126,15 +115,7 @@ const handleBulkOperations = async (
     const upload = uploads.find((u) => u.id === id);
     try {
       if (operation === "download" && upload) {
-        const filePath = getUploadFilePath(upload);
-        if (!filePath) {
-          throw new Error(
-            `Missing file path or file key for download. Upload object: ${JSON.stringify(
-              upload
-            )}`
-          );
-        }
-        await handleDownload(filePath);
+        await handleDownload(upload);
       } else if (operation === "delete") {
         await handleDelete(id);
       }
@@ -154,8 +135,8 @@ const handleBulkOperations = async (
 
 const columns = (
   router: ReturnType<typeof useRouter>,
-  uploads: any[]
-): ColumnDef<any, any>[] => [
+  uploads: Material[]
+): ColumnDef<Material, any>[] => [
   {
     id: "select",
     header: ({ table }) => (
@@ -201,19 +182,25 @@ const columns = (
       const [isDownloading, setIsDownloading] = React.useState(false);
       const [isDeleting, setIsDeleting] = React.useState(false);
 
-      // Updated download function uses the helper getUploadFilePath.
+      const handleEdit = async (upload: Material) => {
+        try {
+          if (!upload?.id) {
+            throw new Error("Missing document ID for editing");
+          }
+          router.push(`/admin/learning-materials/edit/${upload.id}`);
+        } catch (error) {
+          console.error("Error editing file:", error);
+          throw error;
+        }
+      };
+
       const downloadWithIndicator = async () => {
         setIsDownloading(true);
         try {
-          console.log("Download requested for upload:", upload);
-          const filePath = getUploadFilePath(upload);
-          if (!filePath) {
-            throw new Error("Missing file path or file key for download");
-          }
-          await handleDownload(filePath);
+          await handleDownload(upload);
         } catch (error) {
-          console.error("Error in downloadWithIndicator:", error);
-          // Optionally, you could display an error toast/notification here.
+          console.error("Download failed:", error);
+          alert(`Download failed: ${(error as Error).message}`);
         } finally {
           setIsDownloading(false);
         }
@@ -249,9 +236,7 @@ const columns = (
               <Eye className="mr-2 h-4 w-4" />
               View File
             </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={() => navigator.clipboard.writeText(upload.id)}
-            >
+            <DropdownMenuItem onClick={() => handleEdit(upload)}>
               Edit Document
             </DropdownMenuItem>
             <DropdownMenuItem
