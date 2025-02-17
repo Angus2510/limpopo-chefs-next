@@ -384,7 +384,7 @@ model outcomes {
   id     String   @id @default(auto()) @map("_id") @db.ObjectId
   v      Int      @map("__v")
   campus String[]
-  hidden Boolean
+  hidden Boolean?
   title  String
   type   String
 }
