@@ -27,6 +27,5 @@ export const getAllAccommodations = async () => {
     costPerBed: acc.costPerBed,
     numberOfOccupants: acc.numberOfOccupants,
     occupantType: acc.occupantType,
-    occupants: acc.occupants,
   }));
 };

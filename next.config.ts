@@ -11,7 +11,7 @@ const nextConfig: NextConfig = {
   },
   images: {
     domains: [
-      "limpopochefs.s3.af-south-1.amazonaws.com", // Allow images from your S3 bucket
+      "limpopochefs-media.s3.eu-north-1.amazonaws.com", // Allow images from your S3 bucket
     ],
   },
 };

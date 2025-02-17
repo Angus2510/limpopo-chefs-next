@@ -4,6 +4,14 @@ import React, { useState } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { editStudentFormSchema } from "@/schemas/student/editStudentFormSchema";
+import type {
+  Student,
+  IntakeGroup,
+  Campus,
+  Qualification,
+  Accommodation,
+  Guardian,
+} from "@/types/student";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import DatePicker from "@/components/common/DatePicker";
@@ -28,51 +36,69 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-interface IntakeGroup {
-  id: string;
-  title: string;
-}
-
-interface Campus {
-  id: string;
-  title: string;
-}
-
-interface Accommodation {
-  id: string;
-  title: string;
-}
-
-interface Qualification {
-  id: string;
-  title: string;
-}
-
 interface EditStudentFormProps {
-  student: any;
+  student: Student;
   intakeGroups: IntakeGroup[];
   campuses: Campus[];
   accommodations: Accommodation[];
   qualifications: Qualification[];
-  guardians: any[];
+  guardians: Guardian[];
 }
 
 const EditStudentForm: React.FC<EditStudentFormProps> = ({
   student,
-  intakeGroups,
-  campuses,
-  accommodations,
-  qualifications,
-  guardians,
+  intakeGroups = [],
+  campuses = [],
+  accommodations = [],
+  qualifications = [],
+  guardians = [],
 }) => {
-  const form = useForm({
+  const { toast } = useToast();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Initialize form with proper type checking
+  const form = useForm<{
+    admissionNumber: string;
+    cityAndGuildNumber: string;
+    intakeGroup: string;
+    campus: string;
+    qualification: string;
+    accommodation: string;
+    admissionDate: Date | undefined;
+    firstName: string;
+    middleName: string;
+    lastName: string;
+    dateOfBirth: Date | undefined;
+    idNumber: string;
+    email: string;
+    mobileNumber: string;
+    gender: string;
+    homeLanguage: string;
+    address: {
+      street1: string;
+      street2: string;
+      city: string;
+      province: string;
+      country: string;
+      postalCode: string;
+    };
+    guardians: {
+      id: string;
+      firstName: string;
+      lastName: string;
+      email: string;
+      phoneNumber: string;
+      relation: string;
+    }[];
+    avatar?: File;
+  }>({
     resolver: zodResolver(editStudentFormSchema),
     defaultValues: {
       admissionNumber: student.admissionNumber || "",
       cityAndGuildNumber: student.profile.cityAndGuildNumber || "",
       intakeGroup: student.intakeGroup[0] || "",
       campus: student.campus[0] || "",
-      qualification: student.qualification[0] || "",
+      qualification: student.qualification?.[0] || "",
       accommodation: student.accommodation || "",
       admissionDate: student.profile.admissionDate
         ? new Date(student.profile.admissionDate)
@@ -88,25 +114,26 @@ const EditStudentForm: React.FC<EditStudentFormProps> = ({
       mobileNumber: student.profile.mobileNumber || "",
       gender: student.profile.gender || "",
       homeLanguage: student.profile.homeLanguage || "",
-      street1: student.profile.address?.street1 || "",
-      street2: student.profile.address?.street2 || "",
-      city: student.profile.address?.city || "",
-      province: student.profile.address?.province || "",
-      country: student.profile.address?.country || "",
-      postalCode: student.profile.address?.postalCode || "",
+      address: {
+        street1: student.profile.address?.street1 || "",
+        street2: student.profile.address?.street2 || "",
+        city: student.profile.address?.city || "",
+        province: student.profile.address?.province || "",
+        country: student.profile.address?.country || "",
+        postalCode: student.profile.address?.postalCode || "",
+      },
       guardians: guardians.map((g) => ({
-        id: g.id || "",
-        firstName: g.firstName || "",
-        lastName: g.lastName || "",
-        email: g.email || "",
-        phoneNumber: g.mobileNumber || "",
-        relation: g.relation || "",
+        id: g.id,
+        firstName: g.firstName,
+        lastName: g.lastName,
+        email: g.email,
+        phoneNumber: g.mobileNumber,
+        relation: g.relation,
       })),
     },
   });
 
-  const { toast } = useToast();
-
+  // Guardian fields management
   const {
     fields: guardianFields,
     append: addGuardian,
@@ -116,57 +143,60 @@ const EditStudentForm: React.FC<EditStudentFormProps> = ({
     name: "guardians",
   });
 
+  // Avatar preview state
   const [avatarPreview, setAvatarPreview] = useState<string | null>(
-    student.profile.avatar || null
+    student.avatarUrl || null
   );
 
+  // Handle image changes with validation
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-        toast({
-          title: "Error",
-          description: "Image size should be less than 5MB",
-          variant: "destructive",
-        });
-        return;
+    if (!file) return;
+
+    // Validate file size (5MB limit)
+    if (file.size > 5 * 1024 * 1024) {
+      toast({
+        title: "Error",
+        description: "Image size should be less than 5MB",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate file type
+    const validTypes = ["image/jpeg", "image/png", "image/gif"];
+    if (!validTypes.includes(file.type)) {
+      toast({
+        title: "Error",
+        description: "Please upload a valid image file (JPG, PNG, or GIF)",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Create preview
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setAvatarPreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+    form.setValue("avatar", file);
+  };
+
+  // Form submission handler
+  const onSubmit = async (data: any) => {
+    try {
+      setIsSubmitting(true);
+
+      // Format dates
+      if (data.admissionDate) {
+        data.admissionDate = data.admissionDate.toISOString();
+      }
+      if (data.dateOfBirth) {
+        data.dateOfBirth = data.dateOfBirth.toISOString();
       }
 
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setAvatarPreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-      form.setValue("avatar", file);
-    }
-  };
-
-  // Handlers for select fields
-  const onChangeIntakeGroup = (value: string) => {
-    form.setValue("intakeGroup", value);
-  };
-
-  const onChangeCampus = (value: string) => {
-    form.setValue("campus", value);
-  };
-
-  const onChangeQualification = (value: string) => {
-    form.setValue("qualification", value);
-  };
-
-  const onChangeAccommodation = (value: string) => {
-    form.setValue("accommodation", value);
-  };
-
-  const onSubmit = async (data: any) => {
-    if (data.admissionDate) {
-      data.admissionDate = data.admissionDate.toISOString();
-    }
-    if (data.dateOfBirth) {
-      data.dateOfBirth = data.dateOfBirth.toISOString();
-    }
-
-    try {
+      // Create FormData
       const formData = new FormData();
       formData.append("id", student.id);
 
@@ -175,38 +205,67 @@ const EditStudentForm: React.FC<EditStudentFormProps> = ({
         formData.append("avatar", data.avatar);
       }
 
-      Object.keys(data).forEach((key) => {
-        if (typeof data[key] === "object" && !Array.isArray(data[key])) {
-          Object.keys(data[key]).forEach((subKey) => {
-            formData.append(`${key}.${subKey}`, data[key][subKey]);
+      // Append all other fields
+      Object.entries(data).forEach(([key, value]) => {
+        if (key === "avatar") return; // Skip avatar as it's already handled
+
+        if (
+          typeof value === "object" &&
+          !Array.isArray(value) &&
+          value !== null
+        ) {
+          Object.entries(value).forEach(([subKey, subValue]) => {
+            if (subValue) {
+              formData.append(`${key}.${subKey}`, String(subValue));
+            }
           });
-        } else if (Array.isArray(data[key])) {
-          data[key].forEach((item, index) => {
-            Object.keys(item).forEach((subKey) => {
-              formData.append(`${key}[${index}].${subKey}`, item[subKey]);
+        } else if (Array.isArray(value)) {
+          value.forEach((item, index) => {
+            Object.entries(item).forEach(([subKey, subValue]) => {
+              if (subValue) {
+                formData.append(`${key}[${index}].${subKey}`, String(subValue));
+              }
             });
-            formData.append(`${key}[${index}].id`, item.id);
           });
-        } else {
-          formData.append(key, data[key]);
+        } else if (value) {
+          formData.append(key, String(value));
         }
       });
 
+      // Submit form
       await updateStudent(formData);
+
       toast({
-        title: "Student updated successfully",
-        description: "The student's details have been successfully updated.",
+        title: "Success",
+        description: "Student information updated successfully",
       });
-      form.reset();
     } catch (error) {
-      console.error("Error during form submission:", error);
+      console.error("Error updating student:", error);
       toast({
-        title: "Failed to update student",
-        description: "There was an error updating the student's details.",
+        title: "Error",
+        description: "Failed to update student information",
         variant: "destructive",
       });
+    } finally {
+      setIsSubmitting(false);
     }
   };
+
+  function onChangeIntakeGroup(value: string): void {
+    form.setValue("intakeGroup", value);
+  }
+
+  function onChangeCampus(value: string): void {
+    form.setValue("campus", value);
+  }
+
+  function onChangeQualification(value: string): void {
+    form.setValue("qualification", value);
+  }
+
+  function onChangeAccommodation(value: string): void {
+    form.setValue("accommodation", value);
+  }
 
   return (
     <Card>

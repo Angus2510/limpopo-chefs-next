@@ -311,19 +311,20 @@ model generaldocuments {
 
 model guardians {
   id               String    @id @default(auto()) @map("_id") @db.ObjectId
-  v                Int       @map("__v")
+  v                Int?      @map("__v") // Nullable
   createdAt        DateTime? @db.Date
-  email            String
-  firstName        String
-  lastName         String
-  mobileNumber     String
-  password         String?
-  relation         String
-  resetToken       String?
+  email            String?   // Nullable
+  firstName        String?   // Nullable
+  lastName         String?   // Nullable
+  mobileNumber     String?   // Nullable
+  password         String?   // Nullable
+  relation         String?   // Nullable
+  resetToken       String?   // Nullable
   resetTokenExpiry DateTime? @db.Date
   updatedAt        DateTime? @db.Date
-  userType         String
+  userType         String?   // Nullable
 }
+
 
 model intakegroups {
   id      String   @id @default(auto()) @map("_id") @db.ObjectId

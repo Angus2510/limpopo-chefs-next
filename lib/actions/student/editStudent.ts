@@ -1,3 +1,4 @@
+"use server";
 import prisma from "@/lib/db";
 import bcrypt from "bcryptjs";
 import { uploadAvatar } from "@/lib/actions/uploads/uploadAvatar"; // Adjust the path if needed
