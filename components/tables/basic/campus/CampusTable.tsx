@@ -1,80 +1,148 @@
-// 'use client';
+"use client";
 
-// import * as React from 'react';
-// import { ColumnDef } from '@tanstack/react-table';
-// import { useRouter } from 'next/navigation';
-// import { SearchParamsProvider } from '../SearchParamsProvider';
-// import { DataTable } from '../DataTable';
-// import { campusSearchParamsSchema } from './campusSearchParams';
-// import { Button } from '@/components/ui/button';
-// // import { Filter } from '@/types/tables/basic/filterTypes';
+import { useState, useEffect } from "react";
+import {
+  Campus,
+  getAllCampuses,
+  createCampus,
+  updateCampus,
+  deleteCampus,
+} from "@/lib/actions/campus/campuses";
+import { Button } from "@/components/ui/button";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { useToast } from "@/components/ui/use-toast";
+import CampusDialog from "./CampusDialog";
 
-// import {
-//   DropdownMenu,
-//   DropdownMenuContent,
-//   DropdownMenuItem,
-//   DropdownMenuLabel,
-//   DropdownMenuSeparator,
-//   DropdownMenuTrigger,
-// } from '@/components/ui/dropdown-menu';
-// import { MoreHorizontal } from 'lucide-react';
+export default function CampusTable() {
+  const [campuses, setCampuses] = useState<Campus[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingCampus, setEditingCampus] = useState<Campus | null>(null);
+  const { toast } = useToast();
 
-// interface CampusTableProps {
-//   campus: any[];
-//   pageCount: number;
-//   initialSearch: any;
-// }
+  const fetchCampuses = async () => {
+    try {
+      const data = await getAllCampuses();
+      setCampuses(data);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to fetch campuses",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-// // Let TypeScript infer the router type
-// const columns = (router: ReturnType<typeof useRouter>): ColumnDef<any, any>[] => [
-//   {
-//     accessorKey: 'title',
-//     header: 'title',
-//     enableSorting: true,
-//   },
-//   {
-//     id: 'actions',
-//     header: 'Actions',
-//     cell: ({ row }) => {
-//       const staff = row.original;
-//       const viewStaff = () => {
-//         router.push(`/admin/staff/${staff.id}`);
-//       };
-//       return (
-//         <DropdownMenu>
-//           <DropdownMenuTrigger asChild>
-//             <Button variant="ghost" className="h-8 w-8 p-0">
-//               <span className="sr-only">Open menu</span>
-//               <MoreHorizontal className="h-4 w-4" />
-//             </Button>
-//           </DropdownMenuTrigger>
-//           <DropdownMenuContent align="end">
-//             <DropdownMenuLabel>Actions</DropdownMenuLabel>
-//             <DropdownMenuItem onClick={() => navigator.clipboard.writeText(staff.id)}>
-//               Copy Staff ID
-//             </DropdownMenuItem>
-//             <DropdownMenuSeparator />
-//             <DropdownMenuItem onClick={viewStaff}>View Staff</DropdownMenuItem>
-//             <DropdownMenuItem onClick={() => navigator.clipboard.writeText(staff.id)}>Edit Staff</DropdownMenuItem>
-//           </DropdownMenuContent>
-//         </DropdownMenu>
-//       );
-//     },
-//   },
-// ];
+  useEffect(() => {
+    fetchCampuses();
+  }, []);
 
-// export function CampusTable({ campus, pageCount, initialSearch }: CampusTableProps) {
-//   const router = useRouter();
-//   const initialSearchParams = {
-//     page: initialSearch.page ?? 1,
-//     per_page: initialSearch.per_page ?? 10,
-//     sort: initialSearch.sort ?? '',
-//     search: initialSearch.search ?? '',
-//   };
+  const handleSave = async (data: { title: string }) => {
+    try {
+      if (editingCampus) {
+        await updateCampus(editingCampus.id, data);
+        toast({ title: "Success", description: "Campus updated successfully" });
+      } else {
+        await createCampus(data);
+        toast({ title: "Success", description: "Campus created successfully" });
+      }
+      setIsDialogOpen(false);
+      fetchCampuses();
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to save campus",
+        variant: "destructive",
+      });
+    }
+  };
 
-//   return (
-//     <SearchParamsProvider searchSchema={campusSearchParamsSchema} initialState={initialSearchParams}>
-//       <DataTable columns={columns(router)} data={campus} pageCount={pageCount} filters={[]} />
-//     </SearchParamsProvider>
-//   );
-// }
+  const handleDelete = async (id: string) => {
+    if (confirm("Are you sure you want to delete this campus?")) {
+      try {
+        await deleteCampus(id);
+        toast({ title: "Success", description: "Campus deleted successfully" });
+        fetchCampuses();
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "Failed to delete campus",
+          variant: "destructive",
+        });
+      }
+    }
+  };
+
+  if (isLoading) {
+    return <div>Loading...</div>;
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-between items-center">
+        <h2 className="text-xl font-bold">Campuses</h2>
+        <Button
+          onClick={() => {
+            setEditingCampus(null);
+            setIsDialogOpen(true);
+          }}
+        >
+          Add Campus
+        </Button>
+      </div>
+
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Title</TableHead>
+            <TableHead className="w-[100px]">Actions</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {campuses.map((campus) => (
+            <TableRow key={campus.id}>
+              <TableCell>{campus.title}</TableCell>
+              <TableCell>
+                <div className="flex space-x-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setEditingCampus(campus);
+                      setIsDialogOpen(true);
+                    }}
+                  >
+                    Edit
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => handleDelete(campus.id)}
+                  >
+                    Delete
+                  </Button>
+                </div>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+
+      <CampusDialog
+        open={isDialogOpen}
+        onOpenChange={setIsDialogOpen}
+        campus={editingCampus}
+        onSave={handleSave}
+      />
+    </div>
+  );
+}
