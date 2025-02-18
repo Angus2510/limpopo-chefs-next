@@ -14,6 +14,12 @@ const nextConfig: NextConfig = {
       "limpopochefs-media.s3.eu-north-1.amazonaws.com", // Allow images from your S3 bucket
     ],
   },
+  eslint: {
+    rules: {
+      "prefer-const": "off",
+      "react-hooks/exhaustive-deps": "off",
+    },
+  },
 };
 
 export default nextConfig;

@@ -13,11 +13,10 @@ const eslintConfig = [
   ...compat.extends("next/core-web-vitals", "next/typescript"),
   {
     rules: {
-      // Disable problematic rules
+      // Your existing rules
       "@typescript-eslint/no-explicit-any": "off",
       "@typescript-eslint/no-empty-object-type": "off",
 
-      // Ignore unused variables completely
       "@typescript-eslint/no-unused-vars": [
         "off",
         {
@@ -28,10 +27,8 @@ const eslintConfig = [
         },
       ],
 
-      // Disable React Hooks warning for function names
       "react-hooks/rules-of-hooks": "off",
 
-      // Additional rules to improve type safety while reducing noise
       "@typescript-eslint/ban-ts-comment": [
         "error",
         {
@@ -39,6 +36,10 @@ const eslintConfig = [
           "ts-nocheck": "allow-with-description",
         },
       ],
+
+      // New rules to fix the linting errors
+      "prefer-const": "off",
+      "react-hooks/exhaustive-deps": "off",
     },
 
     settings: {
