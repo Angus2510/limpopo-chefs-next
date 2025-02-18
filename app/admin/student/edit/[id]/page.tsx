@@ -6,7 +6,8 @@ import { getAllCampuses } from "@/lib/actions/campus/campuses";
 import { getAllQualifications } from "@/lib/actions/qualification/action";
 import { getAllAccommodations } from "@/lib/actions/accommodation/action";
 import { fetchStudentData } from "@/lib/actions/student/fetchStudentData";
-import type { Student } from "@/types/student";
+import { notFound } from "next/navigation";
+import type { Student } from "@/types/student/studentData";
 
 interface EditStudentPageProps {
   params: {
@@ -18,14 +19,10 @@ export default async function EditStudentPage({
   params,
 }: EditStudentPageProps) {
   try {
-    if (!params?.id) {
-      return (
-        <ContentLayout title="Error">
-          <div className="flex items-center justify-center p-4">
-            <div className="text-red-500">Invalid student ID</div>
-          </div>
-        </ContentLayout>
-      );
+    // Properly handle the ID parameter
+    const studentId = params.id;
+    if (!studentId) {
+      notFound();
     }
 
     // Fetch general data and student data in parallel
@@ -36,45 +33,75 @@ export default async function EditStudentPage({
       accommodations,
       studentAllData,
     ] = await Promise.all([
-      getAllIntakeGroups().catch(() => []),
-      getAllCampuses().catch(() => []),
-      getAllQualifications().catch(() => []),
-      getAllAccommodations().catch(() => []),
-      fetchStudentData(params.id).catch((error) => {
-        console.error("Error fetching student data:", error);
-        return null;
-      }),
+      getAllIntakeGroups(),
+      getAllCampuses(),
+      getAllQualifications(),
+      getAllAccommodations(),
+      fetchStudentData(studentId),
     ]);
 
     if (!studentAllData?.student) {
-      return (
-        <ContentLayout title="Error">
-          <div className="flex items-center justify-center p-4">
-            <div className="text-red-500">Student not found</div>
-          </div>
-        </ContentLayout>
-      );
+      notFound();
     }
 
-    // Combine all student data
-    const studentWithAllData = {
-      ...studentAllData.student,
-      wellnessRecords: studentAllData.wellnessRecords || [],
-      results: studentAllData.results || [],
-      learningMaterials: studentAllData.learningMaterials || [],
-      events: studentAllData.events || [],
-      finances: studentAllData.finances || null,
-      documents: studentAllData.documents || [],
+    // Format student data with proper fallback values
+    const formattedStudentData = {
+      id: studentAllData.student.id,
+      admissionNumber: studentAllData.student.admissionNumber || "",
+      email: studentAllData.student.email || "",
+      profile: {
+        firstName: studentAllData.student.profile?.firstName || "",
+        middleName: studentAllData.student.profile?.middleName || "",
+        lastName: studentAllData.student.profile?.lastName || "",
+        idNumber: studentAllData.student.profile?.idNumber || "",
+        dateOfBirth: studentAllData.student.profile?.dateOfBirth || "",
+        gender: studentAllData.student.profile?.gender || "",
+        homeLanguage: studentAllData.student.profile?.homeLanguage || "",
+        mobileNumber: studentAllData.student.profile?.mobileNumber || "",
+        cityAndGuildNumber:
+          studentAllData.student.profile?.cityAndGuildNumber || "",
+        admissionDate: studentAllData.student.profile?.admissionDate || "",
+        address: {
+          street1: studentAllData.student.profile?.address?.street1 || "",
+          street2: studentAllData.student.profile?.address?.street2 || "",
+          city: studentAllData.student.profile?.address?.city || "",
+          province: studentAllData.student.profile?.address?.province || "",
+          country: studentAllData.student.profile?.address?.country || "",
+          postalCode: studentAllData.student.profile?.address?.postalCode || "",
+        },
+      },
+      // Handle arrays properly
+      campus:
+        typeof studentAllData.student.campus === "string"
+          ? [studentAllData.student.campus]
+          : studentAllData.student.campus || [],
+      intakeGroup: Array.isArray(studentAllData.student.intakeGroup)
+        ? studentAllData.student.intakeGroup
+        : [studentAllData.student.intakeGroup].filter(Boolean),
+      qualification: Array.isArray(studentAllData.student.qualification)
+        ? studentAllData.student.qualification
+        : studentAllData.student.qualification
+        ? [studentAllData.student.qualification]
+        : [],
+      guardians: studentAllData.student.guardians || [],
     };
 
+    // Debug log to verify data structure
+    console.log(
+      "Formatted Student Data:",
+      JSON.stringify(formattedStudentData, null, 2)
+    );
+
     return (
-      <ContentLayout title="Edit Student">
+      <ContentLayout
+        title={`Edit Student: ${formattedStudentData.profile.firstName} ${formattedStudentData.profile.lastName}`}
+      >
         <EditStudentForm
-          student={studentWithAllData}
-          intakeGroups={Array.isArray(intakeGroups) ? intakeGroups : []}
-          campuses={Array.isArray(campuses) ? campuses : []}
-          qualifications={Array.isArray(qualifications) ? qualifications : []}
-          accommodations={Array.isArray(accommodations) ? accommodations : []}
+          student={formattedStudentData}
+          intakeGroups={intakeGroups || []}
+          campuses={campuses || []}
+          qualifications={qualifications || []}
+          accommodations={accommodations || []}
         />
       </ContentLayout>
     );
@@ -82,12 +109,10 @@ export default async function EditStudentPage({
     console.error("Error in EditStudentPage:", error);
     return (
       <ContentLayout title="Error">
-        <div className="flex items-center justify-center p-4">
-          <div className="text-red-500">
-            {error instanceof Error
-              ? error.message
-              : "Error loading student data. Please try again."}
-          </div>
+        <div className="text-red-500 p-4">
+          {error instanceof Error
+            ? error.message
+            : "Failed to load student data"}
         </div>
       </ContentLayout>
     );

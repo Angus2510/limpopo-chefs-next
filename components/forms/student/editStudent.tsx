@@ -51,29 +51,30 @@ const EditStudentForm: React.FC<EditStudentFormProps> = ({
   campuses = [],
   accommodations = [],
   qualifications = [],
-  guardians = [],
 }) => {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Initialize form with proper type checking
-  const form = useForm<{
+  // Log the incoming student data to verify what we're receiving
+  console.log("Received student data:", student);
+
+  type FormData = {
     admissionNumber: string;
     cityAndGuildNumber: string;
     intakeGroup: string;
     campus: string;
     qualification: string;
     accommodation: string;
-    admissionDate: Date | undefined;
     firstName: string;
     middleName: string;
     lastName: string;
-    dateOfBirth: Date | undefined;
+    dateOfBirth?: Date;
     idNumber: string;
     email: string;
     mobileNumber: string;
     gender: string;
     homeLanguage: string;
+    admissionDate?: Date;
     address: {
       street1: string;
       street2: string;
@@ -91,45 +92,54 @@ const EditStudentForm: React.FC<EditStudentFormProps> = ({
       relation: string;
     }[];
     avatar?: File;
-  }>({
+  };
+
+  const form = useForm<FormData>({
     resolver: zodResolver(editStudentFormSchema),
     defaultValues: {
-      admissionNumber: student.admissionNumber || "",
-      cityAndGuildNumber: student.profile.cityAndGuildNumber || "",
-      intakeGroup: student.intakeGroup[0] || "",
-      campus: student.campus[0] || "",
+      // Basic Information
+      admissionNumber: student.admissionNumber,
+      cityAndGuildNumber: student.profile?.cityAndGuildNumber || "",
+      // Arrays - ensure we're getting the first item if it exists
+      intakeGroup: student.intakeGroup?.[0] || "",
+      campus: student.campus?.[0] || "",
       qualification: student.qualification?.[0] || "",
       accommodation: student.accommodation || "",
-      admissionDate: student.profile.admissionDate
-        ? new Date(student.profile.admissionDate)
-        : undefined,
-      firstName: student.profile.firstName || "",
-      middleName: student.profile.middleName || "",
-      lastName: student.profile.lastName || "",
-      dateOfBirth: student.profile.dateOfBirth
+      // Profile Information
+      firstName: student.profile?.firstName || "",
+      middleName: student.profile?.middleName || "",
+      lastName: student.profile?.lastName || "",
+      dateOfBirth: student.profile?.dateOfBirth
         ? new Date(student.profile.dateOfBirth)
         : undefined,
-      idNumber: student.profile.idNumber || "",
+      idNumber: student.profile?.idNumber || "",
       email: student.email || "",
-      mobileNumber: student.profile.mobileNumber || "",
-      gender: student.profile.gender || "",
-      homeLanguage: student.profile.homeLanguage || "",
+      mobileNumber: student.profile?.mobileNumber || "",
+      gender: student.profile?.gender || "",
+      homeLanguage: student.profile?.homeLanguage || "",
+      // Dates
+      admissionDate: student.profile?.admissionDate
+        ? new Date(student.profile.admissionDate)
+        : undefined,
+      // Address
       address: {
-        street1: student.profile.address?.street1 || "",
-        street2: student.profile.address?.street2 || "",
-        city: student.profile.address?.city || "",
-        province: student.profile.address?.province || "",
-        country: student.profile.address?.country || "",
-        postalCode: student.profile.address?.postalCode || "",
+        street1: student.profile?.address?.street1 || "",
+        street2: student.profile?.address?.street2 || "",
+        city: student.profile?.address?.city || "",
+        province: student.profile?.address?.province || "",
+        country: student.profile?.address?.country || "",
+        postalCode: student.profile?.address?.postalCode || "",
       },
-      guardians: guardians.map((g) => ({
-        id: g.id,
-        firstName: g.firstName,
-        lastName: g.lastName,
-        email: g.email,
-        phoneNumber: g.mobileNumber,
-        relation: g.relation,
-      })),
+      // Guardians
+      guardians:
+        student.guardians?.map((guardian) => ({
+          id: guardian.id,
+          firstName: guardian.firstName,
+          lastName: guardian.lastName,
+          email: guardian.email,
+          phoneNumber: guardian.mobileNumber,
+          relation: guardian.relation,
+        })) || [],
     },
   });
 
@@ -613,7 +623,7 @@ const EditStudentForm: React.FC<EditStudentFormProps> = ({
             <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
-                name="street1"
+                name="address.street1"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Street Address 1</FormLabel>

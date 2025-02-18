@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import DatePicker from "@/components/common/DatePicker";
 import Image from "next/image";
 import { createStudent } from "@/lib/actions/student/addStudent";
+import { uploadAvatar } from "../uploads/uploadAvatar";
 import { Separator } from "@/components/ui/separator";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/components/ui/use-toast";

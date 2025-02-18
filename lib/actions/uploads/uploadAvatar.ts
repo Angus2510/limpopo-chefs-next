@@ -3,57 +3,45 @@ import { uploadFileToS3 } from "@/utils/uploadFiles";
 import { Buffer } from "buffer";
 
 export const uploadAvatar = async (formData: FormData) => {
-  const file = formData.get("avatar") as File; // Get the avatar file from form data
+  const file = formData.get("avatar") as File;
+  const userId = formData.get("userId") as string;
 
-  if (!file) {
-    throw new Error("No file uploaded");
+  if (!file || !userId) {
+    throw new Error("File and user ID are required");
   }
-  console.log("Received file:", {
-    name: file.name,
-    type: file.type,
-    size: file.size,
+
+  console.log("Uploading avatar for:", {
+    userId,
+    fileName: file.name,
+    fileType: file.type,
+    fileSize: file.size,
   });
 
-  const userId = formData.get("userId");
-  if (!userId) {
-    throw new Error("User ID not provided in form data");
-  }
-  console.log("Uploading avatar for userId:", userId);
-
-  const fileType = file.type;
-  const fileBuffer = Buffer.from(await file.arrayBuffer());
-
-  // Generate the file name (using the userId and file name for uniqueness)
-  const fileName = `profile-picture/${userId}-${file.name}`;
-
   try {
-    // Upload the avatar to S3
+    const fileBuffer = Buffer.from(await file.arrayBuffer());
+    const fileName = `profile-pictures/${userId}-${Date.now()}-${file.name}`;
+
+    // Upload to S3
     const s3FilePath = await uploadFileToS3(
       fileBuffer,
-      "limpopochefs-media", // Make sure this is the correct bucket name
-      fileType,
+      "limpopochefs-media",
+      file.type,
       fileName
     );
 
-    // Construct the full URL to access the uploaded file
+    // Construct the full URL
     const avatarURL = `https://limpopochefs-media.s3.eu-north-1.amazonaws.com/${s3FilePath}`;
 
-    // Save the avatar URL in the user's profile in the database
-    const user = await prisma.students.update({
-      where: { id: userId }, // Assuming user ID is passed in the form data
-      data: {
-        avatarUrl: avatarURL, // Store the full S3 URL in the user table
-      },
+    // Update the user's avatar URL in the database
+    const updatedStudent = await prisma.students.update({
+      where: { id: userId },
+      data: { avatarUrl: avatarURL },
     });
 
-    console.log("User updated:", user);
-    return { success: true, data: user };
+    console.log("Avatar uploaded successfully:", avatarURL);
+    return { success: true, avatarUrl: avatarURL, data: updatedStudent };
   } catch (error) {
-    if (error instanceof Error) {
-      console.error("Error uploading avatar:", error.message);
-    } else {
-      console.error("Unknown error:", error);
-    }
-    throw new Error("Failed to upload avatar");
+    console.error("Error uploading avatar:", error);
+    throw error;
   }
 };
