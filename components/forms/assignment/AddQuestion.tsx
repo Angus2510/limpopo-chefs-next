@@ -14,27 +14,48 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 
-// Types for our components
-interface QuestionBase {
+// Question Types Enum
+const QUESTION_TYPES = {
+  SHORT_ANSWER: "short-answer",
+  LONG_ANSWER: "long-answer",
+  MULTIPLE_CHOICE: "multiple-choice",
+  TRUE_FALSE: "true-false",
+  MATCH: "match",
+} as const;
+
+// Interfaces with stricter typing
+interface QuestionOption {
+  value?: string;
+  columnA?: string;
+  columnB?: string;
+}
+
+interface Question {
   questionText: string;
   questionType: string;
-  correctAnswer: any;
+  mark: string;
+  correctAnswer: string;
+  options: QuestionOption[];
 }
 
 interface AddQuestionProps {
-  newQuestion: QuestionBase;
-  setNewQuestion: React.Dispatch<React.SetStateAction<QuestionBase>>;
-  addQuestion: (question: any) => void;
+  newQuestion: Question;
+  setNewQuestion: React.Dispatch<React.SetStateAction<Question>>;
+  addQuestion: (question: Question) => void;
   toast: any;
 }
 
-// Multiple Choice Answer Component
+// Multiple Choice Input Component
 const MultipleChoiceInput: React.FC<{
   value: any;
   onChange: (value: any) => void;
 }> = ({ value, onChange }) => {
-  const [options, setOptions] = useState(value?.options || ["", "", "", ""]);
-  const [correctOption, setCorrectOption] = useState(value?.correctOption || 0);
+  const [options, setOptions] = useState<string[]>(
+    value?.options || ["", "", "", ""]
+  );
+  const [correctOption, setCorrectOption] = useState<number>(
+    value?.correctOption || 0
+  );
 
   const handleOptionChange = (index: number, text: string) => {
     const newOptions = [...options];
@@ -76,7 +97,7 @@ const MatchColumnsInput: React.FC<{
   value: any;
   onChange: (value: any) => void;
 }> = ({ value, onChange }) => {
-  const [pairs, setPairs] = useState(
+  const [pairs, setPairs] = useState<Array<{ text: string; picture: string }>>(
     value?.pairs || Array(4).fill({ text: "", picture: "" })
   );
 
@@ -101,10 +122,6 @@ const MatchColumnsInput: React.FC<{
               onChange={(e) => handlePairChange(index, "text", e.target.value)}
               placeholder="Enter text"
             />
-            <div className="flex items-center gap-2 text-gray-500">
-              <Upload size={16} />
-              <span>Or,</span>
-            </div>
           </div>
         ))}
       </div>
@@ -116,12 +133,8 @@ const MatchColumnsInput: React.FC<{
               onChange={(e) =>
                 handlePairChange(index, "picture", e.target.value)
               }
-              placeholder="Upload picture"
+              placeholder="Enter matching text"
             />
-            <div className="flex items-center gap-2 text-gray-500">
-              <Upload size={16} />
-              <span>Or,</span>
-            </div>
           </div>
         ))}
       </div>
@@ -136,18 +149,27 @@ const DynamicCorrectAnswer: React.FC<{
   setCorrectAnswer: (value: any) => void;
 }> = ({ questionType, correctAnswer, setCorrectAnswer }) => {
   switch (questionType) {
-    case "multiple-choice":
+    case QUESTION_TYPES.MULTIPLE_CHOICE:
       return (
         <MultipleChoiceInput
           value={correctAnswer}
           onChange={setCorrectAnswer}
         />
       );
-    case "match":
+    case QUESTION_TYPES.LONG_ANSWER:
+      return (
+        <Textarea
+          value={correctAnswer}
+          onChange={(e) => setCorrectAnswer(e.target.value)}
+          placeholder="Enter model answer"
+          className="min-h-[200px]"
+        />
+      );
+    case QUESTION_TYPES.MATCH:
       return (
         <MatchColumnsInput value={correctAnswer} onChange={setCorrectAnswer} />
       );
-    case "true-false":
+    case QUESTION_TYPES.TRUE_FALSE:
       return (
         <Select value={correctAnswer} onValueChange={setCorrectAnswer}>
           <SelectTrigger>
@@ -158,23 +180,6 @@ const DynamicCorrectAnswer: React.FC<{
             <SelectItem value="false">False</SelectItem>
           </SelectContent>
         </Select>
-      );
-    case "long-answer":
-      return (
-        <Textarea
-          value={correctAnswer}
-          onChange={(e) => setCorrectAnswer(e.target.value)}
-          placeholder="Enter model answer"
-          className="min-h-[150px]"
-        />
-      );
-    case "single-word-match":
-      return (
-        <Input
-          value={correctAnswer}
-          onChange={(e) => setCorrectAnswer(e.target.value)}
-          placeholder="Enter single word answer"
-        />
       );
     default:
       return (
@@ -187,26 +192,102 @@ const DynamicCorrectAnswer: React.FC<{
   }
 };
 
+// Main AddQuestion Component
 const AddQuestion: React.FC<AddQuestionProps> = ({
   newQuestion,
   setNewQuestion,
   addQuestion,
   toast,
 }) => {
-  const handleAddQuestion = () => {
-    if (newQuestion.questionText && newQuestion.correctAnswer) {
-      addQuestion(newQuestion);
-      setNewQuestion({
-        questionText: "",
-        questionType: "short-answer",
-        correctAnswer: "",
-      });
-    } else {
+  const validateQuestion = (): boolean => {
+    if (!newQuestion.questionText.trim()) {
       toast({
-        title: "Please fill in the required fields.",
-        description: "Both question text and correct answer cannot be empty.",
+        title: "Error",
+        description: "Question text is required",
+        variant: "destructive",
       });
+      return false;
     }
+
+    if (newQuestion.questionType === QUESTION_TYPES.MULTIPLE_CHOICE) {
+      const mcAnswer = newQuestion.correctAnswer;
+      if (!mcAnswer?.options?.some(Boolean)) {
+        toast({
+          title: "Error",
+          description: "At least one option is required for multiple choice",
+          variant: "destructive",
+        });
+        return false;
+      }
+      if (mcAnswer.correctOption === undefined) {
+        toast({
+          title: "Error",
+          description: "Please select a correct answer",
+          variant: "destructive",
+        });
+        return false;
+      }
+    } else if (!newQuestion.correctAnswer) {
+      toast({
+        title: "Error",
+        description: "Correct answer is required",
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    return true;
+  };
+
+  const formatQuestionForSubmission = (): Question => {
+    let formattedQuestion: Question = {
+      questionText: newQuestion.questionText.trim(),
+      questionType: newQuestion.questionType,
+      mark: newQuestion.mark || "1",
+      correctAnswer: "",
+      options: [],
+    };
+
+    if (newQuestion.questionType === QUESTION_TYPES.MULTIPLE_CHOICE) {
+      const mcAnswer = newQuestion.correctAnswer;
+      formattedQuestion.correctAnswer =
+        mcAnswer.options[mcAnswer.correctOption];
+      formattedQuestion.options = mcAnswer.options.map((option: string) => ({
+        value: option,
+      }));
+    } else if (newQuestion.questionType === QUESTION_TYPES.MATCH) {
+      const matchAnswer = newQuestion.correctAnswer;
+      formattedQuestion.correctAnswer = JSON.stringify(matchAnswer.pairs);
+      formattedQuestion.options = matchAnswer.pairs.map((pair: any) => ({
+        columnA: pair.text,
+        columnB: pair.picture,
+      }));
+    } else {
+      formattedQuestion.correctAnswer = String(newQuestion.correctAnswer);
+    }
+
+    return formattedQuestion;
+  };
+
+  const handleAddQuestion = () => {
+    if (!validateQuestion()) return;
+
+    const formattedQuestion = formatQuestionForSubmission();
+    addQuestion(formattedQuestion);
+
+    // Reset form
+    setNewQuestion({
+      questionText: "",
+      questionType: QUESTION_TYPES.SHORT_ANSWER,
+      mark: "1",
+      correctAnswer: "",
+      options: [],
+    });
+
+    toast({
+      title: "Success",
+      description: "Question added successfully",
+    });
   };
 
   return (
@@ -238,6 +319,7 @@ const AddQuestion: React.FC<AddQuestionProps> = ({
                   ...newQuestion,
                   questionType: value,
                   correctAnswer: "",
+                  options: [],
                 })
               }
             >
@@ -245,14 +327,19 @@ const AddQuestion: React.FC<AddQuestionProps> = ({
                 <SelectValue placeholder="Select Question Type" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="short-answer">Short Answer</SelectItem>
-                <SelectItem value="long-answer">Long Answer</SelectItem>
-                <SelectItem value="multiple-choice">Multiple Choice</SelectItem>
-                <SelectItem value="true-false">True/False</SelectItem>
-                <SelectItem value="match">Match</SelectItem>
-                <SelectItem value="single-word-match">
-                  Single Word Match
+                <SelectItem value={QUESTION_TYPES.SHORT_ANSWER}>
+                  Short Answer
                 </SelectItem>
+                <SelectItem value={QUESTION_TYPES.LONG_ANSWER}>
+                  Long Answer
+                </SelectItem>
+                <SelectItem value={QUESTION_TYPES.MULTIPLE_CHOICE}>
+                  Multiple Choice
+                </SelectItem>
+                <SelectItem value={QUESTION_TYPES.TRUE_FALSE}>
+                  True/False
+                </SelectItem>
+                <SelectItem value={QUESTION_TYPES.MATCH}>Match</SelectItem>
               </SelectContent>
             </Select>
           </FormControl>

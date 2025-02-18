@@ -1,40 +1,33 @@
 import { z } from "zod";
 
-export const testFormSchema = z.object({
-  title: z.string().nonempty({ message: "Title is required" }),
-  type: z.string().nonempty({ message: "Type is required" }),
-
-  availableFrom: z.coerce.date(), // Ensures proper date format
-  availableUntil: z.any().optional(), // Keeping it as `Json?` in Prisma
-
-  campus: z
-    .array(z.string())
-    .nonempty({ message: "At least one campus is required" }),
-
-  duration: z
-    .number()
-    .min(1, { message: "Duration must be at least 1 minute" }),
-
-  individualStudents: z.array(z.string()).optional(),
-  intakeGroups: z.array(z.string()).optional(),
-
-  lecturer: z.string().nonempty({ message: "Lecturer ID is required" }), // Matches ObjectId
-
-  outcome: z.array(z.string()).optional(), // Outcome references
-
-  password: z.string().optional(), // Not required if no password needed
-
-  questions: z
+const questionSchema = z.object({
+  questionText: z.string().min(1, "Question text is required"),
+  questionType: z.string().min(1, "Question type is required"),
+  mark: z.string().default("1"),
+  correctAnswer: z.string().min(1, "Correct answer is required"),
+  options: z
     .array(
       z.object({
-        id: z.string(),
-        text: z.string().nonempty({ message: "Question text is required" }),
-        correctAnswer: z.string(),
-        points: z.number().min(1, { message: "Points must be at least 1" }),
+        value: z.string().optional(),
+        columnA: z.string().optional(),
+        columnB: z.string().optional(),
       })
     )
-    .optional(),
+    .optional()
+    .default([]),
+});
 
-  createdAt: z.coerce.date().optional(),
-  updatedAt: z.coerce.date().optional(),
+export const testFormSchema = z.object({
+  title: z.string().min(1, "Title is required"),
+  type: z.enum(["test", "task"]),
+  intakeGroups: z.array(z.string()).min(1, "Select at least one intake group"),
+  outcomes: z.array(z.string()).min(1, "Select at least one outcome"),
+  duration: z.object({
+    hours: z.string(),
+    minutes: z.string(),
+  }),
+  testDateTime: z.string().min(1, "Test date and time is required"),
+  questions: z
+    .array(questionSchema)
+    .min(1, "At least one question is required"),
 });

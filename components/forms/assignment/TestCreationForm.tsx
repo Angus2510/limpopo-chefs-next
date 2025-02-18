@@ -4,18 +4,16 @@ import React, { useState } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { testFormSchema } from "@/schemas/assignment/testFormSchema";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/components/ui/use-toast";
-import TestDetails from "./TestDetails";
-import AddQuestion from "./AddQuestion";
-import QuestionsList from "./QuestionsList";
-import { Button } from "@/components/ui/button";
+import { createAssignment } from "@/lib/actions/assignments/createAssignment";
+import { useRouter } from "next/navigation";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Form,
-  FormControl,
   FormField,
   FormItem,
   FormLabel,
+  FormControl,
   FormMessage,
 } from "@/components/ui/form";
 import {
@@ -25,13 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-} from "@/components/ui/command";
+import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { X } from "lucide-react";
 import {
@@ -39,73 +31,122 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Input } from "@/components/ui/input";
-
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+} from "@/components/ui/command";
+import TestDetails from "./TestDetails";
+import AddQuestion from "./AddQuestion";
+import QuestionsList from "./QuestionsList";
 import DatePicker from "@/components/common/DatePicker";
-import { AssignmentService } from "@/utils/assignmentServices";
 
-const assignmentService = new AssignmentService();
-
+// Constants
 const ASSIGNMENT_TYPES = {
   TEST: "test",
   TASK: "task",
 } as const;
 
-type AssignmentType = (typeof ASSIGNMENT_TYPES)[keyof typeof ASSIGNMENT_TYPES];
-
-// Create an array of hours for the dropdown (0-24)
-const HOURS_OPTIONS = Array.from({ length: 25 }, (_, i) => ({
-  value: i.toString(),
-  label: i === 1 ? "1 hour" : `${i} hours`,
+const HOURS_OPTIONS = Array.from({ length: 4 }, (_, i) => ({
+  value: String(i + 1),
+  label: `${i + 1} Hour${i > 0 ? "s" : ""}`,
 }));
 
-// Create an array of minutes for the dropdown (0-59)
-const MINUTES_OPTIONS = Array.from({ length: 60 }, (_, i) => ({
-  value: i.toString(),
-  label: i === 1 ? "1 minute" : `${i} minutes`,
+const MINUTES_OPTIONS = Array.from({ length: 12 }, (_, i) => ({
+  value: String(i * 5),
+  label: `${i * 5} Minutes`,
 }));
 
-interface IntakeGroup {
-  id: string;
-  title: string;
-}
-
-interface Outcome {
-  id: string;
-  title: string;
-  type: string;
-  hidden: boolean;
-  campus: string[];
-}
-
+// Interfaces
 interface TestCreationFormProps {
-  intakeGroups: IntakeGroup[];
-  outcomes: Outcome[];
+  intakeGroups: Array<{
+    id: string;
+    title: string;
+  }>;
+  outcomes: Array<{
+    id: string;
+    title: string;
+    hidden: boolean;
+  }>;
 }
 
+interface Question {
+  questionText: string; // Changed from text
+  questionType: string; // Changed from type
+  mark: string;
+  correctAnswer: string;
+  options: Array<{
+    value?: string;
+    columnA?: string;
+    columnB?: string;
+  }>;
+}
+
+interface FormValues {
+  title: string;
+  type: "test" | "task";
+  intakeGroups: string[];
+  outcomes: string[];
+  duration: {
+    hours: string;
+    minutes: string;
+  };
+  testDateTime: string;
+  questions: Question[];
+}
+
+// Add this interface after your existing interfaces
+interface AssignmentDataPayload {
+  title: string;
+  type: "test" | "task";
+  duration: number;
+  availableFrom: string;
+  availableUntil: null;
+  campus: string[];
+  intakeGroups: string[];
+  individualStudents: string[];
+  outcomes: string[];
+  lecturer: string;
+  questions: {
+    text: string;
+    type: string;
+    mark: string;
+    correctAnswer: string;
+    options: Array<{
+      value?: string;
+      columnA?: string;
+      columnB?: string;
+    }>;
+  }[];
+}
+// Main Component
 const TestCreationForm: React.FC<TestCreationFormProps> = ({
   intakeGroups,
   outcomes,
 }) => {
-  const form = useForm({
+  const router = useRouter();
+  const { toast } = useToast();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Form Setup
+  const form = useForm<FormValues>({
     resolver: zodResolver(testFormSchema),
     defaultValues: {
       title: "",
-      type: ASSIGNMENT_TYPES.TEST, // Default to test
+      type: ASSIGNMENT_TYPES.TEST,
       intakeGroups: [],
       outcomes: [],
-      duration: {
-        hours: "1", // Default to 1 hour
-        minutes: "0", // Default to 0 minutes
-      },
-      testDateTime: undefined,
+      duration: { hours: "1", minutes: "0" },
+      testDateTime: new Date().toISOString(),
       questions: [],
     },
   });
 
-  const { toast } = useToast();
-  const { control, handleSubmit, reset, setValue, watch } = form;
+  const { control, setValue, watch, handleSubmit, reset } = form;
 
+  // Questions Array Management
   const {
     fields: questionFields,
     append: addQuestion,
@@ -115,75 +156,101 @@ const TestCreationForm: React.FC<TestCreationFormProps> = ({
     name: "questions",
   });
 
-  const [newQuestion, setNewQuestion] = useState({
+  // Question State
+  const [newQuestion, setNewQuestion] = useState<Question>({
     questionText: "",
     questionType: "short-answer",
+    mark: "1",
     correctAnswer: "",
+    options: [],
   });
 
-  // Watch for changes in fields
+  // Watched Fields
+  const selectedType = watch("type");
   const selectedIntakeGroups = watch("intakeGroups") || [];
   const selectedOutcomes = watch("outcomes") || [];
-  const selectedType = watch("type");
-  const duration = watch("duration");
 
-  const onSubmit = async (data: any) => {
-    // Convert duration to total minutes for API
-    const totalMinutes =
-      parseInt(data.duration.hours) * 60 + parseInt(data.duration.minutes);
-
-    const formData = {
-      title: data.title,
-      type: data.type,
-      duration: totalMinutes,
-      availableFrom: new Date(data.testDateTime),
-      availableUntil: null,
-      campus: [],
-      intakeGroups: data.intakeGroups,
-      individualStudents: [],
-      outcomes: data.outcomes,
-      lecturer: "",
-      questions: data.questions,
-    };
-
-    try {
-      await assignmentService.createAssignment(formData);
-      toast({
-        title: "Success",
-        description: "Assignment created successfully",
-      });
-      reset();
-      setNewQuestion({
-        questionText: "",
-        questionType: "short-answer",
-        correctAnswer: "",
-      });
-    } catch (error) {
-      console.error("Error during form submission:", error);
-      toast({
-        title: "Error",
-        description: "Failed to create assignment",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const removeSelected = (field: string, value: string) => {
-    const currentValues = watch(field) || [];
+  // Remove Selected Items Handler
+  const removeSelected = (field: "intakeGroups" | "outcomes", id: string) => {
+    const current = form.getValues(field);
     setValue(
       field,
-      currentValues.filter((v: string) => v !== value)
+      current.filter((currentId: string) => currentId !== id)
     );
+  };
+
+  // Form Submission
+  // Update the onSubmit function
+  // In TestCreationForm.tsx, update the onSubmit function
+  const onSubmit = async (data: FormValues) => {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+
+    try {
+      const assignmentData = {
+        title: data.title.trim(),
+        type: data.type,
+        duration:
+          parseInt(data.duration.hours) * 60 + parseInt(data.duration.minutes),
+        availableFrom: new Date(data.testDateTime).toISOString(),
+        availableUntil: null,
+        campus: [],
+        intakeGroups: data.intakeGroups || [],
+        individualStudents: [],
+        outcomes: data.outcomes || [],
+        lecturer: "", // Remove SYSTEM - will be handled by server action
+        questions: data.questions.map((q) => ({
+          text: q.questionText.trim(),
+          type: q.questionType,
+          mark: q.mark || "1",
+          correctAnswer: q.correctAnswer || "",
+          options: Array.isArray(q.options) ? q.options : [],
+        })),
+      };
+
+      const result = await createAssignment(assignmentData);
+
+      if (!result.success) {
+        throw new Error(result.message || "Failed to create assignment");
+      }
+
+      toast({
+        title: "Success",
+        description: `Assignment created successfully${
+          result.data?.testPassword
+            ? `. Password: ${result.data.testPassword}`
+            : ""
+        }`,
+      });
+
+      form.reset();
+      router.refresh();
+      router.push("/admin/assignments");
+    } catch (error) {
+      console.error("Submission error:", error);
+      toast({
+        title: "Error",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Failed to create assignment",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
     <Card>
       <Form {...form}>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+        <div className="space-y-6">
           <CardHeader>
-            <CardTitle className="w-full">Test Configuration</CardTitle>
+            <CardTitle>Test Configuration</CardTitle>
           </CardHeader>
-          <CardContent className="grid grid-cols-2 sm:grid-cols-2 gap-4">
+
+          <CardContent className="grid grid-cols-2 gap-4">
+            {/* Test Title */}
             <div className="col-span-2">
               <TestDetails control={control} />
             </div>
@@ -218,7 +285,7 @@ const TestCreationForm: React.FC<TestCreationFormProps> = ({
               )}
             />
 
-            {/* Duration Controls */}
+            {/* Time Limit */}
             <div className="flex flex-col space-y-2">
               <FormLabel>Time Limit</FormLabel>
               <div className="flex space-x-2">
@@ -244,11 +311,9 @@ const TestCreationForm: React.FC<TestCreationFormProps> = ({
                           ))}
                         </SelectContent>
                       </Select>
-                      <FormMessage />
                     </FormItem>
                   )}
                 />
-
                 <FormField
                   control={control}
                   name="duration.minutes"
@@ -271,14 +336,13 @@ const TestCreationForm: React.FC<TestCreationFormProps> = ({
                           ))}
                         </SelectContent>
                       </Select>
-                      <FormMessage />
                     </FormItem>
                   )}
                 />
               </div>
             </div>
 
-            {/* Multi-select Intake Groups */}
+            {/* Intake Groups */}
             <FormField
               control={control}
               name="intakeGroups"
@@ -312,9 +376,7 @@ const TestCreationForm: React.FC<TestCreationFormProps> = ({
                               onSelect={() => {
                                 const current = field.value || [];
                                 const updated = current.includes(group.id)
-                                  ? current.filter(
-                                      (id: string) => id !== group.id
-                                    )
+                                  ? current.filter((id) => id !== group.id)
                                   : [...current, group.id];
                                 setValue("intakeGroups", updated);
                               }}
@@ -327,7 +389,7 @@ const TestCreationForm: React.FC<TestCreationFormProps> = ({
                     </PopoverContent>
                   </Popover>
                   <div className="flex flex-wrap gap-2 mt-2">
-                    {selectedIntakeGroups.map((groupId: string) => {
+                    {selectedIntakeGroups.map((groupId) => {
                       const group = intakeGroups.find((g) => g.id === groupId);
                       return (
                         <Badge
@@ -351,7 +413,7 @@ const TestCreationForm: React.FC<TestCreationFormProps> = ({
               )}
             />
 
-            {/* Multi-select Outcomes */}
+            {/* Outcomes */}
             <FormField
               control={control}
               name="outcomes"
@@ -387,9 +449,7 @@ const TestCreationForm: React.FC<TestCreationFormProps> = ({
                                 onSelect={() => {
                                   const current = field.value || [];
                                   const updated = current.includes(outcome.id)
-                                    ? current.filter(
-                                        (id: string) => id !== outcome.id
-                                      )
+                                    ? current.filter((id) => id !== outcome.id)
                                     : [...current, outcome.id];
                                   setValue("outcomes", updated);
                                 }}
@@ -402,7 +462,7 @@ const TestCreationForm: React.FC<TestCreationFormProps> = ({
                     </PopoverContent>
                   </Popover>
                   <div className="flex flex-wrap gap-2 mt-2">
-                    {selectedOutcomes.map((outcomeId: string) => {
+                    {selectedOutcomes.map((outcomeId) => {
                       const outcome = outcomes.find((o) => o.id === outcomeId);
                       return (
                         <Badge
@@ -445,23 +505,33 @@ const TestCreationForm: React.FC<TestCreationFormProps> = ({
             />
           </CardContent>
 
+          {/* Question Management */}
           <AddQuestion
             newQuestion={newQuestion}
             setNewQuestion={setNewQuestion}
             addQuestion={addQuestion}
             toast={toast}
           />
+
           <QuestionsList
             questionFields={questionFields}
             removeQuestion={removeQuestion}
           />
 
+          {/* Submit Button */}
           <div className="flex justify-end px-5 py-5">
-            <Button type="submit" className="w-auto">
-              Save {selectedType === ASSIGNMENT_TYPES.TEST ? "Test" : "Task"}
+            <Button
+              type="button"
+              onClick={form.handleSubmit(onSubmit)}
+              className="w-auto"
+              disabled={isSubmitting}
+            >
+              {isSubmitting
+                ? "Saving..."
+                : `Save ${selectedType === "test" ? "Test" : "Task"}`}
             </Button>
           </div>
-        </form>
+        </div>
       </Form>
     </Card>
   );

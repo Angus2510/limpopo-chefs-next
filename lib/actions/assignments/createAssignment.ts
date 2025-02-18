@@ -2,120 +2,112 @@
 
 import prisma from "@/lib/db";
 import { revalidatePath } from "next/cache";
-import { z } from "zod";
 
-// Define types based on your schema
-interface Question {
+interface QuestionData {
   text: string;
   type: string;
   mark: string;
-  correctAnswer: string | string[] | { columnA: string; columnB: string }[];
-  options?: { value?: string; columnA?: string; columnB?: string }[];
+  correctAnswer: string;
+  options: any[];
 }
 
-interface AssignmentInput {
+interface AssignmentDataPayload {
   title: string;
-  type: "test" | "task";
+  type: string;
   duration: number;
-  availableFrom: Date;
-  availableUntil?: Date | null;
+  availableFrom: string;
+  availableUntil: null;
   campus: string[];
   intakeGroups: string[];
   individualStudents: string[];
   outcomes: string[];
   lecturer: string;
-  questions: Question[];
+  questions: QuestionData[];
 }
 
-// Validation schema for questions
-const questionSchema = z.object({
-  text: z.string().min(1, "Question text is required"),
-  type: z.string(),
-  mark: z.string(),
-  correctAnswer: z.union([
-    z.string(),
-    z.array(z.string()),
-    z.array(
-      z.object({
-        columnA: z.string(),
-        columnB: z.string(),
-      })
-    ),
-  ]),
-  options: z
-    .array(
-      z.object({
-        value: z.string().optional(),
-        columnA: z.string().optional(),
-        columnB: z.string().optional(),
-      })
-    )
-    .optional(),
-});
-
-export async function createAssignment(data: AssignmentInput) {
+export async function createAssignment(data: AssignmentDataPayload) {
   try {
-    // First, create all questions
-    const questionPromises = data.questions.map(async (question) => {
-      // Validate question
-      const validatedQuestion = questionSchema.parse(question);
-
-      return await prisma.questions.create({
-        data: {
-          text: validatedQuestion.text,
-          type: validatedQuestion.type,
-          mark: validatedQuestion.mark,
-          correctAnswer: validatedQuestion.correctAnswer,
-          options: validatedQuestion.options || [],
-        },
-        select: {
-          id: true,
-        },
-      });
+    console.log("Starting assignment creation with data:", {
+      title: data.title,
+      type: data.type,
+      questionCount: data.questions.length,
     });
 
-    const createdQuestions = await Promise.all(questionPromises);
-    const questionIds = createdQuestions.map((q) => q.id);
+    // Create questions first
+    const questions = await Promise.all(
+      data.questions.map(async (question, index) => {
+        console.log(`Creating question ${index + 1}:`, {
+          text: question.text,
+          type: question.type,
+        });
 
-    // Generate a random password for the test
-    const testPassword = Math.random().toString(36).slice(-8);
+        return await prisma.questions.create({
+          data: {
+            text: question.text,
+            type: question.type,
+            mark: question.mark,
+            correctAnswer: question.correctAnswer,
+            options: question.options || [],
+            v: 0,
+          },
+        });
+      })
+    );
 
-    // Create the assignment
+    console.log("Successfully created questions:", questions.length);
+
+    // Generate password
+    const testPassword = Math.random().toString(36).slice(-8).toUpperCase();
+
+    console.log(
+      "Creating assignment with questions:",
+      questions.map((q) => q.id)
+    );
+
+    // Create assignment
     const assignment = await prisma.assignments.create({
       data: {
         title: data.title,
         type: data.type,
         duration: data.duration,
-        availableFrom: data.availableFrom,
-        availableUntil: data.availableUntil,
+        availableFrom: new Date(data.availableFrom),
+        availableUntil: null,
         campus: data.campus,
         intakeGroups: data.intakeGroups,
-        individualStudents: data.individualStudents,
+        individualStudents: [],
         outcome: data.outcomes,
-        lecturer: data.lecturer,
-        questions: questionIds,
+        lecturer: "65c384f1c44def84952eb3d7", // System user ID
+        questions: questions.map((q) => q.id),
         password: testPassword,
         createdAt: new Date(),
         updatedAt: new Date(),
+        v: 0,
       },
     });
+
+    console.log("Successfully created assignment:", assignment.id);
 
     revalidatePath("/admin/assignments");
 
     return {
       success: true,
       data: {
-        ...assignment,
-        testPassword, // Return the password so it can be shown to the lecturer
+        id: assignment.id,
+        testPassword,
+        questionCount: questions.length,
       },
     };
   } catch (error) {
-    console.error("Error creating assignment:", error);
-    if (error instanceof z.ZodError) {
-      throw new Error(
-        `Validation error: ${error.errors.map((e) => e.message).join(", ")}`
-      );
-    }
-    throw new Error("Failed to create assignment");
+    console.error("Assignment creation error:", {
+      error,
+      message: error instanceof Error ? error.message : "Unknown error",
+      stack: error instanceof Error ? error.stack : undefined,
+    });
+
+    return {
+      success: false,
+      message:
+        error instanceof Error ? error.message : "Failed to create assignment",
+    };
   }
 }

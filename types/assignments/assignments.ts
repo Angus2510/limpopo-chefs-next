@@ -22,18 +22,36 @@ export interface QuestionOption {
 }
 
 export interface Assignment {
-  id?: string;
+  // Common required fields
+  id: string;
   title: string;
+  lecturer: string;
+
+  // Type with union for stricter typing
   type: "test" | "task";
-  duration: {
-    hours: string;
-    minutes: string;
-  };
+
+  // Duration can be either an object or number
+  duration:
+    | number
+    | {
+        hours: string;
+        minutes: string;
+      };
+
+  // Dates
   availableFrom: Date;
-  availableUntil?: Date;
+  availableUntil: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+
+  // Array fields
   campus: string[];
   intakeGroups: string[];
-  outcomes: string[];
-  questions: Question[];
-  lecturer: string;
+  outcome: string[]; // Note: this was 'outcomes' in first interface
+  questions: string[] | Question[]; // Support both string[] and Question[]
+  individualStudents: string[];
+
+  // Additional fields from second interface
+  password: string;
+  v: number;
 }
