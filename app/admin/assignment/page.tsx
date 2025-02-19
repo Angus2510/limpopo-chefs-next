@@ -9,12 +9,12 @@ export default async function AssignmentsPage() {
   const assignments = (await getAssignments()) || [];
 
   return (
-    <ContentLayout title="Assignments">
+    <ContentLayout title="Assessments">
       <div className="container mx-auto py-6">
         <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-bold">Assignments</h1>
+          <h1 className="text-2xl font-bold">Assessments</h1>
           <Link href="/admin/assignment/create">
-            <Button>Create New Assignment</Button>
+            <Button>Create New Assessments</Button>
           </Link>
         </div>
         <Suspense

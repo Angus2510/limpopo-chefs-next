@@ -1,7 +1,7 @@
 "use server";
 
 import prisma from "@/lib/db";
-import { Assignment } from "@/types/assignments";
+import { Assignment } from "@/types/assignments/assignments";
 
 export async function getAssignments(): Promise<Assignment[]> {
   try {
