@@ -14,7 +14,7 @@ import { format } from "date-fns";
 import Link from "next/link";
 import { deleteAssignment } from "@/lib/actions/assignments/deleteAssignments";
 import { toast } from "@/components/ui/use-toast";
-import { Assignment } from "@/types/assignments";
+import { Assignment } from "@/types/assignments/assignments";
 
 interface AssignmentsListProps {
   assignments: Assignment[];

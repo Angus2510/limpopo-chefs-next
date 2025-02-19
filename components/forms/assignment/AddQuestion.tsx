@@ -20,7 +20,6 @@ const QUESTION_TYPES = {
   LONG_ANSWER: "long-answer",
   MULTIPLE_CHOICE: "multiple-choice",
   TRUE_FALSE: "true-false",
-  MATCH: "match",
 } as const;
 
 // Interfaces with stricter typing
@@ -339,7 +338,6 @@ const AddQuestion: React.FC<AddQuestionProps> = ({
                 <SelectItem value={QUESTION_TYPES.TRUE_FALSE}>
                   True/False
                 </SelectItem>
-                <SelectItem value={QUESTION_TYPES.MATCH}>Match</SelectItem>
               </SelectContent>
             </Select>
           </FormControl>
