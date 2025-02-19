@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { X, Upload } from "lucide-react";
+import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FormItem, FormLabel, FormControl } from "@/components/ui/form";
@@ -25,8 +25,6 @@ const QUESTION_TYPES = {
 // Interfaces with stricter typing
 interface QuestionOption {
   value?: string;
-  columnA?: string;
-  columnB?: string;
 }
 
 interface Question {
@@ -91,56 +89,6 @@ const MultipleChoiceInput: React.FC<{
   );
 };
 
-// Match Columns Component
-const MatchColumnsInput: React.FC<{
-  value: any;
-  onChange: (value: any) => void;
-}> = ({ value, onChange }) => {
-  const [pairs, setPairs] = useState<Array<{ text: string; picture: string }>>(
-    value?.pairs || Array(4).fill({ text: "", picture: "" })
-  );
-
-  const handlePairChange = (
-    index: number,
-    field: "text" | "picture",
-    newValue: string
-  ) => {
-    const newPairs = [...pairs];
-    newPairs[index] = { ...newPairs[index], [field]: newValue };
-    setPairs(newPairs);
-    onChange({ pairs: newPairs });
-  };
-
-  return (
-    <div className="grid grid-cols-2 gap-6">
-      <div className="space-y-4">
-        {pairs.map((pair, index) => (
-          <div key={`text-${index}`} className="space-y-2">
-            <Input
-              value={pair.text}
-              onChange={(e) => handlePairChange(index, "text", e.target.value)}
-              placeholder="Enter text"
-            />
-          </div>
-        ))}
-      </div>
-      <div className="space-y-4">
-        {pairs.map((pair, index) => (
-          <div key={`picture-${index}`} className="space-y-2">
-            <Input
-              value={pair.picture}
-              onChange={(e) =>
-                handlePairChange(index, "picture", e.target.value)
-              }
-              placeholder="Enter matching text"
-            />
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-};
-
 // Dynamic Correct Answer Component
 const DynamicCorrectAnswer: React.FC<{
   questionType: string;
@@ -163,10 +111,6 @@ const DynamicCorrectAnswer: React.FC<{
           placeholder="Enter model answer"
           className="min-h-[200px]"
         />
-      );
-    case QUESTION_TYPES.MATCH:
-      return (
-        <MatchColumnsInput value={correctAnswer} onChange={setCorrectAnswer} />
       );
     case QUESTION_TYPES.TRUE_FALSE:
       return (
@@ -203,6 +147,15 @@ const AddQuestion: React.FC<AddQuestionProps> = ({
       toast({
         title: "Error",
         description: "Question text is required",
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    if (!newQuestion.mark || parseInt(newQuestion.mark) < 1) {
+      toast({
+        title: "Error",
+        description: "Mark allocation must be at least 1",
         variant: "destructive",
       });
       return false;
@@ -253,13 +206,6 @@ const AddQuestion: React.FC<AddQuestionProps> = ({
         mcAnswer.options[mcAnswer.correctOption];
       formattedQuestion.options = mcAnswer.options.map((option: string) => ({
         value: option,
-      }));
-    } else if (newQuestion.questionType === QUESTION_TYPES.MATCH) {
-      const matchAnswer = newQuestion.correctAnswer;
-      formattedQuestion.correctAnswer = JSON.stringify(matchAnswer.pairs);
-      formattedQuestion.options = matchAnswer.pairs.map((pair: any) => ({
-        columnA: pair.text,
-        columnB: pair.picture,
       }));
     } else {
       formattedQuestion.correctAnswer = String(newQuestion.correctAnswer);
@@ -340,6 +286,22 @@ const AddQuestion: React.FC<AddQuestionProps> = ({
                 </SelectItem>
               </SelectContent>
             </Select>
+          </FormControl>
+        </FormItem>
+
+        {/* Mark Allocation Field */}
+        <FormItem>
+          <FormLabel>Mark Allocation</FormLabel>
+          <FormControl>
+            <Input
+              type="number"
+              min="1"
+              value={newQuestion.mark}
+              onChange={(e) =>
+                setNewQuestion({ ...newQuestion, mark: e.target.value })
+              }
+              placeholder="Enter marks"
+            />
           </FormControl>
         </FormItem>
 

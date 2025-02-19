@@ -9,10 +9,9 @@ export async function getAssignmentById(id: string) {
       throw new Error("Invalid assignment ID");
     }
 
+    // First get the assignment with its question IDs
     const assignment = await prisma.assignments.findFirst({
-      where: {
-        id,
-      },
+      where: { id },
       select: {
         id: true,
         title: true,
@@ -33,7 +32,29 @@ export async function getAssignmentById(id: string) {
       throw new Error("Assignment not found");
     }
 
-    return assignment;
+    // Get the full question details
+    const questionDetails = await Promise.all(
+      assignment.questions.map(async (questionId) => {
+        const question = await prisma.questions.findUnique({
+          where: { id: questionId },
+          select: {
+            id: true,
+            text: true,
+            type: true,
+            mark: true,
+            correctAnswer: true,
+            options: true,
+          },
+        });
+        return question;
+      })
+    );
+
+    // Return assignment with full question details
+    return {
+      ...assignment,
+      questions: questionDetails.filter(Boolean), // Remove any null values
+    };
   } catch (error) {
     console.error("Failed to fetch assignment:", error);
     return null;
