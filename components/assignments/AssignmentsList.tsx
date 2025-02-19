@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -20,7 +21,6 @@ interface AssignmentsListProps {
 }
 
 export default function AssignmentsList({ assignments }: AssignmentsListProps) {
-  // Add loading state
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
 
   const handleDelete = async (id: string) => {
@@ -44,12 +44,6 @@ export default function AssignmentsList({ assignments }: AssignmentsListProps) {
     }
   };
 
-  if (!assignments.length) {
-    return (
-      <div className="text-center py-6 text-gray-500">No assignments found</div>
-    );
-  }
-
   return (
     <Table>
       <TableHeader>
@@ -71,12 +65,12 @@ export default function AssignmentsList({ assignments }: AssignmentsListProps) {
             </TableCell>
             <TableCell>{assignment.duration} minutes</TableCell>
             <TableCell className="text-right space-x-2">
-              <Link href={`/admin/assignments/${assignment.id}`}>
+              <Link href={`/admin/assignment/${assignment.id}`}>
                 <Button variant="outline" size="sm">
                   View
                 </Button>
               </Link>
-              <Link href={`/admin/assignments/${assignment.id}/edit`}>
+              <Link href={`/admin/assignment/${assignment.id}/edit`}>
                 <Button variant="outline" size="sm">
                   Edit
                 </Button>

@@ -225,7 +225,7 @@ const TestCreationForm: React.FC<TestCreationFormProps> = ({
 
       form.reset();
       router.refresh();
-      router.push("/admin/assignments");
+      router.push("/admin/assignment");
     } catch (error) {
       console.error("Submission error:", error);
       toast({
