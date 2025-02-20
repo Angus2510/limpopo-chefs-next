@@ -123,7 +123,7 @@ export default function AssignmentsList({ assignments }: AssignmentsListProps) {
                   </Link>
                   <Link href={`/admin/assignment/edit/${assignment.id}`}>
                     <Button variant="outline" size="sm">
-                      Edit
+                      Clone
                     </Button>
                   </Link>
                   <Button
