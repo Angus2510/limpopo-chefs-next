@@ -296,7 +296,7 @@ export function getMenuList(pathname: string): Group[] {
           },
           {
             href: "/student/assignments",
-            label: "Assignments",
+            label: "Assessments",
             active: pathname.includes("/student/assignments"),
             icon: SquarePen,
             submenus: [],
