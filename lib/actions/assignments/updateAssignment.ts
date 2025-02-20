@@ -19,11 +19,21 @@ export async function updateAssignment(id: string, data: UpdateAssignmentData) {
   }
 
   try {
+    // Parse the date and set to noon UTC
+    const availableFromDate = new Date(data.availableFrom);
+    availableFromDate.setUTCHours(12, 0, 0, 0);
+
+    if (isNaN(availableFromDate.getTime())) {
+      throw new Error("Invalid date format");
+    }
+
+    console.log("Updating assignment with date:", availableFromDate); // Add logging
+
     const updated = await prisma.assignments.update({
       where: { id },
       data: {
         duration: parseInt(String(data.duration)),
-        availableFrom: new Date(data.availableFrom),
+        availableFrom: availableFromDate,
         campus: Array.isArray(data.campus) ? data.campus : [],
         intakeGroups: Array.isArray(data.intakeGroups) ? data.intakeGroups : [],
         password: data.password,
@@ -31,7 +41,11 @@ export async function updateAssignment(id: string, data: UpdateAssignmentData) {
       },
     });
 
+    // Add multiple revalidation paths to ensure cache is cleared
     revalidatePath("/admin/assignment");
+    revalidatePath("/admin/assignment/[id]");
+    revalidatePath("/admin/assignment/edit/[id]");
+
     return updated;
   } catch (error) {
     console.error("Failed to update assignment:", error);

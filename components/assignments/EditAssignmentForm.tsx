@@ -84,22 +84,38 @@ export default function EditAssignmentForm({
     loadData();
   }, []);
 
+  // Update the onSubmit function
   const onSubmit = async (values: FormValues) => {
     setIsSubmitting(true);
 
     try {
-      await updateAssignment(assignment.id, {
-        ...assignment,
-        ...values,
-      });
+      // Create a new date object at noon UTC
+      const formattedDate = new Date(values.availableFrom);
+      formattedDate.setUTCHours(12, 0, 0, 0);
+
+      const formattedData = {
+        id: assignment.id,
+        duration: Number(values.duration),
+        availableFrom: formattedDate.toISOString(),
+        campus: values.campus,
+        intakeGroups: values.intakeGroups,
+        password: values.password,
+      };
+
+      console.log("Submitting data:", formattedData); // Add logging
+
+      await updateAssignment(assignment.id, formattedData);
+
+      // Force a cache revalidation
+      router.refresh();
 
       toast({
         title: "Success",
-        description: "Assignment updated successfully",
+        description: "Assessment updated successfully",
       });
       router.push("/admin/assignment");
-      router.refresh();
     } catch (error) {
+      console.error("Update error:", error);
       toast({
         title: "Error",
         description: "Failed to update assignment",
@@ -109,7 +125,6 @@ export default function EditAssignmentForm({
       setIsSubmitting(false);
     }
   };
-
   const campusOptions = campuses.map((campus) => ({
     label: campus.title,
     value: campus.title,
@@ -155,12 +170,20 @@ export default function EditAssignmentForm({
                     <FormItem>
                       <FormLabel>Available From</FormLabel>
                       <FormControl>
-                        <Input type="date" {...field} required />
+                        <Input
+                          type="date"
+                          {...field}
+                          value={field.value}
+                          onChange={(e) => {
+                            const newDate = e.target.value;
+                            field.onChange(newDate);
+                          }}
+                          required
+                        />
                       </FormControl>
                     </FormItem>
                   )}
                 />
-
                 <FormField
                   control={form.control}
                   name="password"
@@ -184,7 +207,6 @@ export default function EditAssignmentForm({
                     </FormItem>
                   )}
                 />
-
                 <FormField
                   control={form.control}
                   name="intakeGroups"
@@ -203,7 +225,6 @@ export default function EditAssignmentForm({
                     </FormItem>
                   )}
                 />
-
                 <FormField
                   control={form.control}
                   name="campus"

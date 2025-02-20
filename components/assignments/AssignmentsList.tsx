@@ -113,7 +113,7 @@ export default function AssignmentsList({ assignments }: AssignmentsListProps) {
                 </TableCell>
                 <TableCell>{assignment.duration} minutes</TableCell>
                 <TableCell>
-                  {format(new Date(assignment.createdAt), "PPP")}
+                  {format(new Date(assignment.availableFrom), "PPP")}
                 </TableCell>
                 <TableCell className="text-right space-x-2">
                   <Link href={`/admin/assignment/${assignment.id}`}>

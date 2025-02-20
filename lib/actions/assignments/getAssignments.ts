@@ -8,7 +8,7 @@ export async function getAssignments(): Promise<Assignment[]> {
     const assignments = await prisma.assignments.findMany({
       orderBy: [
         {
-          createdAt: "desc",
+          availableFrom: "desc",
         },
       ],
       select: {
