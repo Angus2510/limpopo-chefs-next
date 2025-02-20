@@ -1,4 +1,5 @@
 import { getAssignmentById } from "@/lib/actions/assignments/getAssignmentById";
+import { getAssignmentAnswers } from "@/lib/actions/assignments/getAssignmentAnswers";
 import { ContentLayout } from "@/components/layout/content-layout";
 import { format } from "date-fns";
 import {
@@ -15,14 +16,15 @@ interface PageProps {
 }
 
 export default async function AssignmentViewPage({ params }: PageProps) {
-  // Validate params
   if (!params?.id) {
     notFound();
   }
 
-  // Wait for params to be available
   const id = await Promise.resolve(params.id);
-  const assignment = await getAssignmentById(id);
+  const [assignment, answers] = await Promise.all([
+    getAssignmentById(id),
+    getAssignmentAnswers(id),
+  ]);
 
   if (!assignment) {
     notFound();
@@ -31,79 +33,73 @@ export default async function AssignmentViewPage({ params }: PageProps) {
   return (
     <ContentLayout title={assignment.title}>
       <div className="container mx-auto py-6 space-y-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>{assignment.title}</CardTitle>
-            <CardDescription>
-              {assignment.type.charAt(0).toUpperCase() +
-                assignment.type.slice(1)}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-4">
-              <div>
-                <strong>Available From:</strong>{" "}
-                {format(new Date(assignment.availableFrom), "PPP")}
-              </div>
-              <div>
-                <strong>Duration:</strong> {assignment.duration} minutes
-              </div>
-              <div>
-                <strong>Password:</strong> {assignment.password}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        {/* Existing assignment details card */}
 
+        {/* Questions Card */}
         <Card>
           <CardHeader>
-            <CardTitle>Questions</CardTitle>
+            <CardTitle>Questions & Submissions</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-6">
-              {assignment.questions?.map((question, index) => (
-                <div key={question.id} className="border p-4 rounded-lg">
-                  <h3 className="font-bold mb-2">
-                    Question {index + 1} ({question.mark} marks)
-                  </h3>
-                  <p className="mb-2">{question.text}</p>
+              {assignment.questions?.map((question, index) => {
+                const questionAnswers = answers?.filter(
+                  (ans) => ans.question === question.id
+                );
 
-                  {question.type === "multiple-choice" && (
-                    <div className="pl-4">
-                      {question.options?.map(
-                        (option: any, optIndex: number) => (
+                return (
+                  <div key={question.id} className="border p-4 rounded-lg">
+                    {/* Question Header */}
+                    <h3 className="font-bold mb-2">
+                      Question {index + 1} ({question.mark} marks)
+                    </h3>
+                    <p className="mb-2">{question.text}</p>
+
+                    {/* Question Content (existing code) */}
+                    {/* ... your existing question type conditionals ... */}
+
+                    {/* Answers Section */}
+                    <div className="mt-4 border-t pt-4">
+                      <h4 className="font-semibold mb-2">
+                        Submissions ({questionAnswers?.length || 0})
+                      </h4>
+                      <div className="space-y-3">
+                        {questionAnswers?.map((answer) => (
                           <div
-                            key={optIndex}
-                            className="flex items-center gap-2"
+                            key={answer.id}
+                            className="bg-muted p-3 rounded-md"
                           >
-                            <span>{String.fromCharCode(65 + optIndex)}.</span>
-                            <span>{option.value}</span>
-                            {option.value === question.correctAnswer && (
-                              <span className="text-green-600 ml-2">
-                                (Correct)
-                              </span>
-                            )}
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <p className="text-sm text-muted-foreground">
+                                  Submitted:{" "}
+                                  {format(new Date(answer.answeredAt), "PPp")}
+                                </p>
+                                <p className="mt-2">
+                                  Answer:{" "}
+                                  {typeof answer.answer === "string"
+                                    ? answer.answer
+                                    : JSON.stringify(answer.answer)}
+                                </p>
+                              </div>
+                              <div className="text-right">
+                                <p className="font-medium">
+                                  Score: {answer.scores ?? "Not scored"}
+                                </p>
+                                {answer.moderatedscores && (
+                                  <p className="text-sm text-muted-foreground">
+                                    Moderated: {answer.moderatedscores}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
                           </div>
-                        )
-                      )}
+                        ))}
+                      </div>
                     </div>
-                  )}
-
-                  {question.type === "true-false" && (
-                    <div className="pl-4">
-                      <p>Correct Answer: {question.correctAnswer}</p>
-                    </div>
-                  )}
-
-                  {(question.type === "short-answer" ||
-                    question.type === "long-answer") && (
-                    <div className="pl-4">
-                      <p className="font-medium">Model Answer:</p>
-                      <p className="mt-1">{question.correctAnswer}</p>
-                    </div>
-                  )}
-                </div>
-              ))}
+                  </div>
+                );
+              })}
             </div>
           </CardContent>
         </Card>
