@@ -48,11 +48,50 @@ export default function AssignmentTestPage({
   const [answers, setAnswers] = useState<Answer[]>([]);
   const [loading, setLoading] = useState(true);
   const [timeRemaining, setTimeRemaining] = useState<number>(0);
+  const [isTabVisible, setIsTabVisible] = useState(true);
+  const [tabHiddenTime, setTabHiddenTime] = useState<number | null>(null);
+  const TAB_HIDDEN_LIMIT = 10000; // 10 seconds in milliseconds
 
   useEffect(() => {
     console.log("🚀 Loading assignment test page...");
     loadAssignment();
   }, []);
+
+  // Tab visibility effect
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        setIsTabVisible(false);
+        setTabHiddenTime(Date.now());
+        toast({
+          title: "Warning",
+          description:
+            "Leaving the test page will result in automatic submission after 10 seconds",
+          variant: "warning",
+        });
+      } else {
+        setIsTabVisible(true);
+        if (tabHiddenTime) {
+          const timeHidden = Date.now() - tabHiddenTime;
+          if (timeHidden > TAB_HIDDEN_LIMIT) {
+            toast({
+              title: "Test Auto-Submitted",
+              description:
+                "Test was automatically submitted due to leaving the page for too long",
+              variant: "destructive",
+            });
+            handleSubmitTest();
+          }
+        }
+        setTabHiddenTime(null);
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [tabHiddenTime]);
 
   // Timer effect
   useEffect(() => {
@@ -225,6 +264,16 @@ export default function AssignmentTestPage({
   return (
     <ContentLayout title={assignment.title}>
       <div className="container mx-auto py-6 space-y-6">
+        {/* Warning Card */}
+        <Card className="bg-warning/10 border-warning">
+          <CardContent className="py-4">
+            <p className="text-sm text-warning font-medium">
+              ⚠️ Warning: Leaving this page for more than 10 seconds will
+              automatically submit your test
+            </p>
+          </CardContent>
+        </Card>
+
         {/* Timer Card */}
         <Card className="bg-primary/5">
           <CardContent className="py-4">
