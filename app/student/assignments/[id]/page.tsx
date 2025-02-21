@@ -50,14 +50,18 @@ export default function AssignmentTestPage({
   const [timeRemaining, setTimeRemaining] = useState<number>(0);
   const [isTabVisible, setIsTabVisible] = useState(true);
   const [tabHiddenTime, setTabHiddenTime] = useState<number | null>(null);
+  const [windowFocused, setWindowFocused] = useState(true);
+  const [blurStartTime, setBlurStartTime] = useState<number | null>(null);
   const TAB_HIDDEN_LIMIT = 10000; // 10 seconds in milliseconds
+  const BLUR_TIME_LIMIT = 10000; // 10 seconds in milliseconds
+  let autoSubmitTimeout: NodeJS.Timeout;
 
   useEffect(() => {
     console.log("🚀 Loading assignment test page...");
     loadAssignment();
   }, []);
 
-  // Tab visibility effect
+  // Original tab visibility effect
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.hidden) {
@@ -92,6 +96,137 @@ export default function AssignmentTestPage({
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [tabHiddenTime]);
+
+  // New window focus detection effect
+  useEffect(() => {
+    const handleWindowBlur = () => {
+      setWindowFocused(false);
+      setBlurStartTime(Date.now());
+
+      toast({
+        title: "⚠️ Warning",
+        description:
+          "Opening another window will result in automatic submission after 10 seconds",
+        variant: "destructive",
+      });
+
+      // Set timeout for auto-submission
+      autoSubmitTimeout = setTimeout(async () => {
+        try {
+          // Force submit and redirect
+          await handleSubmitTest();
+          // Additional force redirect
+          window.location.href = "/student/assignments";
+        } catch (error) {
+          // Ensure redirect happens even on error
+          window.location.href = "/student/assignments";
+        }
+      }, BLUR_TIME_LIMIT);
+    };
+
+    const handleWindowFocus = () => {
+      setWindowFocused(true);
+
+      if (blurStartTime) {
+        const timeAway = Date.now() - blurStartTime;
+        if (timeAway < BLUR_TIME_LIMIT) {
+          // Clear the auto-submit timeout if they return in time
+          clearTimeout(autoSubmitTimeout);
+          toast({
+            title: "Welcome Back",
+            description: "You've returned to the test window in time.",
+            variant: "success",
+          });
+        }
+      }
+
+      setBlurStartTime(null);
+    };
+
+    // Add event listeners for window focus/blur
+    window.addEventListener("blur", handleWindowBlur);
+    window.addEventListener("focus", handleWindowFocus);
+
+    // Cleanup
+    return () => {
+      window.removeEventListener("blur", handleWindowBlur);
+      window.removeEventListener("focus", handleWindowFocus);
+      clearTimeout(autoSubmitTimeout);
+    };
+  }, []);
+
+  // Security measures effect
+  useEffect(() => {
+    const handleKeydown = (e: KeyboardEvent) => {
+      // Prevent common keyboard shortcuts
+      if (
+        (e.ctrlKey || e.metaKey) &&
+        (e.key === "c" || // Copy
+          e.key === "v" || // Paste
+          e.key === "p" || // Print
+          e.key === "a" || // Select all
+          e.key === "f" || // Find
+          e.key === "s" || // Save
+          e.key === "u" || // View source
+          e.key === "o") // Open
+      ) {
+        e.preventDefault();
+        toast({
+          title: "Action Not Allowed",
+          description: "This action is not permitted during the test",
+          variant: "warning",
+        });
+        return false;
+      }
+    };
+
+    const handleContextMenu = (e: MouseEvent) => {
+      e.preventDefault(); // Prevent right-click context menu
+      return false;
+    };
+
+    const handleFocus = () => {
+      // Check if the active element is part of the test
+      const activeElement = document.activeElement;
+      if (
+        activeElement &&
+        !activeElement.closest(".test-content") && // Add this class to your test container
+        activeElement.tagName !== "BODY"
+      ) {
+        toast({
+          title: "Warning",
+          description: "Please stay focused on the test content",
+          variant: "warning",
+        });
+        // Force focus back to the test
+        (document.querySelector(".test-content") as HTMLElement)?.focus();
+      }
+    };
+
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      // Prevent accidental navigation/refresh
+      e.preventDefault();
+      e.returnValue = "";
+    };
+
+    // Add all event listeners
+    document.addEventListener("keydown", handleKeydown);
+    document.addEventListener("contextmenu", handleContextMenu);
+    document.addEventListener("focus", handleFocus, true);
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
+    // Optional: Disable text selection
+    document.body.style.userSelect = "none";
+
+    return () => {
+      document.removeEventListener("keydown", handleKeydown);
+      document.removeEventListener("contextmenu", handleContextMenu);
+      document.removeEventListener("focus", handleFocus, true);
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+
+      document.body.style.userSelect = "auto";
+    };
+  }, []);
 
   // Timer effect
   useEffect(() => {
@@ -153,27 +288,27 @@ export default function AssignmentTestPage({
     if (!assignment) return;
 
     try {
-      console.log("📝 Submitting test answers...", {
-        assignmentId: assignment.id,
-        answerCount: answers.length,
-      });
-
+      console.log("📝 Submitting test answers...");
       await submitAssignment(assignment.id, answers);
+
+      // Clear any existing timeouts and intervals
+      clearTimeout(autoSubmitTimeout);
+      window.onbeforeunload = null;
+
       console.log("✅ Test submitted successfully");
 
-      toast({
-        title: "Success",
-        description: "Test submitted successfully",
-      });
-      router.push("/student/assignments");
+      // Force immediate redirect
+      const redirectToAssignments = () => {
+        router.replace("/student/assignments");
+        // Fallback redirect
+        window.location.href = "/student/assignments";
+      };
+
+      redirectToAssignments();
     } catch (error) {
       console.error("❌ Failed to submit test:", error);
-      toast({
-        title: "Error",
-        description:
-          error instanceof Error ? error.message : "Failed to submit test",
-        variant: "destructive",
-      });
+      // Even on error, redirect to assignments
+      router.replace("/student/assignments");
     }
   };
 
@@ -263,13 +398,16 @@ export default function AssignmentTestPage({
 
   return (
     <ContentLayout title={assignment.title}>
-      <div className="container mx-auto py-6 space-y-6">
+      <div
+        className="container mx-auto py-6 space-y-6 test-content"
+        tabIndex={-1}
+      >
         {/* Warning Card */}
         <Card className="bg-warning/10 border-warning">
           <CardContent className="py-4">
             <p className="text-sm text-warning font-medium">
-              ⚠️ Warning: Leaving this page for more than 10 seconds will
-              automatically submit your test
+              ⚠️ Warning: Leaving this page or opening another window will
+              result in automatic submission after 10 seconds
             </p>
           </CardContent>
         </Card>
