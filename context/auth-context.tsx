@@ -1,4 +1,3 @@
-// app/context/auth-context.tsx
 "use client";
 
 import React, {
@@ -12,6 +11,7 @@ import React, {
 } from "react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/use-toast";
+import { jwtDecode } from "jwt-decode";
 
 interface User {
   id: string;
@@ -29,6 +29,12 @@ interface AuthContextType {
   isAuthenticated: () => boolean;
 }
 
+interface JwtPayload {
+  id: string;
+  userType: string;
+  exp: number;
+}
+
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 interface AuthProviderProps {
@@ -36,221 +42,220 @@ interface AuthProviderProps {
   autoLogoutTime?: number;
 }
 
-async function logoutAction() {
+async function validateToken(token: string): Promise<boolean> {
   try {
-    const response = await fetch("/api/auth/logout", {
+    const decoded = jwtDecode<JwtPayload>(token);
+    const currentTime = Date.now() / 1000;
+    return decoded.exp > currentTime;
+  } catch {
+    return false;
+  }
+}
+
+async function refreshToken(): Promise<{ token: string; user: User } | null> {
+  try {
+    const response = await fetch("/api/auth/refresh", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      credentials: "include",
     });
 
-    if (!response.ok) {
-      throw new Error("Logout failed");
-    }
-  } catch (error) {
-    console.error("Logout error:", error);
-    throw error;
+    if (!response.ok) return null;
+    return await response.json();
+  } catch {
+    return null;
   }
 }
 
 export function AuthProvider({
   children,
-  autoLogoutTime = 2 * 60 * 1000, // 2 minutes default
+  autoLogoutTime = 3600000, // 1 hour default
 }: AuthProviderProps) {
   const router = useRouter();
   const { toast } = useToast();
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [lastActivity, setLastActivity] = useState<number>(Date.now());
+  const [isInitialized, setIsInitialized] = useState(false);
 
-  // Use refs to keep track of our timers
   const logoutTimerRef = useRef<NodeJS.Timeout>();
   const warningTimerRef = useRef<NodeJS.Timeout>();
+  const refreshTimerRef = useRef<NodeJS.Timeout>();
 
   const isAuthenticated = useCallback(() => {
-    return !!accessToken && !!user;
+    if (!accessToken || !user) return false;
+
+    try {
+      const decoded = jwtDecode<JwtPayload>(accessToken);
+      const currentTime = Date.now() / 1000;
+      return decoded.exp > currentTime;
+    } catch {
+      return false;
+    }
   }, [accessToken, user]);
 
-  // Function to clear both timers
-  const clearTimers = useCallback(() => {
-    console.log("Clearing timers");
-    if (logoutTimerRef.current) {
-      clearTimeout(logoutTimerRef.current);
-    }
-    if (warningTimerRef.current) {
-      clearTimeout(warningTimerRef.current);
-    }
+  const clearAllTimers = useCallback(() => {
+    [logoutTimerRef, warningTimerRef, refreshTimerRef].forEach((timer) => {
+      if (timer.current) {
+        clearTimeout(timer.current);
+        timer.current = undefined;
+      }
+    });
   }, []);
 
-  // Function to reset timers
-  const resetTimers = useCallback(() => {
-    console.log("Resetting timers at:", new Date().toLocaleTimeString());
-    clearTimers();
+  const logout = useCallback(async () => {
+    try {
+      await fetch("/api/auth/logout", {
+        method: "POST",
+        credentials: "include",
+      });
+    } catch (error) {
+      console.error("Logout error:", error);
+    } finally {
+      clearAllTimers();
+      setAccessToken(null);
+      setUser(null);
+      localStorage.removeItem("user");
+      router.push("/login");
+      router.refresh();
+    }
+  }, [router, clearAllTimers]);
 
-    const warningTime = autoLogoutTime - 30000; // Warning 30 seconds before logout
+  const setupTimers = useCallback(() => {
+    clearAllTimers();
 
-    // Set warning timer
+    // Warning timer (5 minutes before expiry)
     warningTimerRef.current = setTimeout(() => {
-      console.log(
-        "Warning timer triggered at:",
-        new Date().toLocaleTimeString()
-      );
       toast({
         title: "Session Expiring Soon",
-        description:
-          "Your session will expire in 30 seconds due to inactivity. Click to stay logged in.",
-        duration: 10000,
+        description: "Your session will expire soon. Click to stay logged in.",
         action: {
           label: "Stay Logged In",
-          onClick: () => {
-            console.log(
-              "Stay Logged In clicked at:",
-              new Date().toLocaleTimeString()
-            );
-            resetTimers();
+          onClick: async () => {
+            const refresh = await refreshToken();
+            if (refresh) {
+              setAccessToken(refresh.token);
+              setUser(refresh.user);
+              setupTimers();
+            }
           },
         },
       });
-    }, warningTime);
+    }, autoLogoutTime - 300000);
 
-    // Set logout timer
-    logoutTimerRef.current = setTimeout(async () => {
-      console.log(
-        "Logout timer triggered at:",
-        new Date().toLocaleTimeString()
-      );
-      if (isAuthenticated()) {
-        try {
-          await logout();
-        } catch (error) {
-          console.error("Auto-logout failed:", error);
-        }
-      }
+    // Auto logout timer
+    logoutTimerRef.current = setTimeout(() => {
+      logout();
     }, autoLogoutTime);
-  }, [autoLogoutTime, toast, isAuthenticated]);
+
+    // Token refresh timer (every 45 minutes)
+    refreshTimerRef.current = setTimeout(async () => {
+      const refresh = await refreshToken();
+      if (refresh) {
+        setAccessToken(refresh.token);
+        setUser(refresh.user);
+        setupTimers();
+      }
+    }, 2700000);
+  }, [autoLogoutTime, logout, toast]);
 
   const login = useCallback(
     (token: string, userData: User) => {
-      console.log("Login called at:", new Date().toLocaleTimeString());
       setAccessToken(token);
       setUser(userData);
       setLastActivity(Date.now());
-
-      localStorage.setItem("accessToken", token);
       localStorage.setItem("user", JSON.stringify(userData));
-
-      // Reset timers on login
-      resetTimers();
+      setupTimers();
 
       toast({
         title: "Welcome back!",
         description: `Logged in as ${userData.firstName} ${userData.lastName}`,
       });
     },
-    [toast, resetTimers]
+    [setupTimers, toast]
   );
 
-  const logout = useCallback(async () => {
-    console.log("Logout called at:", new Date().toLocaleTimeString());
-    try {
-      await logoutAction();
-      clearTimers();
-      setAccessToken(null);
-      setUser(null);
-      localStorage.removeItem("accessToken");
-      localStorage.removeItem("user");
-
-      toast({
-        title: "Logged out",
-        description: "You have been logged out successfully",
-      });
-
-      router.push("/login");
-      router.refresh();
-    } catch (error) {
-      console.error("Failed to log out:", error);
-      setAccessToken(null);
-      setUser(null);
-      localStorage.clear();
-      router.push("/login");
-    }
-  }, [router, toast, clearTimers]);
-
-  // Effect to handle activity monitoring
+  // Initialize auth state
   useEffect(() => {
-    if (!isAuthenticated()) {
-      console.log("Not authenticated, skipping timer setup");
-      return;
-    }
+    const initAuth = async () => {
+      try {
+        const storedUser = localStorage.getItem("user");
 
-    console.log(
-      "Setting up activity monitoring at:",
-      new Date().toLocaleTimeString()
-    );
+        // Try to validate current session
+        const response = await fetch("/api/auth/validate", {
+          credentials: "include",
+        });
 
-    const activityEvents = [
+        if (response.ok) {
+          const { token, user } = await response.json();
+          setAccessToken(token);
+          setUser(user);
+          setupTimers();
+        } else if (storedUser) {
+          // Try to refresh if we have stored user data
+          const refresh = await refreshToken();
+          if (refresh) {
+            setAccessToken(refresh.token);
+            setUser(refresh.user);
+            setupTimers();
+          } else {
+            localStorage.removeItem("user");
+          }
+        }
+      } catch (error) {
+        console.error("Auth initialization error:", error);
+      } finally {
+        setIsInitialized(true);
+      }
+    };
+
+    initAuth();
+  }, [setupTimers]);
+
+  // Activity monitoring
+  useEffect(() => {
+    if (!isAuthenticated()) return;
+
+    const handleActivity = () => {
+      setLastActivity(Date.now());
+      setupTimers();
+    };
+
+    const events = [
       "mousedown",
       "mousemove",
       "keypress",
       "scroll",
       "touchstart",
-      "click",
-      "keydown",
     ];
+    events.forEach((event) =>
+      document.addEventListener(event, handleActivity, true)
+    );
 
-    const handleActivity = () => {
-      console.log("Activity detected at:", new Date().toLocaleTimeString());
-      setLastActivity(Date.now());
-      resetTimers();
-    };
-
-    // Add event listeners
-    activityEvents.forEach((eventName) => {
-      document.addEventListener(eventName, handleActivity, true);
-    });
-
-    // Initial timer setup
-    resetTimers();
-
-    // Cleanup
     return () => {
-      console.log("Cleaning up activity monitoring");
-      clearTimers();
-      activityEvents.forEach((eventName) => {
-        document.removeEventListener(eventName, handleActivity, true);
-      });
+      events.forEach((event) =>
+        document.removeEventListener(event, handleActivity, true)
+      );
+      clearAllTimers();
     };
-  }, [isAuthenticated, resetTimers, clearTimers]);
+  }, [isAuthenticated, setupTimers, clearAllTimers]);
 
-  // Effect to restore auth state from localStorage
-  useEffect(() => {
-    const storedToken = localStorage.getItem("accessToken");
-    const storedUser = localStorage.getItem("user");
+  if (!isInitialized) {
+    return null;
+  }
 
-    if (storedToken && storedUser) {
-      try {
-        const userData = JSON.parse(storedUser);
-        setAccessToken(storedToken);
-        setUser(userData);
-        console.log("Restored auth state at:", new Date().toLocaleTimeString());
-      } catch (error) {
-        console.error("Error restoring auth state:", error);
-        localStorage.removeItem("accessToken");
-        localStorage.removeItem("user");
-      }
-    }
-  }, []);
-
-  const value = {
-    accessToken,
-    user,
-    login,
-    logout,
-    isAuthenticated,
-  };
-
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider
+      value={{
+        accessToken,
+        user,
+        login,
+        logout,
+        isAuthenticated,
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
+  );
 }
 
 export function useAuth() {

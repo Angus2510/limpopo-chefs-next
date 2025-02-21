@@ -1,4 +1,3 @@
-// app/api/validate-token/route.ts
 import { NextResponse } from "next/server";
 import jwt from "jsonwebtoken";
 
@@ -12,8 +11,10 @@ export async function POST(request: Request) {
   const token = authHeader.split(" ")[1];
 
   try {
-    // Validate token
-    const decoded = jwt.verify(token, process.env.JWT_SECRET!);
+    const decoded = jwt.verify(token, process.env["JWT_SECRET"]!) as {
+      id: string;
+      userType: string;
+    };
 
     return NextResponse.json({
       valid: true,
@@ -22,7 +23,12 @@ export async function POST(request: Request) {
         userType: decoded.userType,
       },
     });
-  } catch {
+  } catch (error) {
     return NextResponse.json({ error: "Invalid token" }, { status: 401 });
   }
+}
+
+// Add GET method support for convenience
+export async function GET(request: Request) {
+  return POST(request);
 }

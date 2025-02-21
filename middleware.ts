@@ -93,5 +93,6 @@ export const config = {
     "/student/:path*",
     "/staff/:path*",
     "/guardian/:path*",
+    "/admin/assignment/mark/:path*",
   ],
 };
