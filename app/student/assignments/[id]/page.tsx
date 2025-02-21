@@ -204,7 +204,7 @@ export default function AssignmentTestPage({
     };
 
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      // Prevent accidental navigation/refresh
+      if (!assignment) return;
       e.preventDefault();
       e.returnValue = "";
     };
@@ -291,9 +291,10 @@ export default function AssignmentTestPage({
       console.log("📝 Submitting test answers...");
       await submitAssignment(assignment.id, answers);
 
-      // Clear any existing timeouts and intervals
-      clearTimeout(autoSubmitTimeout);
+      // Remove all event listeners that might prevent navigation
+      window.removeEventListener("beforeunload", handleBeforeUnload);
       window.onbeforeunload = null;
+      clearTimeout(autoSubmitTimeout);
 
       console.log("✅ Test submitted successfully");
 
@@ -301,17 +302,20 @@ export default function AssignmentTestPage({
       const redirectToAssignments = () => {
         router.replace("/student/assignments");
         // Fallback redirect
-        window.location.href = "/student/assignments";
+        setTimeout(() => {
+          window.location.href = "/student/assignments";
+        }, 100);
       };
 
       redirectToAssignments();
     } catch (error) {
       console.error("❌ Failed to submit test:", error);
-      // Even on error, redirect to assignments
+      // Even on error, remove event listeners and redirect
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+      window.onbeforeunload = null;
       router.replace("/student/assignments");
     }
   };
-
   const renderQuestion = (question: Question) => {
     const currentAnswer = answers.find(
       (a) => a.questionId === question.id
