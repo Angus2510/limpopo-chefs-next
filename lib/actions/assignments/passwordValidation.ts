@@ -1,28 +1,18 @@
 "use server";
 
 import prisma from "@/lib/db";
-import { cookies } from "next/headers";
-import { jwtDecode } from "jwt-decode";
 
-export async function validateAssignmentPassword(
-  assignmentId: string,
-  password: string
-) {
+export async function validatePassword(assignmentId: string, password: string) {
   try {
-    const cookieStore = cookies();
-    const token = await cookieStore.get("accessToken")?.value;
+    console.log("🔐 Starting password validation...");
+    console.log("📝 Validating password for assignment:", {
+      assignmentId,
+      passwordProvided: !!password,
+    });
 
-    if (!token) {
-      throw new Error("No authentication token found");
-    }
-
-    const decoded = jwtDecode(token) as {
-      id?: string;
-      userType?: string;
-    } | null;
-
-    if (!decoded || !decoded.id || decoded.userType !== "Student") {
-      throw new Error("Invalid token or unauthorized access");
+    if (!assignmentId || !password) {
+      console.log("❌ Missing required fields");
+      throw new Error("Missing required fields");
     }
 
     const assignment = await prisma.assignments.findUnique({
@@ -31,16 +21,24 @@ export async function validateAssignmentPassword(
     });
 
     if (!assignment) {
+      console.log("❌ Assignment not found:", assignmentId);
       throw new Error("Assignment not found");
     }
 
-    if (assignment.password !== password) {
+    const isValidPassword = assignment.password === password;
+    console.log("🔑 Password validation result:", {
+      isValid: isValidPassword,
+      assignmentId,
+    });
+
+    if (!isValidPassword) {
       throw new Error("Invalid password");
     }
 
-    return { success: true };
+    console.log("✅ Password validated successfully");
+    return true;
   } catch (error) {
-    console.error("Error validating password:", error);
+    console.error("🔥 Password validation error:", error);
     throw error;
   }
 }
