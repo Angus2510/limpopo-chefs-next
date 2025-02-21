@@ -154,6 +154,11 @@ export default function AssignmentTestPage({
       clearTimeout(autoSubmitTimeout);
     };
   }, []);
+  const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+    if (!assignment) return;
+    e.preventDefault();
+    e.returnValue = "";
+  };
 
   // Security measures effect
   useEffect(() => {
@@ -201,12 +206,6 @@ export default function AssignmentTestPage({
         // Force focus back to the test
         (document.querySelector(".test-content") as HTMLElement)?.focus();
       }
-    };
-
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (!assignment) return;
-      e.preventDefault();
-      e.returnValue = "";
     };
 
     // Add all event listeners
