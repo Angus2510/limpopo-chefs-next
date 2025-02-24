@@ -30,6 +30,7 @@ interface Assignment {
   type: string;
   duration: number;
   availableFrom: Date;
+  completed?: boolean;
 }
 
 export default function StudentAssignmentsPage() {
@@ -66,6 +67,15 @@ export default function StudentAssignmentsPage() {
   };
 
   const handleStartAssignment = (assignment: Assignment) => {
+    if (assignment.completed) {
+      toast({
+        title: "Already Completed",
+        description: "You have already completed this assessment",
+        variant: "warning",
+      });
+      return;
+    }
+
     console.log("🎯 Starting assignment:", assignment.id);
     setSelectedAssignment(assignment);
     setPasswordDialog(true);
@@ -141,13 +151,16 @@ export default function StudentAssignmentsPage() {
                   <Button
                     onClick={() => handleStartAssignment(assignment)}
                     disabled={
-                      !isSameDay(
+                      assignment.completed ||
+                      (!isSameDay(
                         new Date(assignment.availableFrom),
                         new Date()
-                      ) && new Date() < new Date(assignment.availableFrom)
+                      ) &&
+                        new Date() < new Date(assignment.availableFrom))
                     }
+                    variant={assignment.completed ? "secondary" : "default"}
                   >
-                    Start
+                    {assignment.completed ? "Completed" : "Start"}
                   </Button>
                 </TableCell>
               </TableRow>

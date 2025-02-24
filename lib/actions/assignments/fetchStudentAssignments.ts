@@ -6,7 +6,6 @@ import { jwtDecode } from "jwt-decode";
 
 export async function fetchStudentAssignments() {
   try {
-    // Get token from cookies
     const cookieStore = cookies();
     const accessToken = cookieStore.get("accessToken");
 
@@ -14,14 +13,12 @@ export async function fetchStudentAssignments() {
       throw new Error("No authentication token found");
     }
 
-    // Decode token to get student ID
     const decoded = jwtDecode<{ id: string }>(accessToken.value);
 
     if (!decoded?.id) {
       throw new Error("Invalid token");
     }
 
-    // Find the student to get their intake groups
     const student = await prisma.students.findUnique({
       where: {
         id: decoded.id,
@@ -35,26 +32,42 @@ export async function fetchStudentAssignments() {
       throw new Error("Student not found");
     }
 
-    // Fetch assignments for student's intake groups
+    // Get assignments
     const assignments = await prisma.assignments.findMany({
       where: {
         intakeGroups: {
           hasSome: student.intakeGroup,
         },
       },
-      select: {
-        id: true,
-        title: true,
-        type: true,
-        duration: true,
-        availableFrom: true,
-      },
       orderBy: {
         availableFrom: "desc",
       },
     });
 
-    return assignments;
+    // Check completion status separately
+    const completedAssignments = await prisma.assignmentresults.findMany({
+      where: {
+        student: decoded.id,
+        status: "submitted",
+      },
+      select: {
+        assignment: true,
+      },
+    });
+
+    const completedAssignmentIds = new Set(
+      completedAssignments.map((result) => result.assignment)
+    );
+
+    // Add completion status to assignments
+    return assignments.map((assignment) => ({
+      id: assignment.id,
+      title: assignment.title,
+      type: assignment.type,
+      duration: assignment.duration,
+      availableFrom: assignment.availableFrom,
+      completed: completedAssignmentIds.has(assignment.id),
+    }));
   } catch (error) {
     console.error("Assignment fetch error:", error);
     return [];
