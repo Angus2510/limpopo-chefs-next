@@ -13,6 +13,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import Link from "next/link";
 
 export default function MarkAssignmentsPage() {
   const { toast } = useToast();
@@ -65,7 +66,9 @@ export default function MarkAssignmentsPage() {
                 {new Date(item.dateTaken).toLocaleDateString()}
               </TableCell>
               <TableCell>
-                <Button onClick={() => console.log("Mark:", item)}>Mark</Button>
+                <Button asChild>
+                  <Link href={`/admin/assignment/mark/${item.id}`}>Mark</Link>
+                </Button>
               </TableCell>
             </TableRow>
           ))}

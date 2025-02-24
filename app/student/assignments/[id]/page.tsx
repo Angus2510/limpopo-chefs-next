@@ -163,7 +163,7 @@ export default function AssignmentTestPage({
   // Security measures effect
   useEffect(() => {
     const handleKeydown = (e: KeyboardEvent) => {
-      // Prevent common keyboard shortcuts
+      // Show warning for common keyboard shortcuts
       if (
         (e.ctrlKey || e.metaKey) &&
         (e.key === "c" || // Copy
@@ -175,19 +175,24 @@ export default function AssignmentTestPage({
           e.key === "u" || // View source
           e.key === "o") // Open
       ) {
-        e.preventDefault();
+        // Remove preventDefault to allow the action
         toast({
-          title: "Action Not Allowed",
-          description: "This action is not permitted during the test",
+          title: "Warning",
+          description:
+            "Using keyboard shortcuts during a test is not recommended",
           variant: "warning",
         });
-        return false;
       }
     };
 
     const handleContextMenu = (e: MouseEvent) => {
-      e.preventDefault(); // Prevent right-click context menu
-      return false;
+      // Show warning instead of preventing right-click
+      toast({
+        title: "Warning",
+        description: "Using right-click menu during a test is not recommended",
+        variant: "warning",
+      });
+      // Remove preventDefault to allow the context menu
     };
 
     const handleFocus = () => {
@@ -195,7 +200,7 @@ export default function AssignmentTestPage({
       const activeElement = document.activeElement;
       if (
         activeElement &&
-        !activeElement.closest(".test-content") && // Add this class to your test container
+        !activeElement.closest(".test-content") &&
         activeElement.tagName !== "BODY"
       ) {
         toast({
@@ -203,27 +208,23 @@ export default function AssignmentTestPage({
           description: "Please stay focused on the test content",
           variant: "warning",
         });
-        // Force focus back to the test
-        (document.querySelector(".test-content") as HTMLElement)?.focus();
       }
     };
 
-    // Add all event listeners
+    // Add event listeners
     document.addEventListener("keydown", handleKeydown);
     document.addEventListener("contextmenu", handleContextMenu);
     document.addEventListener("focus", handleFocus, true);
     window.addEventListener("beforeunload", handleBeforeUnload);
 
-    // Optional: Disable text selection
-    document.body.style.userSelect = "none";
+    // Remove the user-select restriction
+    document.body.style.userSelect = "text";
 
     return () => {
       document.removeEventListener("keydown", handleKeydown);
       document.removeEventListener("contextmenu", handleContextMenu);
       document.removeEventListener("focus", handleFocus, true);
       window.removeEventListener("beforeunload", handleBeforeUnload);
-
-      document.body.style.userSelect = "auto";
     };
   }, []);
 
@@ -450,6 +451,12 @@ export default function AssignmentTestPage({
             </CardContent>
           </Card>
         ))}
+        <div className="flex flex-col items-center justify-center min-h-screen">
+          <Button onClick={handleSubmitTest} variant="destructive">
+            Submit Test
+          </Button>
+          <h1 className="mt-4 text-lg font-bold">---END OF TEST---</h1>
+        </div>
       </div>
     </ContentLayout>
   );
