@@ -88,7 +88,7 @@ export default async function AssignmentMarkingPage({ params }: PageProps) {
               Assignment Result Not Found
             </div>
             <p className="text-muted-foreground max-w-md text-center mb-6">
-              The assignment result you're looking for could not be found.
+              The assignment result you&apos;re looking for could not be found.
             </p>
           </div>
         </ContentLayout>
@@ -331,7 +331,7 @@ export default async function AssignmentMarkingPage({ params }: PageProps) {
               <CardHeader>
                 <CardTitle>Student Answers</CardTitle>
                 <CardDescription>
-                  Review and mark the student's responses
+                  Review and mark the students responses
                 </CardDescription>
               </CardHeader>
               <CardContent>
