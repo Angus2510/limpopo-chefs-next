@@ -1,25 +1,38 @@
-"use client";
-
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { useToast } from "@/components/ui/use-toast";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { getAssignmentAnswers } from "@/lib/actions/assignments/getAssignmentAnswers";
+import { getAllIntakeGroups } from "@/lib/actions/intakegroup/intakeGroups";
 import { ContentLayout } from "@/components/layout/content-layout";
 import { format } from "date-fns";
 import {
   Card,
   CardContent,
+  CardDescription,
   CardHeader,
   CardTitle,
-  CardDescription,
 } from "@/components/ui/card";
-import { getAssignmentAnswers } from "@/lib/actions/assignments/getAssignmentAnswers";
-import { submitScore } from "@/lib/actions/assignments/submitScore";
-import React from "react";
+import { notFound } from "next/navigation";
+import { Badge } from "@/components/ui/badge";
 
+// Define interfaces for type safety
 interface PageProps {
   params: { id: string } | Promise<{ id: string }>;
+}
+
+interface Student {
+  id: string;
+  firstName: string;
+  lastName: string;
+}
+
+interface Assignment {
+  id: string;
+  title: string;
+  type: string;
+  duration: number;
+  password: string;
+  availableFrom: Date;
+  intakeGroups: string[];
+  outcome: string[];
+  questions: Question[];
 }
 
 interface Question {
@@ -27,6 +40,7 @@ interface Question {
   text: string;
   type: string;
   mark: string;
+  correctAnswer?: any;
   options: {
     id: string;
     value?: string;
@@ -35,454 +49,378 @@ interface Question {
   }[];
 }
 
-interface StudentAnswer {
-  question: string;
-  answer: string;
-}
-
-interface TransformedResult {
+interface AssignmentResult {
   id: string;
   dateTaken: Date;
   scores: string | null;
-  student: {
-    id: string;
-    firstName: string;
-    lastName: string;
-  };
-  assignment: {
-    id: string;
-    title: string;
-    type: string;
-    duration: number;
-    password: string;
-    availableFrom: Date;
-    intakeGroups: string[];
-    outcome: string[];
-    questions: Question[];
-  };
+  student: Student;
+  assignment: Assignment;
   answers: string[];
 }
 
-export default function MarkAssignmentPage({ params }: PageProps) {
-  const router = useRouter();
-  const { toast } = useToast();
-  const [transformedResult, setTransformedResult] =
-    useState<TransformedResult | null>(null);
-  const [parsedAnswers, setParsedAnswers] = useState<StudentAnswer[]>([]);
-  const [scores, setScores] = useState<{ [key: string]: number }>({});
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [debugInfo, setDebugInfo] = useState<any>(null);
+export default async function AssignmentMarkingPage({ params }: PageProps) {
+  console.log("🚀 Starting to load assignment marking page...");
 
-  useEffect(() => {
-    const loadData = async () => {
-      console.log("⚡ Component mounted, params:", params);
+  // Properly resolve params whether it's a Promise or direct object
+  const resolvedParams = params instanceof Promise ? await params : params;
+  const id = resolvedParams?.id;
 
-      try {
-        // Properly unwrap params regardless of whether it's a Promise or not
-        const resolvedParams =
-          params instanceof Promise ? await params : params;
-        const id = resolvedParams.id;
-
-        // Save debug info
-        setDebugInfo({
-          paramsType: params instanceof Promise ? "Promise" : "Object",
-          resolvedParams,
-          id,
-        });
-
-        if (id) {
-          await loadAssignmentData(id);
-        } else {
-          setError("Invalid assignment ID");
-          setLoading(false);
-        }
-      } catch (err) {
-        console.error("❌ Error resolving params:", err);
-        setError(
-          `Failed to load assignment data: ${
-            err instanceof Error ? err.message : "Unknown error"
-          }`
-        );
-        setLoading(false);
-      }
-    };
-
-    loadData();
-  }, [params]);
-
-  const loadAssignmentData = async (id: string) => {
-    try {
-      // Log the exact ID we're using
-      console.log("🔍 Loading assignment data for ID:", id);
-
-      // Fetch the data, making sure to pass a string
-      const data = await getAssignmentAnswers(String(id));
-      console.log("📊 Raw data received:", data);
-
-      // Check if we received any data
-      if (!data) {
-        console.error("❌ No data returned from getAssignmentAnswers");
-        setError("Could not load student submission - No data returned");
-        setLoading(false);
-        return;
-      }
-
-      // If data is an empty array, show specific error
-      if (Array.isArray(data) && data.length === 0) {
-        console.error("❌ Empty array returned from getAssignmentAnswers");
-        setError("No assignment submission found with this ID");
-        setLoading(false);
-        return;
-      }
-
-      // Check if the data has the required structure
-      if (!data.student || !data.assignment) {
-        console.error("❌ Data is missing required fields:", data);
-        setError(
-          `Incomplete data returned from server: ${JSON.stringify(
-            data
-          ).substring(0, 100)}...`
-        );
-        setLoading(false);
-        return;
-      }
-
-      console.log("✅ Transformed results loaded:", {
-        id: data.id,
-        student: `${data.student?.firstName} ${data.student?.lastName}`,
-        assignmentTitle: data.assignment?.title,
-        answersCount: data.answers?.length || 0,
-      });
-
-      // Store the data
-      setTransformedResult(data);
-
-      // Parse the answers
-      console.log("🧩 Parsing answers...");
-      try {
-        if (Array.isArray(data.answers)) {
-          const answers = data.answers.map((answer, index) => {
-            console.log(`Processing answer ${index}:`, answer);
-            try {
-              if (typeof answer === "string") {
-                const parsed = JSON.parse(answer);
-                console.log(`✓ Successfully parsed answer ${index}:`, parsed);
-                return parsed;
-              } else {
-                console.log(`ℹ️ Answer ${index} is already parsed:`, answer);
-                return answer;
-              }
-            } catch (parseError) {
-              console.error(`❌ Error parsing answer ${index}:`, parseError);
-              return {
-                question: `question_${index}`,
-                answer: "Error parsing answer",
-              };
-            }
-          });
-          console.log("🧩 All answers parsed:", answers);
-          setParsedAnswers(answers);
-        } else {
-          console.error("❌ Answers is not an array:", data.answers);
-          setParsedAnswers([]);
-        }
-      } catch (parseError) {
-        console.error("❌ Error parsing answers:", parseError);
-        setParsedAnswers([]);
-      }
-
-      // Initialize scores
-      if (data.scores) {
-        console.log("💯 Initializing scores from data:", data.scores);
-        try {
-          const parsedScores =
-            typeof data.scores === "string"
-              ? JSON.parse(data.scores)
-              : data.scores;
-          console.log("💯 Parsed scores:", parsedScores);
-          setScores(parsedScores);
-        } catch (e) {
-          console.error("❌ Failed to parse scores:", e);
-          setScores({});
-        }
-      } else {
-        console.log("ℹ️ No existing scores found");
-        // Initialize empty scores
-        const emptyScores = {};
-        data.assignment.questions.forEach((question) => {
-          emptyScores[question.id] = 0;
-        });
-        setScores(emptyScores);
-      }
-    } catch (error) {
-      console.error("❌ Failed to load assignment:", error);
-      setError(
-        `Failed to load assignment data: ${
-          error instanceof Error ? error.message : "Unknown error"
-        }`
-      );
-    } finally {
-      setLoading(false);
-      console.log("🏁 Finished loading data");
-    }
-  };
-
-  const handleScoreChange = (questionId: string, value: string) => {
-    console.log("🔄 Score changed:", { questionId, value });
-    const numValue = parseFloat(value) || 0;
-    setScores((prev) => {
-      const updated = { ...prev, [questionId]: numValue };
-      console.log("💯 Updated scores:", updated);
-      return updated;
-    });
-  };
-
-  const handleSubmitScores = async () => {
-    try {
-      if (!transformedResult) {
-        console.error("❌ Missing transformed results");
-        return;
-      }
-
-      console.log("📝 Submitting scores:", scores);
-
-      const totalScore = Object.values(scores).reduce((a, b) => a + b, 0);
-      const maxScore = transformedResult.assignment.questions.reduce(
-        (acc, q) => acc + Number(q.mark),
-        0
-      );
-
-      console.log("📊 Score validation:", { totalScore, maxScore });
-
-      if (totalScore > maxScore) {
-        console.error("❌ Score exceeds maximum");
-        toast({
-          title: "Error",
-          description: "Total score cannot exceed maximum marks",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      console.log("🚀 Submitting to API:", {
-        id: transformedResult.id,
-        scores,
-      });
-      await submitScore(transformedResult.id, scores, "staffId");
-
-      console.log("✅ Scores submitted successfully");
-      toast({
-        title: "Success",
-        description: "Scores submitted successfully",
-      });
-
-      router.push("/admin/assignments");
-    } catch (error) {
-      console.error("❌ Failed to submit scores:", error);
-      toast({
-        title: "Error",
-        description: "Failed to submit scores",
-        variant: "destructive",
-      });
-    }
-  };
-
-  if (loading) {
-    return (
-      <ContentLayout title="Loading...">
-        <div className="flex justify-center items-center h-48">
-          Loading assignment data...
-        </div>
-      </ContentLayout>
-    );
+  if (!id) {
+    console.log("❌ No result ID provided");
+    notFound();
   }
 
-  if (error || !transformedResult) {
-    return (
-      <ContentLayout title="Error">
-        <div className="flex flex-col justify-center items-center h-48">
-          <div className="text-destructive font-medium mb-4">
-            {error || "Could not load assignment data"}
+  try {
+    console.log("🔍 Fetching assignment result data...");
+
+    // Get the assignment result directly - no need to fetch the assignment separately
+    const resultData = await getAssignmentAnswers(id);
+
+    // No need to fetch intake groups for a single student's result
+    // We'll simplify this to avoid unnecessary DB calls
+
+    if (!resultData) {
+      console.log("❌ Assignment result not found");
+      return (
+        <ContentLayout title="Result Not Found">
+          <div className="flex flex-col items-center justify-center py-20">
+            <div className="text-destructive font-medium mb-2">
+              Assignment Result Not Found
+            </div>
+            <p className="text-muted-foreground max-w-md text-center mb-6">
+              The assignment result you're looking for could not be found.
+            </p>
           </div>
-          {debugInfo && (
-            <div className="text-sm text-muted-foreground mb-4 max-w-md text-center">
-              <p>Debug info:</p>
-              <pre className="bg-muted p-2 rounded overflow-auto max-h-40 text-xs">
-                {JSON.stringify(debugInfo, null, 2)}
-              </pre>
-            </div>
-          )}
-          <Button
-            onClick={() => router.push("/admin/assignments")}
-            variant="outline"
-          >
-            Back to Assignments
-          </Button>
-        </div>
-      </ContentLayout>
+        </ContentLayout>
+      );
+    }
+
+    const result = resultData;
+    console.log("✅ Result data fetched successfully");
+    console.log(
+      `👤 Student: ${result.student.firstName} ${result.student.lastName}`
     );
-  }
+    console.log(`📄 Assignment: ${result.assignment.title}`);
 
-  return (
-    <ContentLayout
-      title={`Marking: ${transformedResult.assignment?.title || "Assignment"}`}
-    >
-      <div className="container mx-auto py-6 space-y-6">
-        {/* Student Info Card */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Student Information</CardTitle>
-            <CardDescription>
-              {transformedResult.student?.firstName || "Unknown"}{" "}
-              {transformedResult.student?.lastName || "Student"}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <p className="text-sm text-muted-foreground">Submitted:</p>
-                <p className="text-sm">
-                  {transformedResult.dateTaken
-                    ? format(
-                        new Date(transformedResult.dateTaken),
-                        "PPP 'at' p"
-                      )
-                    : "Unknown date"}
-                </p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">
-                  Assignment Type:
-                </p>
-                <p className="text-sm">
-                  {transformedResult.assignment?.type || "Unknown"}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+    // Parse answers from strings to objects
+    const parsedAnswers = [];
+    for (const answerStr of result.answers) {
+      try {
+        const answer = JSON.parse(answerStr);
+        parsedAnswers.push(answer);
+      } catch (e) {
+        console.error("Failed to parse answer:", e);
+      }
+    }
 
-        <div className="grid grid-cols-2 gap-6">
-          {/* Left side - Questions */}
+    console.log(`📝 Parsed ${parsedAnswers.length} answers`);
+
+    // Parse scores
+    let scoresMap = {};
+    if (result.scores) {
+      try {
+        scoresMap = JSON.parse(result.scores);
+        console.log(
+          `🎯 Found scores for ${Object.keys(scoresMap).length} questions`
+        );
+      } catch (e) {
+        console.error("Failed to parse scores:", e);
+      }
+    } else {
+      console.log(`⚠️ No scores found for this submission`);
+    }
+
+    // Calculate total score
+    let totalScore = 0;
+    let totalPossible = 0;
+
+    Object.values(scoresMap).forEach((score) => {
+      if (typeof score === "number") {
+        totalScore += score;
+      }
+    });
+
+    result.assignment.questions.forEach((question) => {
+      totalPossible += parseInt(question.mark);
+    });
+
+    const percentage =
+      totalPossible > 0 ? Math.round((totalScore * 100) / totalPossible) : 0;
+
+    console.log(
+      `📊 Total score: ${totalScore}/${totalPossible} (${percentage}%)`
+    );
+
+    return (
+      <ContentLayout
+        title={`Marking: ${result.student.firstName} ${result.student.lastName}`}
+      >
+        <div className="container mx-auto py-6 space-y-6">
+          {/* Student and Assignment Info */}
           <Card>
             <CardHeader>
-              <CardTitle>Questions</CardTitle>
-              <CardDescription>
-                Total Marks:{" "}
-                {transformedResult.assignment?.questions?.reduce(
-                  (acc, q) => acc + Number(q.mark),
-                  0
-                ) || 0}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {transformedResult.assignment?.questions?.map(
-                (question, index) => (
-                  <div key={question.id} className="border p-4 rounded-lg">
-                    <div className="flex justify-between mb-2">
-                      <h3 className="font-bold">Question {index + 1}</h3>
-                      <span className="text-sm text-muted-foreground">
-                        {question.mark} marks
-                      </span>
-                    </div>
-                    <p className="mb-4">{question.text}</p>
-                    {question.options && question.options.length > 0 && (
-                      <div className="space-y-2">
-                        <h4 className="text-sm font-semibold">
-                          {question.type === "multiple"
-                            ? "Options:"
-                            : "Matches:"}
-                        </h4>
-                        <div className="ml-4">
-                          {question.options.map((option) => (
-                            <div
-                              key={option.id}
-                              className="text-sm text-muted-foreground"
-                            >
-                              {option.value ||
-                                `${option.columnA} → ${option.columnB}`}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Right side - Student Answers */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Student Answers</CardTitle>
-              <CardDescription>Assign marks for each answer</CardDescription>
+              <CardTitle>Assignment Result Details</CardTitle>
+              <CardDescription>Student assessment submission</CardDescription>
             </CardHeader>
             <CardContent>
-              {parsedAnswers.length > 0 ? (
-                parsedAnswers.map((answer, index) => {
-                  console.log(`Rendering answer ${index}:`, answer);
-                  const question =
-                    transformedResult.assignment?.questions?.[index];
-
-                  if (!question) {
-                    console.error(`No question found for index ${index}`);
-                    return null;
-                  }
-
-                  return (
-                    <div key={index} className="mb-6 p-4 border rounded-lg">
-                      <div className="flex justify-between items-start mb-2">
-                        <h3 className="font-bold">Question {index + 1}</h3>
-                        <div className="flex items-center gap-2">
-                          <Input
-                            type="number"
-                            min="0"
-                            max={question?.mark}
-                            placeholder="Score"
-                            className="w-20"
-                            value={scores[question.id] || ""}
-                            onChange={(e) =>
-                              handleScoreChange(question.id, e.target.value)
-                            }
-                          />
-                          <span className="text-sm text-muted-foreground">
-                            / {question?.mark}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="p-3 bg-muted rounded-md">
-                        <p className="text-sm whitespace-pre-wrap">
-                          {answer.answer}
-                        </p>
-                      </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Student Information */}
+                <div className="space-y-4">
+                  <div>
+                    <h3 className="font-semibold text-sm">
+                      Student Information
+                    </h3>
+                    <div className="grid grid-cols-2 gap-2 mt-2">
+                      <p className="text-sm text-muted-foreground">Name:</p>
+                      <p className="text-sm font-medium">
+                        {result.student.firstName} {result.student.lastName}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        Submitted:
+                      </p>
+                      <p className="text-sm">
+                        {format(new Date(result.dateTaken), "PPP 'at' p")}
+                      </p>
                     </div>
-                  );
-                })
-              ) : (
-                <div className="text-center p-6 text-muted-foreground">
-                  No answers available
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-sm">Performance</h3>
+                    <div className="grid grid-cols-2 gap-2 mt-2">
+                      <p className="text-sm text-muted-foreground">
+                        Total Score:
+                      </p>
+                      <p className="text-sm font-medium">
+                        {totalScore}/{totalPossible} ({percentage}%)
+                      </p>
+                      <p className="text-sm text-muted-foreground">Grade:</p>
+                      <Badge
+                        className={
+                          percentage >= 75
+                            ? "bg-green-500"
+                            : percentage >= 50
+                            ? "bg-amber-500"
+                            : "bg-red-500"
+                        }
+                      >
+                        {percentage >= 75
+                          ? "Distinction"
+                          : percentage >= 60
+                          ? "Merit"
+                          : percentage >= 50
+                          ? "Pass"
+                          : "Fail"}
+                      </Badge>
+                    </div>
+                  </div>
                 </div>
-              )}
 
-              <div className="mt-6 pt-4 border-t flex justify-between items-center">
-                <div className="text-lg font-bold">
-                  Total Score:{" "}
-                  {Object.values(scores).reduce((a, b) => a + b, 0)} /{" "}
-                  {transformedResult.assignment?.questions?.reduce(
-                    (acc, q) => acc + Number(q.mark),
-                    0
-                  ) || 0}
+                {/* Assignment Information */}
+                <div className="space-y-4">
+                  <div>
+                    <h3 className="font-semibold text-sm">
+                      Assignment Information
+                    </h3>
+                    <div className="grid grid-cols-2 gap-2 mt-2">
+                      <p className="text-sm text-muted-foreground">Title:</p>
+                      <p className="text-sm">{result.assignment.title}</p>
+                      <p className="text-sm text-muted-foreground">Type:</p>
+                      <p className="text-sm">{result.assignment.type}</p>
+                      <p className="text-sm text-muted-foreground">
+                        Questions:
+                      </p>
+                      <p className="text-sm">
+                        {result.assignment.questions.length}
+                      </p>
+                    </div>
+                  </div>
                 </div>
-                <Button onClick={handleSubmitScores} variant="default">
-                  Submit Marks
-                </Button>
               </div>
             </CardContent>
           </Card>
+
+          {/* Questions and Answers Side by Side */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Left side - Questions and Correct Answers */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Questions & Correct Answers</CardTitle>
+                <CardDescription>
+                  Total Questions: {result.assignment.questions?.length || 0} |
+                  Total Marks: {totalPossible}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-6">
+                  {result.assignment.questions?.map((question, index) => (
+                    <div key={question.id} className="border p-4 rounded-lg">
+                      <h3 className="font-bold mb-2">
+                        Question {index + 1} ({question.mark} marks)
+                      </h3>
+                      <p className="mb-4">{question.text}</p>
+
+                      {question.options && question.options.length > 0 && (
+                        <div className="mb-4">
+                          <h4 className="font-semibold mb-2">Options:</h4>
+                          <div className="grid gap-2">
+                            {question.options.map((option) => (
+                              <div key={option.id} className="flex gap-2">
+                                {option.value && (
+                                  <span className="text-sm">
+                                    {option.value}
+                                  </span>
+                                )}
+                                {option.columnA && option.columnB && (
+                                  <span className="text-sm">
+                                    {option.columnA} ➔ {option.columnB}
+                                  </span>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Display the correct answer */}
+                      <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-md">
+                        <h4 className="font-semibold text-green-700 mb-2">
+                          Correct Answer:
+                        </h4>
+                        {question.correctAnswer ? (
+                          <div className="text-sm">
+                            {typeof question.correctAnswer === "string" ? (
+                              <p>{question.correctAnswer}</p>
+                            ) : Array.isArray(question.correctAnswer) ? (
+                              <ul className="list-disc ml-5">
+                                {question.correctAnswer.map((item, idx) => (
+                                  <li key={idx}>
+                                    {typeof item === "string"
+                                      ? item
+                                      : item.columnA && item.columnB
+                                      ? `${item.columnA} ➔ ${item.columnB}`
+                                      : JSON.stringify(item)}
+                                  </li>
+                                ))}
+                              </ul>
+                            ) : question.correctAnswer &&
+                              typeof question.correctAnswer === "object" ? (
+                              <pre className="whitespace-pre-wrap bg-muted p-2 rounded text-xs">
+                                {JSON.stringify(
+                                  question.correctAnswer,
+                                  null,
+                                  2
+                                )}
+                              </pre>
+                            ) : (
+                              <p>{JSON.stringify(question.correctAnswer)}</p>
+                            )}
+                          </div>
+                        ) : (
+                          <p className="text-sm italic text-muted-foreground">
+                            No correct answer specified
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Right side - Student Answers */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Student Answers</CardTitle>
+                <CardDescription>
+                  Review and mark the student's responses
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-6">
+                  {result.assignment.questions?.map((question, index) => {
+                    // Find this student's answer for this question
+                    const answer = parsedAnswers.find(
+                      (a) => a.question === question.id
+                    );
+                    const score = scoresMap[question.id];
+
+                    return (
+                      <div key={question.id} className="border p-4 rounded-lg">
+                        <h3 className="font-bold mb-2">
+                          Question {index + 1} ({question.mark} marks)
+                        </h3>
+
+                        {answer ? (
+                          <div className="space-y-4">
+                            <div className="bg-muted p-3 rounded-md">
+                              <h4 className="text-sm font-medium mb-2">
+                                Student Answer:
+                              </h4>
+                              <p className="text-sm">
+                                {typeof answer.answer === "string"
+                                  ? answer.answer
+                                  : JSON.stringify(answer.answer, null, 2)}
+                              </p>
+                            </div>
+
+                            <div className="flex items-center justify-between">
+                              <div className="text-sm">
+                                <span className="font-medium">Score: </span>
+                                {score !== undefined ? (
+                                  <span>
+                                    {score}/{question.mark}
+                                  </span>
+                                ) : (
+                                  <span className="text-muted-foreground italic">
+                                    Not scored yet
+                                  </span>
+                                )}
+                              </div>
+
+                              {/* You could add a score editor here */}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="text-sm text-muted-foreground italic p-3 bg-muted/50 rounded-md">
+                            No answer provided for this question
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Total score summary at bottom */}
+                <div className="mt-6 p-4 border rounded-lg bg-muted/10">
+                  <div className="flex justify-between items-center">
+                    <h3 className="font-semibold">Total Score</h3>
+                    <div className="text-xl font-bold">
+                      {totalScore}/{totalPossible} ({percentage}%)
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </div>
-      </div>
-    </ContentLayout>
-  );
+      </ContentLayout>
+    );
+  } catch (error) {
+    console.error("🔥 Error loading assignment result:", error);
+    return (
+      <ContentLayout title="Error Loading Result">
+        <div className="flex flex-col items-center justify-center py-20">
+          <div className="text-destructive font-medium mb-2">
+            Failed to load assignment result
+          </div>
+          <p className="text-muted-foreground max-w-md text-center mb-6">
+            There was an error retrieving the assignment result data. Please try
+            again later.
+          </p>
+          <pre className="bg-muted p-4 rounded text-xs max-w-lg overflow-auto">
+            {error instanceof Error ? error.message : String(error)}
+          </pre>
+        </div>
+      </ContentLayout>
+    );
+  }
 }
