@@ -5,7 +5,9 @@ import { ObjectId } from "mongodb";
 
 export async function getAssignmentById(id: string) {
   try {
+    console.log(`🔍 Fetching assignment with ID: ${id}`);
     if (!id || !ObjectId.isValid(id)) {
+      console.error(`❌ Invalid assignment ID: ${id}`);
       throw new Error("Invalid assignment ID");
     }
 
@@ -29,31 +31,52 @@ export async function getAssignmentById(id: string) {
     });
 
     if (!assignment) {
+      console.error(`❌ Assignment not found with ID: ${id}`);
       throw new Error("Assignment not found");
     }
 
-    // Get the full question details
-    const questionDetails = await Promise.all(
-      assignment.questions.map(async (questionId) => {
-        const question = await prisma.questions.findUnique({
-          where: { id: questionId },
-          select: {
-            id: true,
-            text: true,
-            type: true,
-            mark: true,
-            correctAnswer: true,
-            options: true,
-          },
-        });
-        return question;
-      })
+    console.log(
+      `✅ Found assignment: ${assignment.title} with ${assignment.questions.length} questions`
     );
+
+    // Get all questions in a single batch query instead of individual queries
+    const questions = await prisma.questions.findMany({
+      where: {
+        id: {
+          in: assignment.questions,
+        },
+      },
+      select: {
+        id: true,
+        text: true,
+        type: true,
+        mark: true,
+        correctAnswer: true,
+        options: true,
+      },
+    });
+
+    console.log(`📝 Retrieved ${questions.length} questions with details`);
+
+    // Verify correctAnswer is present on questions
+    const hasCorrectAnswers = questions.some(
+      (q) => q.correctAnswer !== undefined && q.correctAnswer !== null
+    );
+    console.log(
+      `${
+        hasCorrectAnswers ? "✅" : "⚠️"
+      } Correct answers found: ${hasCorrectAnswers}`
+    );
+
+    // Map the questions into the same order as the assignment.questions array
+    const orderedQuestions = assignment.questions
+      .map((qId) => questions.find((q) => q.id === qId))
+      .filter(Boolean); // Remove any null values
 
     // Return assignment with full question details
     return {
       ...assignment,
-      questions: questionDetails.filter(Boolean), // Remove any null values
+      questions: orderedQuestions,
     };
   } catch (error) {
     console.error("Failed to fetch assignment:", error);

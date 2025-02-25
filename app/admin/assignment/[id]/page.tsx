@@ -37,6 +37,7 @@ interface Question {
   text: string;
   type: string;
   mark: string;
+  correctAnswer?: any; // Added correctAnswer field
   options: {
     id: string;
     value?: string;
@@ -84,6 +85,18 @@ export default async function AssignmentViewPage({ params }: PageProps) {
     );
 
     console.log("✅ Data fetched successfully");
+
+    // Debug info for correctAnswer
+    if (assignment.questions && assignment.questions.length > 0) {
+      const firstQuestion = assignment.questions[0];
+      console.log(`Debug - First question type: ${firstQuestion.type}`);
+      console.log(
+        `Debug - First question correctAnswer present: ${!!firstQuestion.correctAnswer}`
+      );
+      console.log(
+        `Debug - First question correctAnswer type: ${typeof firstQuestion.correctAnswer}`
+      );
+    }
 
     return (
       <ContentLayout title={assignment.title}>
@@ -212,46 +225,45 @@ export default async function AssignmentViewPage({ params }: PageProps) {
                         </div>
                       )}
 
-                      {/* Submissions for each question */}
-                      <div className="mt-4 border-t pt-4">
-                        <h4 className="font-semibold mb-2">
-                          Submissions ({questionAnswers?.length || 0})
+                      {/* Display the correct answer - NEW SECTION */}
+                      <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-md">
+                        <h4 className="font-semibold text-green-700 mb-2">
+                          Correct Answer:
                         </h4>
-                        <div className="space-y-3">
-                          {questionAnswers?.map((answer) => (
-                            <div
-                              key={answer.id}
-                              className="bg-muted p-3 rounded-md"
-                            >
-                              <div className="flex justify-between items-start">
-                                <div>
-                                  <p className="text-sm text-muted-foreground">
-                                    Submitted:{" "}
-                                    {format(new Date(answer.answeredAt), "PPp")}
-                                  </p>
-                                  <p className="mt-2">
-                                    Answer:{" "}
-                                    {answer.answer === null
-                                      ? "No answer provided"
-                                      : typeof answer.answer === "string"
-                                      ? answer.answer
-                                      : JSON.stringify(answer.answer, null, 2)}
-                                  </p>
-                                </div>
-                                <div className="text-right">
-                                  <p className="font-medium">
-                                    Score: {answer.scores ?? "Not scored"}
-                                  </p>
-                                  {answer.moderatedscores !== null && (
-                                    <p className="text-sm text-muted-foreground">
-                                      Moderated: {answer.moderatedscores}
-                                    </p>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
+                        {question.correctAnswer ? (
+                          <div className="text-sm">
+                            {typeof question.correctAnswer === "string" ? (
+                              <p>{question.correctAnswer}</p>
+                            ) : Array.isArray(question.correctAnswer) ? (
+                              <ul className="list-disc ml-5">
+                                {question.correctAnswer.map((item, idx) => (
+                                  <li key={idx}>
+                                    {typeof item === "string"
+                                      ? item
+                                      : item.columnA && item.columnB
+                                      ? `${item.columnA} ➔ ${item.columnB}`
+                                      : JSON.stringify(item)}
+                                  </li>
+                                ))}
+                              </ul>
+                            ) : question.correctAnswer &&
+                              typeof question.correctAnswer === "object" ? (
+                              <pre className="whitespace-pre-wrap bg-muted p-2 rounded text-xs">
+                                {JSON.stringify(
+                                  question.correctAnswer,
+                                  null,
+                                  2
+                                )}
+                              </pre>
+                            ) : (
+                              <p>{JSON.stringify(question.correctAnswer)}</p>
+                            )}
+                          </div>
+                        ) : (
+                          <p className="text-sm italic text-muted-foreground">
+                            No correct answer specified
+                          </p>
+                        )}
                       </div>
                     </div>
                   );
