@@ -1,5 +1,3 @@
-import { getAssignmentAnswers } from "@/lib/actions/assignments/getAssignmentAnswers";
-import { getAllIntakeGroups } from "@/lib/actions/intakegroup/intakeGroups";
 import { ContentLayout } from "@/components/layout/content-layout";
 import { format } from "date-fns";
 import {
@@ -11,6 +9,10 @@ import {
 } from "@/components/ui/card";
 import { notFound } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
+import { MarkAnswers } from "@/components/assignments/markAnswers";
+import { getAssignmentAnswers } from "@/lib/actions/assignments/getAssignmentAnswers";
+import { cookies } from "next/headers";
+import { jwtDecode } from "jwt-decode";
 
 // Define interfaces for type safety
 interface PageProps {
@@ -58,8 +60,66 @@ interface AssignmentResult {
   answers: string[];
 }
 
+interface JwtPayload {
+  id: string;
+  firstName: string;
+  lastName: string;
+  userType: string;
+  exp: number;
+}
+
+// Decode JWT token and validate
+function getUserFromToken(token: string | undefined) {
+  if (!token) return null;
+
+  try {
+    const decoded = jwtDecode<JwtPayload>(token);
+    const currentTime = Date.now() / 1000;
+
+    if (decoded.exp <= currentTime) {
+      return null;
+    }
+
+    return {
+      id: decoded.id,
+      firstName: decoded.firstName,
+      lastName: decoded.lastName,
+      userType: decoded.userType,
+    };
+  } catch (error) {
+    console.error("Error decoding token:", error);
+    return null;
+  }
+}
+
 export default async function AssignmentMarkingPage({ params }: PageProps) {
   console.log("🚀 Starting to load assignment marking page...");
+
+  // Get token from cookies at the top level of the component
+  const cookieStore = await cookies();
+
+  // Check for BOTH possible cookie names
+  const token =
+    cookieStore.get("token")?.value || cookieStore.get("accessToken")?.value;
+
+  if (!token) {
+    console.log("❌ No authentication token found");
+    return (
+      <ContentLayout title="Unauthorized">
+        <div className="flex flex-col items-center justify-center py-20">
+          <div className="text-destructive font-medium mb-2">
+            Unauthorized Access
+          </div>
+          <p className="text-muted-foreground max-w-md text-center mb-6">
+            You must be logged in as a staff member to view this page.
+          </p>
+        </div>
+      </ContentLayout>
+    );
+  }
+
+  const user = getUserFromToken(token);
+  const staffId = user?.id;
 
   // Properly resolve params whether it's a Promise or direct object
   const resolvedParams = params instanceof Promise ? await params : params;
@@ -70,14 +130,27 @@ export default async function AssignmentMarkingPage({ params }: PageProps) {
     notFound();
   }
 
+  // Check if user is authenticated and is staff
+  if (!user || user.userType !== "Staff") {
+    return (
+      <ContentLayout title="Unauthorized">
+        <div className="flex flex-col items-center justify-center py-20">
+          <div className="text-destructive font-medium mb-2">
+            Unauthorized Access
+          </div>
+          <p className="text-muted-foreground max-w-md text-center mb-6">
+            You must be logged in as a staff member to view this page.
+          </p>
+        </div>
+      </ContentLayout>
+    );
+  }
+
   try {
     console.log("🔍 Fetching assignment result data...");
 
     // Get the assignment result directly - no need to fetch the assignment separately
     const resultData = await getAssignmentAnswers(id);
-
-    // No need to fetch intake groups for a single student's result
-    // We'll simplify this to avoid unnecessary DB calls
 
     if (!resultData) {
       console.log("❌ Assignment result not found");
@@ -331,73 +404,18 @@ export default async function AssignmentMarkingPage({ params }: PageProps) {
               <CardHeader>
                 <CardTitle>Student Answers</CardTitle>
                 <CardDescription>
-                  Review and mark the students responses
+                  Review and mark the student&apos;s responses
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-6">
-                  {result.assignment.questions?.map((question, index) => {
-                    // Find this student's answer for this question
-                    const answer = parsedAnswers.find(
-                      (a) => a.question === question.id
-                    );
-                    const score = scoresMap[question.id];
-
-                    return (
-                      <div key={question.id} className="border p-4 rounded-lg">
-                        <h3 className="font-bold mb-2">
-                          Question {index + 1} ({question.mark} marks)
-                        </h3>
-
-                        {answer ? (
-                          <div className="space-y-4">
-                            <div className="bg-muted p-3 rounded-md">
-                              <h4 className="text-sm font-medium mb-2">
-                                Student Answer:
-                              </h4>
-                              <p className="text-sm">
-                                {typeof answer.answer === "string"
-                                  ? answer.answer
-                                  : JSON.stringify(answer.answer, null, 2)}
-                              </p>
-                            </div>
-
-                            <div className="flex items-center justify-between">
-                              <div className="text-sm">
-                                <span className="font-medium">Score: </span>
-                                {score !== undefined ? (
-                                  <span>
-                                    {score}/{question.mark}
-                                  </span>
-                                ) : (
-                                  <span className="text-muted-foreground italic">
-                                    Not scored yet
-                                  </span>
-                                )}
-                              </div>
-
-                              {/* You could add a score editor here */}
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="text-sm text-muted-foreground italic p-3 bg-muted/50 rounded-md">
-                            No answer provided for this question
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* Total score summary at bottom */}
-                <div className="mt-6 p-4 border rounded-lg bg-muted/10">
-                  <div className="flex justify-between items-center">
-                    <h3 className="font-semibold">Total Score</h3>
-                    <div className="text-xl font-bold">
-                      {totalScore}/{totalPossible} ({percentage}%)
-                    </div>
-                  </div>
-                </div>
+                <MarkAnswers
+                  resultId={id}
+                  questions={result.assignment.questions}
+                  parsedAnswers={parsedAnswers}
+                  initialScores={scoresMap}
+                  totalPossible={totalPossible}
+                  staffId={staffId || ""}
+                />
               </CardContent>
             </Card>
           </div>

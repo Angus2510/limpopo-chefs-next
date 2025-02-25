@@ -232,7 +232,7 @@ model assignmentresults {
   feedback        Json?
   intakeGroup     String   @db.ObjectId
   markedBy        String?  @db.ObjectId
-  moderatedscores Int?
+  moderatedscores String?
   outcome         String   @db.ObjectId
   percent         Int?
   scores          Int?

@@ -181,7 +181,7 @@ export function AuthProvider({
         const storedUser = localStorage.getItem("user");
 
         // Try to validate current session
-        const response = await fetch("/api/auth/validate", {
+        const response = await fetch("/api/validate-token", {
           credentials: "include",
         });
 
