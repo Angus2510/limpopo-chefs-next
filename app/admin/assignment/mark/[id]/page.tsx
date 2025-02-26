@@ -228,11 +228,11 @@ export default async function AssignmentMarkingPage({ params }: PageProps) {
       <ContentLayout
         title={`Marking: ${result.student.firstName} ${result.student.lastName}`}
       >
-        <div className="container mx-auto py-6 space-y-6">
+        <div className="container mx-auto py-6 space-y-6 ">
           {/* Student and Assignment Info */}
           <Card>
             <CardHeader>
-              <CardTitle>Assignment Result Details</CardTitle>
+              <CardTitle>Assessment Result Details</CardTitle>
               <CardDescription>Student assessment submission</CardDescription>
             </CardHeader>
             <CardContent>
@@ -291,7 +291,7 @@ export default async function AssignmentMarkingPage({ params }: PageProps) {
                 <div className="space-y-4">
                   <div>
                     <h3 className="font-semibold text-sm">
-                      Assignment Information
+                      Assessment Information
                     </h3>
                     <div className="grid grid-cols-2 gap-2 mt-2">
                       <p className="text-sm text-muted-foreground">Title:</p>
@@ -312,112 +312,125 @@ export default async function AssignmentMarkingPage({ params }: PageProps) {
           </Card>
 
           {/* Questions and Answers Side by Side */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-full">
             {/* Left side - Questions and Correct Answers */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Questions & Correct Answers</CardTitle>
-                <CardDescription>
-                  Total Questions: {result.assignment.questions?.length || 0} |
-                  Total Marks: {totalPossible}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-6">
-                  {result.assignment.questions?.map((question, index) => (
-                    <div key={question.id} className="border p-4 rounded-lg">
-                      <h3 className="font-bold mb-2">
-                        Question {index + 1} ({question.mark} marks)
-                      </h3>
-                      <p className="mb-4">{question.text}</p>
+            <div className="flex flex-col h-full">
+              <Card className="w-full h-full flex flex-col">
+                <CardHeader className="flex-shrink-0">
+                  <CardTitle>Questions & Correct Answers</CardTitle>
+                  <CardDescription>
+                    Total Questions: {result.assignment.questions?.length || 0}{" "}
+                    | Total Marks: {totalPossible}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="flex-grow flex flex-col">
+                  <div className="h-full">
+                    <div className="space-y-6">
+                      {result.assignment.questions?.map((question, index) => (
+                        <div
+                          key={question.id}
+                          className="border p-4 rounded-lg"
+                        >
+                          <h3 className="font-bold mb-2">
+                            Question {index + 1} ({question.mark} marks)
+                          </h3>
+                          <p className="mb-4">{question.text}</p>
 
-                      {question.options && question.options.length > 0 && (
-                        <div className="mb-4">
-                          <h4 className="font-semibold mb-2">Options:</h4>
-                          <div className="grid gap-2">
-                            {question.options.map((option) => (
-                              <div key={option.id} className="flex gap-2">
-                                {option.value && (
-                                  <span className="text-sm">
-                                    {option.value}
-                                  </span>
-                                )}
-                                {option.columnA && option.columnB && (
-                                  <span className="text-sm">
-                                    {option.columnA} ➔ {option.columnB}
-                                  </span>
+                          {question.options && question.options.length > 0 && (
+                            <div className="mb-4">
+                              <h4 className="font-semibold mb-2">Options:</h4>
+                              <div className="grid gap-2">
+                                {question.options.map((option) => (
+                                  <div key={option.id} className="flex gap-2">
+                                    {option.value && (
+                                      <span className="text-sm">
+                                        {option.value}
+                                      </span>
+                                    )}
+                                    {option.columnA && option.columnB && (
+                                      <span className="text-sm">
+                                        {option.columnA} ➔ {option.columnB}
+                                      </span>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Display the correct answer */}
+                          <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-md">
+                            <h4 className="font-semibold text-green-700 mb-2">
+                              Correct Answer:
+                            </h4>
+                            {question.correctAnswer ? (
+                              <div className="text-sm">
+                                {typeof question.correctAnswer === "string" ? (
+                                  <p>{question.correctAnswer}</p>
+                                ) : Array.isArray(question.correctAnswer) ? (
+                                  <ul className="list-disc ml-5">
+                                    {question.correctAnswer.map((item, idx) => (
+                                      <li key={idx}>
+                                        {typeof item === "string"
+                                          ? item
+                                          : item.columnA && item.columnB
+                                          ? `${item.columnA} ➔ ${item.columnB}`
+                                          : JSON.stringify(item)}
+                                      </li>
+                                    ))}
+                                  </ul>
+                                ) : question.correctAnswer &&
+                                  typeof question.correctAnswer === "object" ? (
+                                  <pre className="whitespace-pre-wrap bg-muted p-2 rounded text-xs">
+                                    {JSON.stringify(
+                                      question.correctAnswer,
+                                      null,
+                                      2
+                                    )}
+                                  </pre>
+                                ) : (
+                                  <p>
+                                    {JSON.stringify(question.correctAnswer)}
+                                  </p>
                                 )}
                               </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Display the correct answer */}
-                      <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-md">
-                        <h4 className="font-semibold text-green-700 mb-2">
-                          Correct Answer:
-                        </h4>
-                        {question.correctAnswer ? (
-                          <div className="text-sm">
-                            {typeof question.correctAnswer === "string" ? (
-                              <p>{question.correctAnswer}</p>
-                            ) : Array.isArray(question.correctAnswer) ? (
-                              <ul className="list-disc ml-5">
-                                {question.correctAnswer.map((item, idx) => (
-                                  <li key={idx}>
-                                    {typeof item === "string"
-                                      ? item
-                                      : item.columnA && item.columnB
-                                      ? `${item.columnA} ➔ ${item.columnB}`
-                                      : JSON.stringify(item)}
-                                  </li>
-                                ))}
-                              </ul>
-                            ) : question.correctAnswer &&
-                              typeof question.correctAnswer === "object" ? (
-                              <pre className="whitespace-pre-wrap bg-muted p-2 rounded text-xs">
-                                {JSON.stringify(
-                                  question.correctAnswer,
-                                  null,
-                                  2
-                                )}
-                              </pre>
                             ) : (
-                              <p>{JSON.stringify(question.correctAnswer)}</p>
+                              <p className="text-sm italic text-muted-foreground">
+                                No correct answer specified
+                              </p>
                             )}
                           </div>
-                        ) : (
-                          <p className="text-sm italic text-muted-foreground">
-                            No correct answer specified
-                          </p>
-                        )}
-                      </div>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
 
             {/* Right side - Student Answers */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Student Answers</CardTitle>
-                <CardDescription>
-                  Review and mark the student&apos;s responses
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <MarkAnswers
-                  resultId={id}
-                  questions={result.assignment.questions}
-                  parsedAnswers={parsedAnswers}
-                  initialScores={scoresMap}
-                  totalPossible={totalPossible}
-                  staffId={staffId || ""}
-                />
-              </CardContent>
-            </Card>
+            <div className="flex flex-col h-full">
+              <Card className="w-full h-full flex flex-col">
+                <CardHeader className="flex-shrink-0">
+                  <CardTitle>Student Answers</CardTitle>
+                  <CardDescription>
+                    Review and mark the student&apos;s responses
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="flex-grow items-stretch flex flex-col">
+                  <div className="h-full">
+                    <MarkAnswers
+                      resultId={id}
+                      questions={result.assignment.questions}
+                      parsedAnswers={parsedAnswers}
+                      initialScores={scoresMap}
+                      totalPossible={totalPossible}
+                      staffId={staffId || ""}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           </div>
         </div>
       </ContentLayout>

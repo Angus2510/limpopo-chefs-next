@@ -45,12 +45,12 @@ export default function MarkAssignmentsPage() {
   }
 
   return (
-    <ContentLayout title="Mark Assignments">
+    <ContentLayout title="Mark Assessments">
       <Table>
         <TableHeader>
           <TableRow>
             <TableHead>Student</TableHead>
-            <TableHead>Assignment</TableHead>
+            <TableHead>Assessments</TableHead>
             <TableHead>Date Submitted</TableHead>
             <TableHead>Actions</TableHead>
           </TableRow>

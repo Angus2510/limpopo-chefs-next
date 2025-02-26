@@ -78,8 +78,8 @@ export function MarkAnswers({
         description: "The assignment has been marked.",
       });
 
-      // Refresh to show updated scores
-      router.refresh();
+      // Navigate to the assignments list page after successful submission
+      router.push("/admin/assignment/mark");
     } catch (error) {
       toast({
         title: "Error",
@@ -93,7 +93,6 @@ export function MarkAnswers({
       setIsSubmitting(false);
     }
   };
-
   const totalScore = calculateTotal();
   const percentage = Math.round((totalScore * 100) / totalPossible);
 
