@@ -216,7 +216,6 @@ export function AuthProvider({
 
       toast({
         title: "Welcome back!",
-        description: `Logged in as ${userData.firstName} ${userData.lastName}`,
       });
     },
     [setupTimers, toast]
