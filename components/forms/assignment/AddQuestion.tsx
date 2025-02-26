@@ -242,7 +242,7 @@ const AddQuestion: React.FC<AddQuestionProps> = ({
       </CardHeader>
       <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <FormItem>
-          <FormLabel>Question Text</FormLabel>
+          <FormLabel>Question</FormLabel>
           <FormControl>
             <Input
               value={newQuestion.questionText}

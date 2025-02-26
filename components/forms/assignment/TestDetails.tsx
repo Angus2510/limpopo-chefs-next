@@ -16,7 +16,7 @@ interface TestDetailsProps {
 const TestDetails: React.FC<TestDetailsProps> = ({ control }) => (
   <div className="space-y-4">
     <CardHeader>
-      <CardTitle>Test Details</CardTitle>
+      <CardTitle>Assessment Details</CardTitle>
     </CardHeader>
     <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
       <FormField
@@ -25,7 +25,7 @@ const TestDetails: React.FC<TestDetailsProps> = ({ control }) => (
         render={({ field }) => (
           <FormItem>
             <FormLabel>Title</FormLabel>
-            <Input {...field} placeholder="Test Title" />
+            <Input {...field} placeholder="Assessment Title" />
             <FormMessage />
           </FormItem>
         )}

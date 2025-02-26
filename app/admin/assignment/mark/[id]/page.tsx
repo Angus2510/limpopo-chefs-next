@@ -93,7 +93,7 @@ function getUserFromToken(token: string | undefined) {
 }
 
 export default async function AssignmentMarkingPage({ params }: PageProps) {
-  console.log("🚀 Starting to load assignment marking page...");
+  console.log("🚀 Starting to load assessment marking page...");
 
   // Get token from cookies at the top level of the component
   const cookieStore = await cookies();
@@ -147,13 +147,13 @@ export default async function AssignmentMarkingPage({ params }: PageProps) {
   }
 
   try {
-    console.log("🔍 Fetching assignment result data...");
+    console.log("🔍 Fetching assessment result data...");
 
     // Get the assignment result directly - no need to fetch the assignment separately
     const resultData = await getAssignmentAnswers(id);
 
     if (!resultData) {
-      console.log("❌ Assignment result not found");
+      console.log("❌ assessment result not found");
       return (
         <ContentLayout title="Result Not Found">
           <div className="flex flex-col items-center justify-center py-20">
@@ -161,7 +161,7 @@ export default async function AssignmentMarkingPage({ params }: PageProps) {
               Assignment Result Not Found
             </div>
             <p className="text-muted-foreground max-w-md text-center mb-6">
-              The assignment result you&apos;re looking for could not be found.
+              The assessment result you&apos;re looking for could not be found.
             </p>
           </div>
         </ContentLayout>
@@ -317,7 +317,7 @@ export default async function AssignmentMarkingPage({ params }: PageProps) {
             <div className="flex flex-col h-full">
               <Card className="w-full h-full flex flex-col">
                 <CardHeader className="flex-shrink-0">
-                  <CardTitle>Questions & Correct Answers</CardTitle>
+                  <CardTitle>Assessment Memo</CardTitle>
                   <CardDescription>
                     Total Questions: {result.assignment.questions?.length || 0}{" "}
                     | Total Marks: {totalPossible}

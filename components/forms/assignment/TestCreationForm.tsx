@@ -246,7 +246,7 @@ const TestCreationForm: React.FC<TestCreationFormProps> = ({
       <Form {...form}>
         <div className="space-y-6">
           <CardHeader>
-            <CardTitle>Test Configuration</CardTitle>
+            <CardTitle>Assessment Configuration</CardTitle>
           </CardHeader>
 
           <CardContent className="grid grid-cols-2 gap-4">
@@ -261,7 +261,7 @@ const TestCreationForm: React.FC<TestCreationFormProps> = ({
               name="type"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Assignment Type</FormLabel>
+                  <FormLabel>Assessment Type</FormLabel>
                   <Select
                     onValueChange={field.onChange}
                     defaultValue={field.value}

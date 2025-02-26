@@ -11,7 +11,7 @@ async function CreateAssignmentPage() {
   ]);
 
   return (
-    <ContentLayout title="Create Assignment">
+    <ContentLayout title="Create Assessment">
       <TestCreationForm intakeGroups={intakeGroups} outcomes={outcomes} />
     </ContentLayout>
   );

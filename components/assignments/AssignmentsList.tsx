@@ -27,19 +27,19 @@ export default function AssignmentsList({ assignments }: AssignmentsListProps) {
   const [searchTerm, setSearchTerm] = useState("");
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this assignment?")) return;
+    if (!confirm("Are you sure you want to delete this assessment?")) return;
 
     setIsDeleting(id);
     try {
       await deleteAssignment(id);
       toast({
         title: "Success",
-        description: "Assignment deleted successfully",
+        description: "Assessment deleted successfully",
       });
     } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to delete assignment",
+        description: "Failed to delete assessment",
         variant: "destructive",
       });
     } finally {
@@ -70,7 +70,7 @@ export default function AssignmentsList({ assignments }: AssignmentsListProps) {
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search assignments..."
+            placeholder="Search assessments..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-8"
@@ -78,7 +78,7 @@ export default function AssignmentsList({ assignments }: AssignmentsListProps) {
         </div>
         <div className="text-sm text-muted-foreground">
           {filteredAssignments.length}{" "}
-          {filteredAssignments.length === 1 ? "assignment" : "assignments"}{" "}
+          {filteredAssignments.length === 1 ? "assessment" : "assessments"}{" "}
           found
         </div>
       </div>
