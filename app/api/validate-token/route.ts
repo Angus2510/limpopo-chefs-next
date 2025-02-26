@@ -1,34 +1,59 @@
+import { cookies } from "next/headers";
+import { jwtDecode } from "jwt-decode";
 import { NextResponse } from "next/server";
-import jwt from "jsonwebtoken";
 
-export async function POST(request: Request) {
-  const authHeader = request.headers.get("Authorization");
+interface TokenPayload {
+  id: string;
+  userType: string;
+  exp: number;
+}
 
-  if (!authHeader) {
-    return NextResponse.json({ error: "No token provided" }, { status: 401 });
+// Simplified handler function
+async function validateToken() {
+  const cookieStore = await cookies();
+  const token = cookieStore.get("accessToken")?.value;
+
+  if (!token) {
+    return NextResponse.json(
+      { authenticated: false, reason: "no-token" },
+      { status: 401 }
+    );
   }
-
-  const token = authHeader.split(" ")[1];
 
   try {
-    const decoded = jwt.verify(token, process.env["JWT_SECRET"]!) as {
-      id: string;
-      userType: string;
-    };
+    // Just validate the token
+    const decoded = jwtDecode<TokenPayload>(token);
+    const currentTime = Date.now() / 1000;
 
-    return NextResponse.json({
-      valid: true,
-      user: {
-        id: decoded.id,
-        userType: decoded.userType,
+    if (decoded.exp < currentTime) {
+      return NextResponse.json(
+        { authenticated: false, reason: "expired" },
+        { status: 401 }
+      );
+    }
+
+    // Update activity timestamp
+    cookieStore.set("lastActivity", Date.now().toString());
+
+    // Return basic data without trying to fetch user details
+    return NextResponse.json(
+      {
+        authenticated: true,
+        token,
+        user: { id: decoded.id, userType: decoded.userType },
+        tokenExpiresIn: Math.round(decoded.exp - currentTime),
       },
-    });
+      { status: 200 }
+    );
   } catch (error) {
-    return NextResponse.json({ error: "Invalid token" }, { status: 401 });
+    console.error("Token validation error:", error);
+    return NextResponse.json(
+      { authenticated: false, reason: "invalid" },
+      { status: 401 }
+    );
   }
 }
 
-// Add GET method support for convenience
-export async function GET(request: Request) {
-  return POST(request);
-}
+// Export both handlers
+export const GET = validateToken;
+export const POST = validateToken;

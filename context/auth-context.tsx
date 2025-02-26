@@ -9,6 +9,7 @@ import React, {
   useCallback,
   useRef,
 } from "react";
+
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/use-toast";
 import { jwtDecode } from "jwt-decode";
@@ -42,26 +43,61 @@ interface AuthProviderProps {
   autoLogoutTime?: number;
 }
 
+// Simple client-side validation function
 async function validateToken(token: string): Promise<boolean> {
+  if (!token) return false;
+
   try {
+    // Basic client-side validation first
     const decoded = jwtDecode<JwtPayload>(token);
     const currentTime = Date.now() / 1000;
-    return decoded.exp > currentTime;
-  } catch {
+
+    // If token is expired, fail early
+    if (decoded.exp <= currentTime) {
+      return false;
+    }
+
+    // If client-side validation passes, verify with server
+    try {
+      const response = await fetch("/api/validate-token", {
+        method: "POST",
+        credentials: "include",
+      });
+
+      return response.ok;
+    } catch (serverError) {
+      console.error("Server validation error:", serverError);
+      // Fall back to client-side validation if server check fails
+      return true;
+    }
+  } catch (error) {
+    console.error("Token validation error:", error);
     return false;
   }
 }
 
+// Refresh token function
 async function refreshToken(): Promise<{ token: string; user: User } | null> {
   try {
-    const response = await fetch("/api/auth/refresh", {
+    const response = await fetch("/api/refresh-token", {
       method: "POST",
       credentials: "include",
     });
 
     if (!response.ok) return null;
-    return await response.json();
-  } catch {
+
+    const data = await response.json();
+
+    if (data.accessToken && data.user) {
+      return {
+        token: data.accessToken,
+        user: data.user,
+      };
+    }
+
+    return null;
+  } catch (error) {
+    console.error("Refresh token error:", error);
     return null;
   }
 }
@@ -127,18 +163,27 @@ export function AuthProvider({
     warningTimerRef.current = setTimeout(() => {
       toast({
         title: "Session Expiring Soon",
-        description: "Your session will expire soon. Click to stay logged in.",
-        action: {
-          label: "Stay Logged In",
-          onClick: async () => {
-            const refresh = await refreshToken();
-            if (refresh) {
-              setAccessToken(refresh.token);
-              setUser(refresh.user);
-              setupTimers();
-            }
-          },
-        },
+        description: "Your session will expire soon.",
+        action: (
+          <Toast.Action
+            altText="Stay Logged In"
+            onClick={async () => {
+              const refresh = await refreshToken();
+              if (refresh) {
+                setAccessToken(refresh.token);
+                setUser(refresh.user);
+                setupTimers();
+                document.cookie = `lastActivity=${Date.now()}; path=/;`;
+                toast({
+                  title: "Session Extended",
+                  description: "Your login has been refreshed.",
+                });
+              }
+            }}
+          >
+            Stay Logged In
+          </Toast.Action>
+        ),
       });
     }, autoLogoutTime - 300000);
 
@@ -166,6 +211,9 @@ export function AuthProvider({
       localStorage.setItem("user", JSON.stringify(userData));
       setupTimers();
 
+      // Set activity cookie directly
+      document.cookie = `lastActivity=${Date.now()}; path=/;`;
+
       toast({
         title: "Welcome back!",
         description: `Logged in as ${userData.firstName} ${userData.lastName}`,
@@ -179,25 +227,43 @@ export function AuthProvider({
     const initAuth = async () => {
       try {
         const storedUser = localStorage.getItem("user");
+        console.log(
+          "Initializing auth, checking for stored user:",
+          !!storedUser
+        );
 
         // Try to validate current session
         const response = await fetch("/api/validate-token", {
+          method: "POST",
           credentials: "include",
         });
 
+        console.log("Validate token response:", response.status);
+
         if (response.ok) {
-          const { token, user } = await response.json();
-          setAccessToken(token);
-          setUser(user);
-          setupTimers();
+          const data = await response.json();
+          console.log(
+            "Validate token success, authenticated:",
+            data.authenticated
+          );
+
+          if (data.authenticated) {
+            setAccessToken(data.token);
+            setUser(data.user);
+            setupTimers();
+            console.log("Auth restored from session");
+          }
         } else if (storedUser) {
+          console.log("Trying to refresh token with stored user");
           // Try to refresh if we have stored user data
           const refresh = await refreshToken();
           if (refresh) {
+            console.log("Token refresh successful");
             setAccessToken(refresh.token);
             setUser(refresh.user);
             setupTimers();
           } else {
+            console.log("Token refresh failed, removing stored user");
             localStorage.removeItem("user");
           }
         }
@@ -217,7 +283,15 @@ export function AuthProvider({
 
     const handleActivity = () => {
       setLastActivity(Date.now());
-      setupTimers();
+
+      // Update lastActivity cookie on user interaction
+      document.cookie = `lastActivity=${Date.now()}; path=/;`;
+
+      // Only reset timers occasionally to avoid constant resets
+      const shouldResetTimers = Math.random() < 0.1; // 10% chance
+      if (shouldResetTimers) {
+        setupTimers();
+      }
     };
 
     const events = [

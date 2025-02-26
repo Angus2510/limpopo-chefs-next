@@ -30,7 +30,6 @@ import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { jwtDecode } from "jwt-decode";
 import Cookies from "js-cookie";
-import type { User, TokenPayload, StudentData } from "@/types/auth/auth";
 
 interface AuthState {
   user: User | null;
@@ -39,7 +38,7 @@ interface AuthState {
   loading: boolean;
   error: string | null;
   login: (data: { user: User; accessToken: string }) => void;
-  logout: () => void;
+  logout: () => Promise<void>; // Change to async
   isAuthenticated: () => boolean;
   getToken: () => string | null;
   syncCookie: () => void;
@@ -61,7 +60,7 @@ const useAuthStore = create<AuthState>()(
         console.log("Logging in with:", { user, accessToken });
 
         Cookies.set("accessToken", accessToken, {
-          expires: 1 / 24, // 1 hour
+          expires: 10 / (24 * 60), // 10 minutes
           secure: process.env.NODE_ENV === "production",
           sameSite: "lax",
         });
@@ -69,12 +68,15 @@ const useAuthStore = create<AuthState>()(
         set({
           user,
           accessToken,
-          studentData: null, // Reset student data on login
+          studentData: null,
           error: null,
         });
       },
 
-      logout: () => {
+      logout: async () => {
+        console.log("Logout function called");
+
+        // Clear client-side state first for immediate effect
         Cookies.remove("accessToken");
         set({
           user: null,
@@ -82,36 +84,39 @@ const useAuthStore = create<AuthState>()(
           studentData: null,
           error: null,
         });
+
+        // Then call API in background
+        try {
+          console.log("Calling logout API");
+          await fetch("/api/auth/logout", {
+            method: "POST",
+            credentials: "include",
+          });
+        } catch (error) {
+          console.error("Logout API error:", error);
+        }
+
+        // Immediate redirect
+        window.location.href = "/login";
       },
+
+      // Replace the isAuthenticated function with this quieter version:
 
       isAuthenticated: () => {
         const { accessToken, user } = get();
-        console.log("Authentication Check:", { accessToken, user });
 
+        // No console.log here!
         if (!accessToken) {
-          console.log("No access token found");
           return false;
         }
 
         try {
           const decoded = jwtDecode<TokenPayload>(accessToken);
-          const isValid = decoded.exp > Date.now() / 1000;
-
-          console.log("Token Validation:", {
-            isValid,
-            currentTime: new Date(),
-            expirationTime: new Date(decoded.exp * 1000),
-          });
-
-          if (!isValid) {
-            get().logout();
-            return false;
-          }
-
-          return isValid;
+          // Simple validation without logging every detail
+          return decoded.exp > Date.now() / 1000;
         } catch (error) {
+          // Only log actual errors, not regular checks
           console.error("Token verification error:", error);
-          get().logout();
           return false;
         }
       },
@@ -127,7 +132,7 @@ const useAuthStore = create<AuthState>()(
 
         if (accessToken && !cookieToken) {
           Cookies.set("accessToken", accessToken, {
-            expires: 1 / 24,
+            expires: 10 / (24 * 60), // 10 minutes
             secure: process.env.NODE_ENV === "production",
             sameSite: "lax",
           });

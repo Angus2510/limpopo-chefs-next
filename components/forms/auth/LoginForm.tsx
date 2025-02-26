@@ -1,9 +1,8 @@
-//components/forms/auth/LoginForm.tsx
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import useAuthStore from "@/store/authStore";
-
+import { useAuth } from "@/context/auth-context";
 import { z } from "zod";
 import { useForm, SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -20,36 +19,10 @@ const loginSchema = z.object({
 // Define the form data type
 type LoginFormData = z.infer<typeof loginSchema>;
 
-async function loginAction(data: { identifier: string; password: string }) {
-  try {
-    const response = await fetch("/api/auth/login", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(data),
-    });
-
-    console.log("Login Response Status:", response.status);
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      console.error("Login Error Response:", errorData);
-      throw new Error(errorData.error || "Invalid credentials or server error");
-    }
-
-    const result = await response.json();
-
-    return result; // returns { accessToken, user }
-  } catch (error) {
-    console.error("Login Action Error:", error);
-    throw error;
-  }
-}
-
 export default function LoginForm() {
   const router = useRouter();
-  const { login } = useAuthStore();
+  const authStore = useAuthStore();
+  const authContext = useAuth();
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
@@ -68,55 +41,89 @@ export default function LoginForm() {
     try {
       console.log("Form Submit - Starting Login Process");
 
-      // Attempt to log in
-      const result = await loginAction(data);
-      console.log("Login Result:", result); // Add this
-
-      // Log the entire result for inspection
-
-      // Destructure with fallback to prevent undefined
-      const { accessToken = "", user } = result;
-      console.log("User Object:", user); // Add this
-      console.log("User Type:", user?.userType);
-      // Use the Zustand store's login method
-      login({
-        user,
-        accessToken,
+      // Make API call
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
       });
-      console.log("About to route based on user type:", user?.userType);
+
+      console.log("Login Response Status:", response.status);
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error("Login Error Response:", errorData);
+        throw new Error(
+          errorData.error || "Invalid credentials or server error"
+        );
+      }
+
+      const result = await response.json();
+      const { accessToken = "", user } = result;
+
+      console.log("Login Result:", {
+        success: true,
+        hasToken: !!accessToken,
+        hasUser: !!user,
+        userType: user?.userType,
+      });
+      // Change to:
+      console.log("Updating both auth systems:", {
+        hasUser: !!user,
+        hasToken: !!accessToken,
+      });
+      // Update context first (it's more strict)
+      authContext.login(accessToken, user);
+      // Then update store
+      authStore.login({ user, accessToken });
+
+      // Set activity timestamp (for inactivity tracking)
+      document.cookie = `lastActivity=${Date.now()}; path=/;`;
+
+      // Add a timeout to check auth state after React has time to update state
+      setTimeout(() => {
+        console.log("Auth state after delay:", {
+          contextAuth: authContext.isAuthenticated(),
+          storeAuth: authStore.isAuthenticated(),
+          hasContextUser: !!authContext.user,
+          hasContextToken: !!authContext.accessToken,
+        });
+      }, 100);
+
+      // Verify login was successful
+      console.log("Auth state after login:", {
+        storeAuthenticated: authStore.isAuthenticated(),
+        contextAuthenticated: authContext.isAuthenticated(),
+        userType: user.userType,
+      });
+
       // Route based on user type
+      console.log(`Routing to ${user.userType} dashboard...`);
       switch (user.userType) {
         case "Staff":
-          console.log("Routing to Staff Dashboard");
           router.push("/admin/dashboard");
           break;
         case "Student":
-          console.log("Routing to Student Dashboard");
-          try {
-            router.refresh();
-            await router.push("/student/dashboard");
-            console.log("Router push completed");
-          } catch (e) {
-            console.error("Routing error:", e);
-          }
+          router.push("/student/dashboard");
           break;
         case "Guardian":
-          console.log("Routing to Guardian Dashboard");
           router.push("/guardian/dashboard");
           break;
         default:
-          console.log("Routing to Default Dashboard");
           router.push("/dashboard");
       }
     } catch (error) {
       console.error("Login Submit Error:", error);
-      setIsLoading(false);
 
       if (error instanceof Error) {
         setError(error.message);
       } else {
         setError("An unexpected error occurred");
       }
+    } finally {
+      setIsLoading(false);
     }
   };
 
