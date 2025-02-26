@@ -1,5 +1,5 @@
 "use server";
-import db from "@/lib/db";
+import prisma from "@/lib/db";
 
 export async function submitScore(
   assignmentId: string,
@@ -31,7 +31,7 @@ export async function submitScore(
     // If you need the total possible score, you could pass it as a parameter
     // For now, we're just storing the raw score
 
-    const result = await db.assignmentresults.update({
+    const result = await prisma.assignmentresults.update({
       where: {
         id: assignmentId,
       },

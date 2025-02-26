@@ -1,12 +1,28 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 import { useRouter } from "next/navigation";
 import { submitScore } from "@/lib/actions/assignments/submitScore";
 
+// Add this CSS at the top of your file
+const noScrollInputStyles = `
+  /* Chrome, Safari, Edge, Opera */
+  input::-webkit-outer-spin-button,
+  input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  /* Firefox */
+  input[type=number] {
+    -moz-appearance: textfield;
+  }
+`;
+
+// Rest of your component remains the same
 interface Question {
   id: string;
   text: string;
@@ -41,6 +57,27 @@ export function MarkAnswers({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
+
+  // Add event handler to prevent scroll wheel from changing the input values
+  useEffect(() => {
+    const preventScroll = (e: WheelEvent) => {
+      const target = e.target as HTMLElement;
+      if (
+        target.tagName === "INPUT" &&
+        target.getAttribute("type") === "number"
+      ) {
+        target.blur();
+      }
+    };
+
+    // Add the event listener
+    document.addEventListener("wheel", preventScroll, { passive: false });
+
+    // Clean up
+    return () => {
+      document.removeEventListener("wheel", preventScroll);
+    };
+  }, []);
 
   const handleScoreChange = (questionId: string, value: string) => {
     const numValue = parseInt(value) || 0;
@@ -79,7 +116,7 @@ export function MarkAnswers({
       });
 
       // Navigate to the assignments list page after successful submission
-      router.push("/admin/assignment/mark");
+      router.push("/admin/assignment");
     } catch (error) {
       toast({
         title: "Error",
@@ -97,77 +134,86 @@ export function MarkAnswers({
   const percentage = Math.round((totalScore * 100) / totalPossible);
 
   return (
-    <form onSubmit={handleSubmit}>
-      <div className="space-y-6">
-        {questions?.map((question, index) => {
-          // Find this student's answer for this question
-          const answer = parsedAnswers.find((a) => a.question === question.id);
-          const score = scores[question.id] || 0;
-          const maxMark = parseInt(question.mark);
+    <>
+      {/* Add the style tag to the component */}
+      <style jsx>{noScrollInputStyles}</style>
 
-          return (
-            <div key={question.id} className="border p-4 rounded-lg">
-              <h3 className="font-bold mb-2">
-                Question {index + 1} ({question.mark} marks)
-              </h3>
+      <form onSubmit={handleSubmit} className="h-full flex flex-col">
+        <div className="flex-grow space-y-6">
+          {questions?.map((question, index) => {
+            // Find this student's answer for this question
+            const answer = parsedAnswers.find(
+              (a) => a.question === question.id
+            );
+            const score = scores[question.id] || 0;
+            const maxMark = parseInt(question.mark);
 
-              {answer ? (
-                <div className="space-y-4">
-                  <div className="bg-muted p-3 rounded-md">
-                    <h4 className="text-sm font-medium mb-2">
-                      Student Answer:
-                    </h4>
-                    <p className="text-sm">
-                      {typeof answer.answer === "string"
-                        ? answer.answer
-                        : JSON.stringify(answer.answer, null, 2)}
-                    </p>
-                  </div>
+            return (
+              <div key={question.id} className="border p-4 rounded-lg">
+                <h3 className="font-bold mb-2">
+                  Question {index + 1} ({question.mark} marks)
+                </h3>
 
-                  <div className="flex items-center gap-3">
-                    <div className="text-sm font-medium">Score:</div>
-                    <div className="flex items-center gap-2">
-                      <Input
-                        type="number"
-                        min="0"
-                        max={maxMark}
-                        value={score}
-                        onChange={(e) =>
-                          handleScoreChange(question.id, e.target.value)
-                        }
-                        className="w-16"
-                      />
-                      <span className="text-sm text-muted-foreground">
-                        / {maxMark}
-                      </span>
+                {answer ? (
+                  <div className="space-y-4">
+                    <div className="bg-muted p-3 rounded-md">
+                      <h4 className="text-sm font-medium mb-2">
+                        Student Answer:
+                      </h4>
+                      <p className="text-sm">
+                        {typeof answer.answer === "string"
+                          ? answer.answer
+                          : JSON.stringify(answer.answer, null, 2)}
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <div className="text-sm font-medium">Score:</div>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          type="number"
+                          min="0"
+                          max={maxMark}
+                          value={score}
+                          onChange={(e) =>
+                            handleScoreChange(question.id, e.target.value)
+                          }
+                          className="w-16"
+                          // Add onWheel event handler to prevent scroll
+                          onWheel={(e) => e.currentTarget.blur()}
+                        />
+                        <span className="text-sm text-muted-foreground">
+                          / {maxMark}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ) : (
-                <div className="text-sm text-muted-foreground italic p-3 bg-muted/50 rounded-md">
-                  No answer provided for this question
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
+                ) : (
+                  <div className="text-sm text-muted-foreground italic p-3 bg-muted/50 rounded-md">
+                    No answer provided for this question
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
 
-      {/* Total score summary at bottom */}
-      <div className="mt-6 p-4 border rounded-lg bg-muted/10">
-        <div className="flex justify-between items-center">
-          <h3 className="font-semibold">Total Score</h3>
-          <div className="text-xl font-bold">
-            {totalScore}/{totalPossible} ({percentage}%)
+        {/* Total score summary at bottom */}
+        <div className="mt-6 p-4 border rounded-lg bg-muted/10">
+          <div className="flex justify-between items-center">
+            <h3 className="font-semibold">Total Score</h3>
+            <div className="text-xl font-bold">
+              {totalScore}/{totalPossible} ({percentage}%)
+            </div>
+          </div>
+
+          <div className="mt-6 flex justify-end">
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? "Submitting..." : "Submit Marks"}
+            </Button>
           </div>
         </div>
-
-        <div className="mt-6 flex justify-end">
-          <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? "Submitting..." : "Submit Marks"}
-          </Button>
-        </div>
-      </div>
-    </form>
+      </form>
+    </>
   );
 }
