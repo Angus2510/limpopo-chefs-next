@@ -25,9 +25,7 @@ function Providers({ children }: { children: React.ReactNode }) {
     // AuthStoreProvider wraps Zustand store initialization
     <AuthStoreProvider>
       {/* AuthProvider handles context-based auth with built-in auto-logout */}
-      <AuthProvider autoLogoutTime={10 * 60 * 1000}>
-        {children} <AuthDebug />
-      </AuthProvider>
+      <AuthProvider autoLogoutTime={10 * 60 * 1000}>{children}</AuthProvider>
     </AuthStoreProvider>
   );
 }
