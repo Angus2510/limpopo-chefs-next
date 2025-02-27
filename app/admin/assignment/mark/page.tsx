@@ -147,7 +147,7 @@ export default function MarkAssignmentsPage() {
           <TableHeader>
             <TableRow>
               <TableHead>Intake Group</TableHead>
-              <TableHead>Assignment Status</TableHead>
+              <TableHead>Assessment Status</TableHead>
               <TableHead>Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -178,7 +178,7 @@ export default function MarkAssignmentsPage() {
                         )}
                       </div>
                       <p className="text-xs text-gray-500">
-                        {group.assignmentCounts.total} total assignments
+                        {group.assignmentCounts.total} total assessments
                       </p>
                     </div>
                   )}
@@ -191,7 +191,7 @@ export default function MarkAssignmentsPage() {
                     }
                   >
                     <Link href={`/admin/assignment/mark/group/${group.id}`}>
-                      View Assignments
+                      View Assessments
                     </Link>
                   </Button>
                 </TableCell>
