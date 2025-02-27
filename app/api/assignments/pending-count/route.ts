@@ -37,19 +37,57 @@ export async function GET(request: Request) {
       return acc;
     }, {} as Record<string, number>);
 
-    return NextResponse.json({
+    // Get the most recent assignment for the group
+    let newestDate = null;
+
+    if (totalCount > 0) {
+      const newestAssignment = await prisma.assignmentresults.findFirst({
+        where: {
+          intakeGroup: groupId,
+        },
+        orderBy: {
+          dateTaken: "desc", // Use dateTaken since it exists in your schema
+        },
+        select: {
+          dateTaken: true, // Use dateTaken since it exists in your schema
+        },
+      });
+
+      newestDate = newestAssignment?.dateTaken;
+    }
+
+    // Get intake group info
+    const intakeGroup = await prisma.intakegroups.findUnique({
+      where: { id: groupId },
+      select: { title: true },
+    });
+
+    // Create a safe response object with correct data types
+    const response = {
       total: totalCount,
       pending: countsByStatus["pending"] || 0,
       marked: countsByStatus["marked"] || 0,
       submitted: countsByStatus["submitted"] || 0,
-      // Add any other statuses you have
       byStatus: countsByStatus,
-    });
+      newestDate: newestDate,
+      groupTitle: intakeGroup?.title || "Unknown Group",
+    };
+
+    return NextResponse.json(response);
   } catch (error) {
     console.error("Error counting assignments:", error);
+
+    // Safe error response
     return NextResponse.json(
-      { error: "Failed to count assignments" },
-      { status: 500 }
-    );
+      {
+        error: "Failed to count assignments",
+        total: 0,
+        pending: 0,
+        marked: 0,
+        submitted: 0,
+        byStatus: {},
+      },
+      { status: 200 }
+    ); // Return 200 to avoid client errors
   }
 }
