@@ -209,7 +209,7 @@ export default function GroupAssignmentMarkPage() {
       <ContentLayout title="Loading Assignments">
         <div className="flex justify-center items-center h-64">
           <Loader2 className="h-8 w-8 animate-spin text-primary mr-3" />
-          <span>Loading assignment data...</span>
+          <span>Loading assessment data...</span>
         </div>
       </ContentLayout>
     );
@@ -225,7 +225,7 @@ export default function GroupAssignmentMarkPage() {
             </div>
             <div className="ml-3">
               <h3 className="text-sm font-medium text-red-800">
-                Error Loading Assignments
+                Error Loading Assessment
               </h3>
               <p className="text-sm text-red-700 mt-1">{error}</p>
               <Button
@@ -243,7 +243,7 @@ export default function GroupAssignmentMarkPage() {
   }
 
   return (
-    <ContentLayout title={`Assignments for ${groupName}`}>
+    <ContentLayout title={`Assessment for ${groupName}`}>
       <div className="mb-4">
         <Button
           variant="outline"
@@ -260,7 +260,7 @@ export default function GroupAssignmentMarkPage() {
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 space-y-2 sm:space-y-0">
           <TabsList>
             <TabsTrigger value="all">
-              All Assignments ({assignments.length})
+              All Assessments ({assignments.length})
             </TabsTrigger>
             <TabsTrigger value="pending">Pending ({pendingCount})</TabsTrigger>
             <TabsTrigger value="marked">Marked ({markedCount})</TabsTrigger>
@@ -273,7 +273,7 @@ export default function GroupAssignmentMarkPage() {
             <div className="relative">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search assignments or students"
+                placeholder="Search Assessments or students"
                 className="pl-8 w-[250px]"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -290,10 +290,10 @@ export default function GroupAssignmentMarkPage() {
                 <SelectItem value="student-asc">Student Name (A-Z)</SelectItem>
                 <SelectItem value="student-desc">Student Name (Z-A)</SelectItem>
                 <SelectItem value="title-asc">
-                  Assignment Title (A-Z)
+                  Assessment Title (A-Z)
                 </SelectItem>
                 <SelectItem value="title-desc">
-                  Assignment Title (Z-A)
+                  Assessment Title (Z-A)
                 </SelectItem>
               </SelectContent>
             </Select>
@@ -359,7 +359,7 @@ function AssignmentsTable({
     return (
       <Card className="mt-2">
         <CardContent className="flex flex-col items-center justify-center h-40">
-          <p className="text-muted-foreground">No assignments found</p>
+          <p className="text-muted-foreground">No Assessment found</p>
         </CardContent>
       </Card>
     );
@@ -369,7 +369,7 @@ function AssignmentsTable({
     <Table>
       <TableHeader>
         <TableRow>
-          <TableHead>Assignment</TableHead>
+          <TableHead>Assessment</TableHead>
           <TableHead>Student</TableHead>
           <TableHead>Status</TableHead>
           <TableHead>Date Taken</TableHead>
