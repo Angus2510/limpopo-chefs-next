@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 interface Profile {
   firstName: string;
   lastName: string;
-  email: string;
+  email?: string;
   profilePicture?: string;
 }
 
@@ -15,6 +15,12 @@ interface Student {
   intakeGroup: string[];
   campus: string;
   admissionNumber: string;
+
+  // Add these properties that are set in fetchStudentData.ts
+  email: string;
+  campusTitle: string;
+  intakeGroupTitle: string;
+  qualificationTitle?: string;
 }
 
 interface StudentCardProps {
@@ -24,8 +30,17 @@ interface StudentCardProps {
 export function StudentCard({ studentData }: StudentCardProps) {
   if (!studentData) return <p>Loading...</p>;
 
-  const { profile, campus, admissionNumber, intakeGroup } = studentData;
-  const { firstName, lastName, email, profilePicture } = profile;
+  const { profile, admissionNumber } = studentData;
+  const { firstName, lastName, profilePicture } = profile;
+
+  // For debugging - remove in production
+  console.log("Student data in card:", {
+    email: studentData.email,
+    campus: studentData.campus,
+    campusTitle: studentData.campusTitle,
+    intakeGroup: studentData.intakeGroup,
+    intakeGroupTitle: studentData.intakeGroupTitle,
+  });
 
   return (
     <Card className="w-[350px] shadow-lg p-4">
@@ -51,7 +66,7 @@ export function StudentCard({ studentData }: StudentCardProps) {
           </div>
           <div className="flex">
             <span className="font-semibold w-32">Campus:</span>
-            <span>{campus}</span>
+            <span>{studentData.campusTitle}</span>
           </div>
           <div className="flex">
             <span className="font-semibold w-32">Student number:</span>
@@ -59,11 +74,11 @@ export function StudentCard({ studentData }: StudentCardProps) {
           </div>
           <div className="flex">
             <span className="font-semibold w-32">Email address:</span>
-            <span>{email}</span>
+            <span>{studentData.email}</span>
           </div>
           <div className="flex">
             <span className="font-semibold w-32">Intake Group:</span>
-            <span>{intakeGroup.join(", ")}</span>
+            <span>{studentData.intakeGroupTitle}</span>
           </div>
         </div>
       </CardContent>

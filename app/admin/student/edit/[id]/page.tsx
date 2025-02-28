@@ -9,23 +9,29 @@ import { fetchStudentData } from "@/lib/actions/student/fetchStudentData";
 import { notFound } from "next/navigation";
 import type { Student } from "@/types/student/studentData";
 
+// Use correct parameter type
+type PageParams = {
+  id: string;
+};
+
 interface EditStudentPageProps {
-  params: {
-    id: string;
-  };
+  params: PageParams;
 }
 
-export default async function EditStudentPage({
-  params,
-}: EditStudentPageProps) {
+export default async function EditStudentPage(props: EditStudentPageProps) {
+  // Fix for Next.js dynamic parameter warning
+  // Using the property directly from props instead of destructuring
+  const id = props.params.id;
+
   try {
-    // Properly handle the ID parameter
-    const studentId = params.id;
-    if (!studentId) {
+    console.log("Edit page loading for student ID:", id);
+
+    if (!id) {
+      console.log("No student ID provided");
       notFound();
     }
 
-    // Fetch general data and student data in parallel
+    // Fetch all required data in parallel
     const [
       intakeGroups,
       campuses,
@@ -37,18 +43,36 @@ export default async function EditStudentPage({
       getAllCampuses(),
       getAllQualifications(),
       getAllAccommodations(),
-      fetchStudentData(studentId),
+      fetchStudentData(id),
     ]);
 
     if (!studentAllData?.student) {
+      console.log("No student data found");
       notFound();
     }
 
-    // Format student data with proper fallback values
+    console.log("Student data fetched successfully");
+
+    // Create a fully populated student object with ALL fields
     const formattedStudentData = {
-      id: studentAllData.student.id,
+      id: studentAllData.student.id || "",
+      active: studentAllData.student.active || false,
       admissionNumber: studentAllData.student.admissionNumber || "",
       email: studentAllData.student.email || "",
+      avatarUrl: studentAllData.student.avatarUrl || "",
+      agreementAccepted: studentAllData.student.agreementAccepted || false,
+      agreementAcceptedDate: studentAllData.student.agreementAcceptedDate || "",
+      alumni: studentAllData.student.alumni || false,
+      createdAt: studentAllData.student.createdAt || "",
+      importantInformation: studentAllData.student.importantInformation || "",
+      inactiveReason: studentAllData.student.inactiveReason || "",
+      mustChangePassword: studentAllData.student.mustChangePassword || false,
+      outcome: studentAllData.student.outcome || "",
+      updatedAt: studentAllData.student.updatedAt || "",
+      username: studentAllData.student.username || "",
+      userType: studentAllData.student.userType || "Student",
+      v: studentAllData.student.v || 0,
+
       profile: {
         firstName: studentAllData.student.profile?.firstName || "",
         middleName: studentAllData.student.profile?.middleName || "",
@@ -70,27 +94,16 @@ export default async function EditStudentPage({
           postalCode: studentAllData.student.profile?.address?.postalCode || "",
         },
       },
-      // Handle arrays properly
-      campus:
-        typeof studentAllData.student.campus === "string"
-          ? [studentAllData.student.campus]
-          : studentAllData.student.campus || [],
-      intakeGroup: Array.isArray(studentAllData.student.intakeGroup)
-        ? studentAllData.student.intakeGroup
-        : [studentAllData.student.intakeGroup].filter(Boolean),
-      qualification: Array.isArray(studentAllData.student.qualification)
-        ? studentAllData.student.qualification
-        : studentAllData.student.qualification
-        ? [studentAllData.student.qualification]
-        : [],
-      guardians: studentAllData.student.guardians || [],
+
+      campus: studentAllData.student.campus || [],
+      intakeGroup: studentAllData.student.intakeGroup || [],
+      qualification: studentAllData.student.qualification || [],
+      currentResult: studentAllData.student.currentResult || "",
+      guardians: studentAllData.guardians || [],
+      assignments: studentAllData.student.assignments || [],
     };
 
-    // Debug log to verify data structure
-    console.log(
-      "Formatted Student Data:",
-      JSON.stringify(formattedStudentData, null, 2)
-    );
+    console.log("Student data formatted for form");
 
     return (
       <ContentLayout
@@ -109,10 +122,13 @@ export default async function EditStudentPage({
     console.error("Error in EditStudentPage:", error);
     return (
       <ContentLayout title="Error">
-        <div className="text-red-500 p-4">
-          {error instanceof Error
-            ? error.message
-            : "Failed to load student data"}
+        <div className="text-red-500 p-4 rounded bg-red-50 border border-red-200">
+          <h3 className="font-bold mb-2">Error Loading Student Data</h3>
+          <p>
+            {error instanceof Error
+              ? error.message
+              : "Failed to load student data"}
+          </p>
         </div>
       </ContentLayout>
     );

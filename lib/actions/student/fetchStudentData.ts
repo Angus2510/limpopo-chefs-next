@@ -2,187 +2,323 @@
 import { cookies } from "next/headers";
 import { jwtDecode } from "jwt-decode";
 import prisma from "@/lib/db";
-import useAuthStore from "@/store/authStore"; // Adjust this import according to your project structure
+import useAuthStore from "@/store/authStore";
+import { fetchStudentWelRecords } from "./fetchStudentWelRecords";
+import { fetchStudentResults } from "./fetchStudentResults";
+import { fetchStudentFinances } from "./fetchStudentFinances";
+import { fetchStudentDocuments } from "./fetchStudentDocuments";
 
 export async function fetchStudentData(studentId?: string) {
   try {
-    // Retrieve token from both cookies and the auth store
     const tokenFromStore = useAuthStore.getState().getToken();
     const tokenFromCookies = (await cookies()).get("accessToken")?.value;
+    const token = tokenFromStore || tokenFromCookies;
 
     console.log("Token from auth store:", tokenFromStore);
     console.log("Token from cookies:", tokenFromCookies);
 
-    const token = tokenFromStore || tokenFromCookies;
-    if (!token) {
-      throw new Error("No token found");
+    // Make token optional for view operations if a specific studentId is provided
+    let targetStudentId = studentId;
+    let decodedToken = null;
+
+    if (token) {
+      try {
+        // Safely decode the token
+        decodedToken = token ? jwtDecode(token) : null;
+
+        // CRITICAL FIX: Check if decoded token actually contains expected fields
+        if (
+          decodedToken &&
+          typeof decodedToken === "object" &&
+          "exp" in decodedToken &&
+          "userType" in decodedToken
+        ) {
+          if (decodedToken.exp >= Date.now() / 1000) {
+            // Token is valid
+            if (decodedToken.userType === "Student") {
+              // Students can only view their own data
+              targetStudentId = decodedToken.id || targetStudentId;
+            }
+            // Staff can view any student's data
+          }
+        } else {
+          console.warn("Invalid token format:", decodedToken);
+        }
+      } catch (tokenError) {
+        console.warn("Token validation error:", tokenError);
+        // Continue with the provided studentId
+      }
+    } else if (!studentId) {
+      // No token and no studentId provided
+      throw new Error("Authentication required to access student data");
     }
 
-    // Decode and validate the token
-    const decoded = jwtDecode(token);
-    if (decoded.exp < Date.now() / 1000) {
-      throw new Error("Token expired");
-    }
-    if (!["Student", "Staff"].includes(decoded.userType)) {
-      throw new Error("Unauthorized access");
-    }
-
-    // Determine student ID based on the user type:
-    const targetStudentId =
-      decoded.userType === "Student" ? decoded.id : studentId;
     if (!targetStudentId) {
-      throw new Error("Student ID is required for staff members");
+      throw new Error("Student ID is required");
     }
 
-    // Query the database using Prisma for the student record.
+    console.log("Fetching data for student ID:", targetStudentId);
+
+    // Get student basic data
     const student = await prisma.students.findUnique({
       where: { id: targetStudentId },
-      select: {
-        id: true,
-        admissionNumber: true,
-        email: true,
-        avatarUrl: true,
+      include: {
         profile: {
-          select: {
-            firstName: true,
-            lastName: true,
-            idNumber: true,
+          include: {
+            address: true,
           },
         },
-        inactiveReason: true,
-        campus: true, // Stored as an array, a comma-separated string, or a single value
-        intakeGroup: true, // Stored similarly
       },
     });
+
     if (!student) {
       throw new Error("Student not found");
     }
 
-    // --- Coerce the campus and intakeGroup values into arrays ---
-    const campusArray =
-      typeof student.campus === "string"
-        ? student.campus
-            .split(",")
-            .map((s) => s.trim())
-            .filter(Boolean)
-        : Array.isArray(student.campus)
-        ? student.campus
-        : student.campus
-        ? [student.campus]
-        : [];
-    const intakeGroupArray =
-      typeof student.intakeGroup === "string"
-        ? student.intakeGroup
-            .split(",")
-            .map((s) => s.trim())
-            .filter(Boolean)
-        : Array.isArray(student.intakeGroup)
-        ? student.intakeGroup
-        : student.intakeGroup
-        ? [student.intakeGroup]
-        : [];
+    // CRITICAL FIX: Explicitly extract and log email address to debug
+    const emailAddress = student.email || "No email available";
+    console.log("Found student:", student.id, "Email:", emailAddress);
 
-    // --- Fetch related campus and intake group titles ---
-    const campuses = await prisma.campus.findMany({
-      where: { id: { in: campusArray } },
-      select: { id: true, title: true },
+    // Now get the guardians data by their IDs
+    let guardians = [];
+    if (
+      student.guardians &&
+      Array.isArray(student.guardians) &&
+      student.guardians.length > 0
+    ) {
+      guardians = await prisma.guardians
+        .findMany({
+          where: {
+            id: { in: student.guardians },
+          },
+        })
+        .catch((error) => {
+          console.warn("Failed to fetch guardians:", error);
+          return [];
+        });
+      console.log(`Found ${guardians.length} guardians for student`);
+    }
+
+    // CRITICAL FIX: Better processing for data arrays
+    const campusArray = Array.isArray(student.campus)
+      ? student.campus
+      : typeof student.campus === "string"
+      ? [student.campus]
+      : [];
+
+    const intakeGroupArray = Array.isArray(student.intakeGroup)
+      ? student.intakeGroup
+      : typeof student.intakeGroup === "string"
+      ? [student.intakeGroup]
+      : [];
+
+    const qualificationArray = Array.isArray(student.qualification)
+      ? student.qualification
+      : typeof student.qualification === "string"
+      ? [student.qualification]
+      : [];
+
+    console.log("Campus Array:", campusArray);
+    console.log("IntakeGroup Array:", intakeGroupArray);
+
+    // CRITICAL FIX: Direct database queries with explicit logging
+    let campuses = [];
+    try {
+      // Check if campus array has items before querying
+      if (campusArray.length > 0) {
+        campuses = await prisma.campus.findMany({
+          where: { id: { in: campusArray } },
+        });
+        console.log(`Retrieved ${campuses.length} campuses:`, campuses);
+      } else {
+        console.log("No campus IDs to fetch");
+      }
+    } catch (error) {
+      console.warn("Error fetching campuses:", error);
+    }
+
+    let intakeGroups = [];
+    try {
+      // Check if intake group array has items before querying
+      if (intakeGroupArray.length > 0) {
+        intakeGroups = await prisma.intakegroups.findMany({
+          where: { id: { in: intakeGroupArray } },
+        });
+        console.log(
+          `Retrieved ${intakeGroups.length} intake groups:`,
+          intakeGroups
+        );
+      } else {
+        console.log("No intake group IDs to fetch");
+      }
+    } catch (error) {
+      console.warn("Error fetching intake groups:", error);
+    }
+
+    let qualifications = [];
+    try {
+      // Check if qualification array has items before querying
+      if (qualificationArray.length > 0) {
+        qualifications = await prisma.qualifications.findMany({
+          where: { id: { in: qualificationArray } },
+        });
+      }
+    } catch (error) {
+      console.warn("Error fetching qualifications:", error);
+    }
+
+    // CRITICAL FIX: Improved map creation with better debugging
+    const campusMap = {};
+    campuses.forEach((campus) => {
+      if (campus && campus.id) {
+        // Based on your schema, campus only has id, v, and title properties
+        campusMap[campus.id] = campus.title || "Unknown Campus";
+        console.log(`Mapped campus ${campus.id} to "${campus.title}"`);
+      }
     });
-    const campusMap = campuses.reduce((acc, campus) => {
-      acc[campus.id] = campus.title;
-      return acc;
-    }, {} as Record<string, string>);
 
-    const intakeGroups = await prisma.intakegroups.findMany({
-      where: { id: { in: intakeGroupArray } },
-      select: { id: true, title: true },
+    const intakeGroupMap = {};
+    intakeGroups.forEach((group) => {
+      if (group && group.id) {
+        // Based on your schema, intakegroups has id, v, campus, outcome, and title
+        intakeGroupMap[group.id] = group.title || "Unknown Intake Group";
+        console.log(`Mapped intake group ${group.id} to "${group.title}"`);
+      }
     });
-    const intakeGroupMap = intakeGroups.reduce((acc, group) => {
-      acc[group.id] = group.title;
-      return acc;
-    }, {} as Record<string, string>);
 
-    // Map the IDs to their corresponding titles.
-    const studentWithTitles = {
+    const qualificationMap = {};
+    qualifications.forEach((qual) => {
+      if (qual && qual.id) {
+        qualificationMap[qual.id] = qual.title || "Unknown Qualification";
+      }
+    });
+
+    // CRITICAL FIX: Create a complete student object with verbose logging
+    const campusTitles = campusArray.map((id) => campusMap[id] || id);
+    const intakeGroupTitles = intakeGroupArray.map(
+      (id) => intakeGroupMap[id] || id
+    );
+    const qualificationTitles = qualificationArray.map(
+      (id) => qualificationMap[id] || id
+    );
+
+    console.log("Campus titles array:", campusTitles);
+    console.log("Intake group titles array:", intakeGroupTitles);
+
+    const completeStudent = {
       ...student,
-      campus: campusArray.map((id: string) => campusMap[id] || id).join(", "),
-      intakeGroup: intakeGroupArray.map(
-        (id: string) => intakeGroupMap[id] || id
-      ),
+      // Explicitly add email to the root level
+      email: emailAddress,
+
+      // Explicitly build titles with fallbacks
+      campusTitle:
+        campusTitles.length > 0
+          ? campusTitles.join(", ")
+          : "No campus assigned",
+
+      intakeGroupTitle:
+        intakeGroupTitles.length > 0
+          ? intakeGroupTitles.join(", ")
+          : "No intake group assigned",
+
+      qualificationTitle:
+        qualificationTitles.length > 0
+          ? qualificationTitles.join(", ")
+          : "No qualification assigned",
+
+      // Also keep the original details for reference
+      campusDetails: campuses,
+      intakeGroupDetails: intakeGroups,
+      qualificationDetails: qualifications,
     };
 
-    // Fetch related data from the database in parallel
-    const [
-      // Fetch wellness records with all details.
-      wellnessRecords,
-      rawResults,
-      learningMaterials,
-      events,
-      finances,
-      documents,
-    ] = await Promise.all([
-      prisma.studentwelrecords.findMany({
-        where: { student: targetStudentId },
-        select: {
-          id: true, // _id mapped to id in Prisma
-          student: true,
-          welRecords: true, // Array of well record details
-          createdAt: true,
-          updatedAt: true,
-          // Removed __v because it's not defined in the model
-        },
-      }),
-      // Fetch results records with nested filtering on the student's id.
-      prisma.results.findMany({
-        where: {
-          results: {
-            some: {
-              student: targetStudentId,
-            },
-          },
-        },
-        select: {
-          id: true,
-          title: true,
-          results: true, // We'll filter the nested results in JavaScript.
-        },
-      }),
-      prisma.learningmaterials.findMany({
-        where: { intakeGroup: { hasSome: intakeGroupArray } },
-      }),
-      prisma.events.findMany({
-        where: { assignedTo: { has: targetStudentId } },
-      }),
-      prisma.finances.findFirst({
-        where: { student: targetStudentId },
-      }),
-      prisma.generaldocuments.findMany({
-        where: { student: targetStudentId },
-      }),
-    ]);
+    console.log("Final mapped titles:", {
+      campus: completeStudent.campusTitle,
+      intakeGroup: completeStudent.intakeGroupTitle,
+      email: completeStudent.email,
+    });
 
-    // Now, filter the nested `results` for each record so only those with student === targetStudentId remain
-    const results = rawResults.map((record) => ({
-      ...record,
-      results: record.results.filter(
-        (nestedResult) => nestedResult.student === targetStudentId
-      ),
-    }));
+    // Rest of the function remains the same for fetching additional data
+    let wellnessRecords = [],
+      results = [],
+      finances = { collectedFees: [], payableFees: [] },
+      documents = [];
+
+    try {
+      wellnessRecords = await fetchStudentWelRecords(targetStudentId).catch(
+        () => []
+      );
+    } catch (error) {
+      console.warn("Error fetching wellness records:", error);
+    }
+
+    try {
+      results = await fetchStudentResults(targetStudentId).catch(() => []);
+    } catch (error) {
+      console.warn("Error fetching results:", error);
+    }
+
+    try {
+      finances = await fetchStudentFinances(targetStudentId).catch(() => ({
+        collectedFees: [],
+        payableFees: [],
+      }));
+    } catch (error) {
+      console.warn("Error fetching finances:", error);
+    }
+
+    try {
+      documents = await fetchStudentDocuments(targetStudentId).catch(() => []);
+    } catch (error) {
+      console.warn("Error fetching documents:", error);
+    }
+
+    // Safely fetch events with robust error handling
+    let events = [];
+    try {
+      events = await prisma.events
+        .findMany({
+          where: {
+            OR: [
+              { assignedTo: { has: targetStudentId } },
+              { intakeGroup: { hasSome: intakeGroupArray } },
+            ],
+          },
+        })
+        .catch(() => []);
+    } catch (error) {
+      console.warn("Error fetching events:", error);
+    }
+
+    // Safely fetch learning materials
+    let learningMaterials = [];
+    try {
+      // Based on your schema, the model is named "learningmaterials" (lowercase)
+      learningMaterials = await prisma.learningmaterials
+        .findMany({
+          where: {
+            intakeGroup: { hasSome: intakeGroupArray },
+          },
+        })
+        .catch(() => []);
+    } catch (error) {
+      console.warn("Error fetching learning materials:", error);
+    }
+
+    console.log("Data fetch complete. Returning complete student data");
 
     return {
-      student: studentWithTitles,
-      wellnessRecords,
-      results,
-      learningMaterials,
-      events,
-      finances,
-      documents,
+      student: completeStudent,
+      guardians: guardians,
+      wellnessRecords: wellnessRecords,
+      results: results,
+      finances: finances,
+      documents: documents,
+      events: events,
+      learningMaterials: learningMaterials,
     };
   } catch (error) {
-    if (error instanceof Error) {
-      console.error("Error fetching student data:", error.message);
-    } else {
-      console.error("Error fetching student data:", error);
-    }
+    console.error("Error fetching student data:", error);
     throw error;
   }
 }

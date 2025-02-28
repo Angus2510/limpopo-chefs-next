@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { editStudentFormSchema } from "@/schemas/student/editStudentFormSchema";
@@ -35,6 +35,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useRouter } from "next/navigation";
 
 interface EditStudentFormProps {
   student: Student;
@@ -54,6 +55,20 @@ const EditStudentForm: React.FC<EditStudentFormProps> = ({
 }) => {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [updateResult, setUpdateResult] = useState<{
+    success: boolean;
+    message: string;
+  } | null>(null);
+  const router = useRouter();
+
+  // Verify toast provider is available
+  useEffect(() => {
+    if (toast) {
+      console.log("Toast provider is available");
+    } else {
+      console.error("Toast provider is NOT available");
+    }
+  }, [toast]);
 
   // Log the incoming student data to verify what we're receiving
   console.log("Received student data:", student);
@@ -169,6 +184,7 @@ const EditStudentForm: React.FC<EditStudentFormProps> = ({
         title: "Error",
         description: "Image size should be less than 5MB",
         variant: "destructive",
+        duration: 5000,
       });
       return;
     }
@@ -180,6 +196,7 @@ const EditStudentForm: React.FC<EditStudentFormProps> = ({
         title: "Error",
         description: "Please upload a valid image file (JPG, PNG, or GIF)",
         variant: "destructive",
+        duration: 5000,
       });
       return;
     }
@@ -193,12 +210,14 @@ const EditStudentForm: React.FC<EditStudentFormProps> = ({
     form.setValue("avatar", file);
   };
 
-  // Form submission handler
-  const onSubmit = async (data: any) => {
+  // Improved form submission handler with better toast handling
+  const onSubmit = async (data: FormData) => {
     try {
       setIsSubmitting(true);
+      setUpdateResult(null);
+      console.log("Form submission started", data);
 
-      // Format dates
+      // Format dates for ISO string
       if (data.admissionDate) {
         data.admissionDate = data.admissionDate.toISOString();
       }
@@ -206,55 +225,135 @@ const EditStudentForm: React.FC<EditStudentFormProps> = ({
         data.dateOfBirth = data.dateOfBirth.toISOString();
       }
 
-      // Create FormData
+      // First show a processing toast to provide immediate feedback
+      toast({
+        title: "Processing",
+        description: "Updating student information...",
+        duration: 3000, // 3 seconds
+      });
+      console.log("Processing toast shown");
+
+      // Create FormData object
       const formData = new FormData();
       formData.append("id", student.id);
 
-      // Append avatar if it exists
-      if (data.avatar) {
+      // Basic student information
+      formData.append("admissionNumber", data.admissionNumber || "");
+      formData.append("email", data.email || "");
+      formData.append("campus", data.campus || "");
+      formData.append("intakeGroup", data.intakeGroup || "");
+      formData.append("qualification", data.qualification || "");
+      formData.append("accommodation", data.accommodation || "");
+
+      // Profile fields
+      formData.append("firstName", data.firstName || "");
+      formData.append("middleName", data.middleName || "");
+      formData.append("lastName", data.lastName || "");
+      formData.append("idNumber", data.idNumber || "");
+      formData.append("dateOfBirth", data.dateOfBirth?.toString() || "");
+      formData.append("gender", data.gender || "");
+      formData.append("homeLanguage", data.homeLanguage || "");
+      formData.append("mobileNumber", data.mobileNumber || "");
+      formData.append("cityAndGuildNumber", data.cityAndGuildNumber || "");
+      formData.append("admissionDate", data.admissionDate?.toString() || "");
+
+      // Address fields
+      formData.append("street1", data.address.street1 || "");
+      formData.append("street2", data.address.street2 || "");
+      formData.append("city", data.address.city || "");
+      formData.append("province", data.address.province || "");
+      formData.append("country", data.address.country || "");
+      formData.append("postalCode", data.address.postalCode || "");
+
+      // Guardians
+      if (data.guardians && data.guardians.length > 0) {
+        data.guardians.forEach((guardian, index) => {
+          if (guardian.id) {
+            formData.append(`guardians[${index}].id`, guardian.id);
+          }
+          formData.append(
+            `guardians[${index}].firstName`,
+            guardian.firstName || ""
+          );
+          formData.append(
+            `guardians[${index}].lastName`,
+            guardian.lastName || ""
+          );
+          formData.append(`guardians[${index}].email`, guardian.email || "");
+          formData.append(
+            `guardians[${index}].phoneNumber`,
+            guardian.phoneNumber || ""
+          );
+          formData.append(
+            `guardians[${index}].relation`,
+            guardian.relation || ""
+          );
+        });
+      }
+
+      // Avatar
+      if (data.avatar && data.avatar instanceof File) {
         formData.append("avatar", data.avatar);
       }
 
-      // Append all other fields
-      Object.entries(data).forEach(([key, value]) => {
-        if (key === "avatar") return; // Skip avatar as it's already handled
+      // Call server action with extended timeout
+      console.log("Calling updateStudent...");
+      const result = await updateStudent(formData);
+      console.log("Update result:", result);
 
-        if (
-          typeof value === "object" &&
-          !Array.isArray(value) &&
-          value !== null
-        ) {
-          Object.entries(value).forEach(([subKey, subValue]) => {
-            if (subValue) {
-              formData.append(`${key}.${subKey}`, String(subValue));
-            }
-          });
-        } else if (Array.isArray(value)) {
-          value.forEach((item, index) => {
-            Object.entries(item).forEach(([subKey, subValue]) => {
-              if (subValue) {
-                formData.append(`${key}[${index}].${subKey}`, String(subValue));
-              }
-            });
-          });
-        } else if (value) {
-          formData.append(key, String(value));
-        }
-      });
+      if (result && result.success) {
+        console.log("Update successful");
 
-      // Submit form
-      await updateStudent(formData);
+        // Show success message
+        setUpdateResult({
+          success: true,
+          message: "Student information updated successfully!",
+        });
 
-      toast({
-        title: "Success",
-        description: "Student information updated successfully",
-      });
+        // Show success toast with longer duration
+        toast({
+          title: "Success",
+          description: "Student updated successfully",
+          duration: 5000, // 5 seconds
+        });
+        console.log("Success toast shown");
+
+        // Force redirect after a short delay to ensure toast is visible
+        console.log("Setting up redirect");
+        setTimeout(() => {
+          console.log("Executing redirect now");
+          window.location.href = `/admin/student/studentView/${student.id}`;
+        }, 1500); // 1.5 seconds
+      } else {
+        console.error("Update failed:", result?.error);
+
+        // Show error message
+        setUpdateResult({
+          success: false,
+          message: result?.error || "Failed to update student information",
+        });
+
+        toast({
+          title: "Error",
+          description: result?.error || "Failed to update student",
+          variant: "destructive",
+          duration: 5000, // 5 seconds
+        });
+      }
     } catch (error) {
       console.error("Error updating student:", error);
+
+      setUpdateResult({
+        success: false,
+        message:
+          error instanceof Error ? error.message : "Unknown error occurred",
+      });
+
       toast({
         title: "Error",
         description: "Failed to update student information",
         variant: "destructive",
+        duration: 5000, // 5 seconds
       });
     } finally {
       setIsSubmitting(false);
@@ -281,6 +380,18 @@ const EditStudentForm: React.FC<EditStudentFormProps> = ({
     <Card>
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+          {updateResult && (
+            <div
+              className={`p-4 rounded-md ${
+                updateResult.success
+                  ? "bg-green-50 text-green-700 border border-green-200"
+                  : "bg-red-50 text-red-700 border border-red-200"
+              }`}
+            >
+              {updateResult.message}
+            </div>
+          )}
+
           <div className="space-y-4">
             <CardHeader>
               <CardTitle>General Information</CardTitle>
@@ -636,7 +747,7 @@ const EditStudentForm: React.FC<EditStudentFormProps> = ({
               />
               <FormField
                 control={form.control}
-                name="street2"
+                name="address.street2"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Street Address 2</FormLabel>
@@ -649,7 +760,7 @@ const EditStudentForm: React.FC<EditStudentFormProps> = ({
               />
               <FormField
                 control={form.control}
-                name="city"
+                name="address.city"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>City</FormLabel>
@@ -662,7 +773,7 @@ const EditStudentForm: React.FC<EditStudentFormProps> = ({
               />
               <FormField
                 control={form.control}
-                name="province"
+                name="address.province"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Province</FormLabel>
@@ -675,7 +786,7 @@ const EditStudentForm: React.FC<EditStudentFormProps> = ({
               />
               <FormField
                 control={form.control}
-                name="country"
+                name="address.country"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Country</FormLabel>
@@ -688,7 +799,7 @@ const EditStudentForm: React.FC<EditStudentFormProps> = ({
               />
               <FormField
                 control={form.control}
-                name="postalCode"
+                name="address.postalCode"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Postal Code</FormLabel>
@@ -827,8 +938,38 @@ const EditStudentForm: React.FC<EditStudentFormProps> = ({
           </div>
 
           <div className="flex justify-end px-5 py-5">
-            <Button type="submit" className="w-auto">
-              Update
+            <Button
+              type="submit"
+              className="w-auto bg-primary hover:bg-primary/90"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? (
+                <div className="flex items-center">
+                  <svg
+                    className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    ></circle>
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    ></path>
+                  </svg>
+                  <span>Updating Student...</span>
+                </div>
+              ) : (
+                <span>Update Student</span>
+              )}
             </Button>
           </div>
         </form>

@@ -1,227 +1,296 @@
+"use client";
 import React from "react";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import Image from "next/image";
+import { format } from "date-fns";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-// Define a type for the data shape returned from fetchStudentData.
-// (Adjust the types below if needed to match your actual schema.)
+// Define prop type for the component
 interface StudentViewProps {
   data: {
-    student: {
-      id: string;
-      admissionNumber: string;
-      email: string;
-      profile: {
-        firstName: string;
-        middleName: string;
-        lastName: string;
-        dateOfBirth: string;
-        gender: string;
-        idNumber: string;
-        mobileNumber: string;
-        admissionDate: string;
-        cityAndGuildNumber: string;
-        homeLanguage: string;
-      };
-      inactiveReason?: string;
-      campus: string; // Already joined string
-      intakeGroup: string[]; // Array of titles
-      qualification: string[]; // Expected to be an array
-      avatarUrl?: string;
+    student: any;
+    guardians: any[];
+    results?: any[];
+    wellnessRecords?: any[];
+    finances?: {
+      collectedFees?: any[];
+      payableFees?: any[];
     };
-    results: Array<{
-      assignment: string;
-      dateTaken: Date;
-      scores?: number;
-      moderatedscores?: number;
-      percent?: number;
-      status: string;
-    }>;
-    wellnessRecords: Array<{
-      establishmentName: string;
-      establishmentContact: string;
-      startDate: Date;
-      endDate: Date;
-      totalHours: number;
-      evaluated: boolean;
-    }>;
-    finances: {
-      collectedFees: Array<{
-        description: string;
-        credit?: number;
-        debit?: number;
-        balance: string;
-        transactionDate?: Date;
-      }>;
-      payableFees: Array<{
-        amount: number;
-        arrears: number;
-        dueDate?: Date;
-      }>;
-    };
-    documents: Array<{
-      id: string;
-      title: string;
-      description: string;
-      documentUrl: string;
-      uploadDate?: Date;
-    }>;
-    // Optionally, if you later decide to use learningMaterials or events:
-    learningMaterials?: any[];
-    events?: any[];
+    documents?: any[];
   };
 }
 
-export default function StudentView({ data }: StudentViewProps) {
-  // Destructure the data returned from fetchStudentData
-  const { student, results, wellnessRecords, finances, documents } = data;
+// Pure presentation component - receives all data via props
+const StudentView = ({ data }: StudentViewProps) => {
+  const {
+    student,
+    guardians = [],
+    results = [],
+    wellnessRecords = [],
+    finances = {},
+    documents = [],
+  } = data;
+  const { profile = {} } = student || {};
+  const { address = {} } = profile;
+
+  // Format dates
+  const formatDate = (date: string | Date) => {
+    if (!date) return "N/A";
+    try {
+      return format(new Date(date), "PPP");
+    } catch (error) {
+      return "Invalid date";
+    }
+  };
 
   return (
-    <div className="container mx-auto p-4">
-      {/* Student Header Card */}
-      <Card className="mb-6">
+    <div className="space-y-6">
+      <Card>
         <CardHeader>
-          <div className="flex items-center gap-4">
-            {student.avatarUrl ? (
-              <Image
-                src={student.avatarUrl}
-                alt={`${student.profile.firstName} ${student.profile.lastName}`}
-                className="w-16 h-16 rounded-full"
-              />
-            ) : (
-              <div className="w-16 h-16 rounded-full bg-gray-200" />
-            )}
-            <div>
-              <CardTitle>
-                {student.profile.firstName} {student.profile.middleName}{" "}
-                {student.profile.lastName}
-              </CardTitle>
-              <p className="text-sm text-gray-500">
-                Student ID: {student.admissionNumber}
-              </p>
+          <CardTitle>Student Information</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex flex-col md:flex-row gap-6">
+            {/* Avatar/Photo */}
+            <div className="flex-shrink-0">
+              <div className="w-32 h-32 relative rounded-md overflow-hidden border">
+                {student?.avatarUrl ? (
+                  <Image
+                    src={student.avatarUrl}
+                    alt={`${profile?.firstName || ""} ${
+                      profile?.lastName || ""
+                    }`}
+                    fill
+                    style={{ objectFit: "cover" }}
+                  />
+                ) : (
+                  <div className="w-full h-full bg-gray-200 flex items-center justify-center">
+                    <span className="text-gray-500 text-3xl">
+                      {profile?.firstName?.[0] || ""}
+                      {profile?.lastName?.[0] || ""}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Basic Info */}
+            <div className="flex-grow grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <h3 className="text-sm font-medium text-gray-500">Name</h3>
+                <p>
+                  {profile?.firstName || ""} {profile?.middleName || ""}{" "}
+                  {profile?.lastName || ""}
+                </p>
+              </div>
+
+              <div>
+                <h3 className="text-sm font-medium text-gray-500">ID Number</h3>
+                <p>{profile?.idNumber || "N/A"}</p>
+              </div>
+
+              <div>
+                <h3 className="text-sm font-medium text-gray-500">
+                  Date of Birth
+                </h3>
+                <p>{formatDate(profile?.dateOfBirth)}</p>
+              </div>
+
+              <div>
+                <h3 className="text-sm font-medium text-gray-500">Gender</h3>
+                <p>{profile?.gender || "N/A"}</p>
+              </div>
+
+              <div>
+                <h3 className="text-sm font-medium text-gray-500">Email</h3>
+                <p>{student?.email || "N/A"}</p>
+              </div>
+
+              <div>
+                <h3 className="text-sm font-medium text-gray-500">
+                  Mobile Number
+                </h3>
+                <p>{profile?.mobileNumber || "N/A"}</p>
+              </div>
+
+              <div>
+                <h3 className="text-sm font-medium text-gray-500">
+                  Admission Number
+                </h3>
+                <p>{student?.admissionNumber || "N/A"}</p>
+              </div>
+
+              <div>
+                <h3 className="text-sm font-medium text-gray-500">
+                  Admission Date
+                </h3>
+                <p>{formatDate(profile?.admissionDate)}</p>
+              </div>
             </div>
           </div>
-        </CardHeader>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+            <div>
+              <h3 className="text-sm font-medium text-gray-500">Campus</h3>
+              <p>{student?.campusTitle || "N/A"}</p>
+            </div>
+
+            <div>
+              <h3 className="text-sm font-medium text-gray-500">
+                Qualification
+              </h3>
+              <p>{student?.qualificationTitle || "N/A"}</p>
+            </div>
+
+            <div>
+              <h3 className="text-sm font-medium text-gray-500">
+                Intake Group
+              </h3>
+              <p>{student?.intakeGroupTitle || "N/A"}</p>
+            </div>
+
+            <div>
+              <h3 className="text-sm font-medium text-gray-500">Status</h3>
+              <p>{student?.active ? "Active" : "Inactive"}</p>
+            </div>
+
+            <div>
+              <h3 className="text-sm font-medium text-gray-500">
+                City & Guild Number
+              </h3>
+              <p>{profile?.cityAndGuildNumber || "N/A"}</p>
+            </div>
+          </div>
+        </CardContent>
       </Card>
 
-      {/* Main Content Tabs */}
-      <Tabs defaultValue="profile" className="w-full">
-        <TabsList className="grid w-full grid-cols-5">
-          <TabsTrigger value="profile">Profile</TabsTrigger>
+      {/* Address */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Address Information</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p>{address?.street1 || "N/A"}</p>
+          {address?.street2 && <p>{address.street2}</p>}
+          <p>
+            {[address?.city, address?.province, address?.postalCode]
+              .filter(Boolean)
+              .join(", ")}
+          </p>
+          <p>{address?.country || "N/A"}</p>
+        </CardContent>
+      </Card>
+
+      {/* Guardians */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Guardian Information</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {guardians && guardians.length > 0 ? (
+            <div className="space-y-6">
+              {guardians.map((guardian, index) => (
+                <div
+                  key={guardian.id || index}
+                  className="border-t pt-4 first:border-0 first:pt-0"
+                >
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <h3 className="text-sm font-medium text-gray-500">
+                        Name
+                      </h3>
+                      <p>
+                        {guardian.firstName || ""} {guardian.lastName || ""}
+                      </p>
+                    </div>
+
+                    <div>
+                      <h3 className="text-sm font-medium text-gray-500">
+                        Relationship
+                      </h3>
+                      <p>{guardian.relation || "N/A"}</p>
+                    </div>
+
+                    <div>
+                      <h3 className="text-sm font-medium text-gray-500">
+                        Email
+                      </h3>
+                      <p>{guardian.email || "N/A"}</p>
+                    </div>
+
+                    <div>
+                      <h3 className="text-sm font-medium text-gray-500">
+                        Phone
+                      </h3>
+                      <p>{guardian.mobileNumber || "N/A"}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-gray-500">No guardians listed</p>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Results, Finances, Documents in Tabs */}
+      <Tabs defaultValue="results">
+        <TabsList className="grid grid-cols-3 mb-4">
           <TabsTrigger value="results">Results</TabsTrigger>
-          <TabsTrigger value="wel">WEL Records</TabsTrigger>
           <TabsTrigger value="finances">Finances</TabsTrigger>
           <TabsTrigger value="documents">Documents</TabsTrigger>
         </TabsList>
-
-        {/* Profile Tab */}
-        <TabsContent value="profile">
-          <Card>
-            <CardHeader>
-              <CardTitle>Personal Information</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <h3 className="font-semibold">Basic Details</h3>
-                  <p>Date of Birth: {student.profile.dateOfBirth}</p>
-                  <p>Gender: {student.profile.gender}</p>
-                  <p>ID Number: {student.profile.idNumber}</p>
-                  <p>Mobile: {student.profile.mobileNumber}</p>
-                  <p>Email: {student.email}</p>
-                  <p>Home Language: {student.profile.homeLanguage}</p>
-                </div>
-                <div>
-                  <h3 className="font-semibold">Academic Details</h3>
-                  <p>Admission Date: {student.profile.admissionDate}</p>
-                  <p>
-                    City & Guild Number: {student.profile.cityAndGuildNumber}
-                  </p>
-                  <p>
-                    Status: {student.inactiveReason ? "Inactive" : "Active"}
-                  </p>
-                  <p>Campus: {student.campus}</p>
-                  <p>
-                    Qualifications:{" "}
-                    {Array.isArray(student.qualification)
-                      ? student.qualification.join(", ")
-                      : student.qualification || "N/A"}
-                  </p>
-                  <p>
-                    Intake Groups:{" "}
-                    {Array.isArray(student.intakeGroup)
-                      ? student.intakeGroup.join(", ")
-                      : student.intakeGroup || "N/A"}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
 
         {/* Results Tab */}
         <TabsContent value="results">
           <Card>
             <CardHeader>
-              <CardTitle>Results</CardTitle>
+              <CardTitle>Academic Results</CardTitle>
             </CardHeader>
             <CardContent>
-              <ScrollArea className="h-[400px]">
-                <table className="w-full">
-                  <thead>
-                    <tr>
-                      <th className="text-left p-2">Date</th>
-                      <th className="text-left p-2">Assignment</th>
-                      <th className="text-left p-2">Score</th>
-                      <th className="text-left p-2">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {results.map((result, index) => (
-                      <tr key={index} className="border-t">
-                        <td className="p-2">
-                          {new Date(result.dateTaken).toLocaleDateString()}
-                        </td>
-                        <td className="p-2">{result.assignment}</td>
-                        <td className="p-2">
-                          {result.percent !== undefined
-                            ? `${result.percent}%`
-                            : "N/A"}
-                        </td>
-                        <td className="p-2">{result.status}</td>
+              {results && results.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Date
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Assignment
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Score
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Status
+                        </th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </ScrollArea>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* WEL Records Tab */}
-        <TabsContent value="wel">
-          <Card>
-            <CardHeader>
-              <CardTitle>WEL Records</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ScrollArea className="h-[400px]">
-                {wellnessRecords.map((record, index) => (
-                  <div key={index} className="mb-4 p-4 border rounded">
-                    <h3 className="font-semibold">
-                      {record.establishmentName}
-                    </h3>
-                    <p>Contact: {record.establishmentContact}</p>
-                    <p>
-                      Period: {new Date(record.startDate).toLocaleDateString()}{" "}
-                      - {new Date(record.endDate).toLocaleDateString()}
-                    </p>
-                    <p>Total Hours: {record.totalHours}</p>
-                    <p>Evaluated: {record.evaluated ? "Yes" : "No"}</p>
-                  </div>
-                ))}
-              </ScrollArea>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {results.map((result, index) => (
+                        <tr key={result.id || index}>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm">
+                            {formatDate(result.dateTaken)}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm">
+                            {result.assignment || "N/A"}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm">
+                            {result.percent || 0}%
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm">
+                            {result.status || "N/A"}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <p className="text-gray-500">No results available</p>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -230,71 +299,13 @@ export default function StudentView({ data }: StudentViewProps) {
         <TabsContent value="finances">
           <Card>
             <CardHeader>
-              <CardTitle>Financial Records</CardTitle>
+              <CardTitle>Financial Information</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <h3 className="font-semibold mb-4">Fee Collection History</h3>
-                  <ScrollArea className="h-[300px]">
-                    <table className="w-full">
-                      <thead>
-                        <tr>
-                          <th className="text-left p-2">Date</th>
-                          <th className="text-left p-2">Description</th>
-                          <th className="text-right p-2">Amount</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {finances?.collectedFees.map((fee, index) => (
-                          <tr key={index} className="border-t">
-                            <td className="p-2">
-                              {fee.transactionDate &&
-                                new Date(
-                                  fee.transactionDate
-                                ).toLocaleDateString()}
-                            </td>
-                            <td className="p-2">{fee.description}</td>
-                            <td className="p-2 text-right">
-                              {fee.credit
-                                ? `+${fee.credit}`
-                                : fee.debit
-                                ? `-${fee.debit}`
-                                : "0"}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </ScrollArea>
-                </div>
-                <div>
-                  <h3 className="font-semibold mb-4">Payable Fees</h3>
-                  <ScrollArea className="h-[300px]">
-                    <table className="w-full">
-                      <thead>
-                        <tr>
-                          <th className="text-left p-2">Due Date</th>
-                          <th className="text-right p-2">Amount</th>
-                          <th className="text-right p-2">Arrears</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {finances?.payableFees.map((fee, index) => (
-                          <tr key={index} className="border-t">
-                            <td className="p-2">
-                              {fee.dueDate &&
-                                new Date(fee.dueDate).toLocaleDateString()}
-                            </td>
-                            <td className="p-2 text-right">{fee.amount}</td>
-                            <td className="p-2 text-right">{fee.arrears}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </ScrollArea>
-                </div>
-              </div>
+              {/* Implement finances view here */}
+              <p className="text-gray-500">
+                Financial records will be displayed here
+              </p>
             </CardContent>
           </Card>
         </TabsContent>
@@ -306,33 +317,26 @@ export default function StudentView({ data }: StudentViewProps) {
               <CardTitle>Documents</CardTitle>
             </CardHeader>
             <CardContent>
-              <ScrollArea className="h-[400px]">
-                <table className="w-full">
-                  <thead>
-                    <tr>
-                      <th className="text-left p-2">Title</th>
-                      <th className="text-left p-2">Description</th>
-                      <th className="text-left p-2">Upload Date</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {documents.map((doc, index) => (
-                      <tr key={index} className="border-t">
-                        <td className="p-2">{doc.title}</td>
-                        <td className="p-2">{doc.description}</td>
-                        <td className="p-2">
-                          {doc.uploadDate &&
-                            new Date(doc.uploadDate).toLocaleDateString()}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </ScrollArea>
+              {documents && documents.length > 0 ? (
+                <ul className="space-y-2">
+                  {documents.map((doc, index) => (
+                    <li key={doc.id || index} className="flex items-center">
+                      <span className="mr-2">📄</span>
+                      <span>
+                        {doc.title || doc.filename || `Document ${index + 1}`}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-gray-500">No documents available</p>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
     </div>
   );
-}
+};
+
+export default StudentView;

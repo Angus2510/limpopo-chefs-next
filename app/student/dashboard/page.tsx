@@ -16,7 +16,7 @@ import StudentMaterialsCard from "@/components/students/student-learning-materia
 interface Profile {
   firstName: string;
   lastName: string;
-  email: string;
+  email?: string; // Make email optional here
 }
 
 interface Student {
@@ -25,6 +25,12 @@ interface Student {
   intakeGroup: string[];
   campus: string;
   admissionNumber: string;
+
+  // Add these fields explicitly since they're being set in fetchStudentData
+  email: string; // This is now at root level
+  campusTitle: string; // The human-readable campus name
+  intakeGroupTitle: string; // The human-readable intake group name
+  qualificationTitle?: string;
 }
 
 interface WellnessRecord {
