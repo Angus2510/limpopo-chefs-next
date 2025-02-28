@@ -14,7 +14,7 @@ import { notFound } from "next/navigation";
 
 // Define interfaces for type safety
 interface PageProps {
-  params: { id: string };
+  params: { id: string } | Promise<{ id: string }>;
 }
 
 interface IntakeGroup {
@@ -61,17 +61,41 @@ interface Assignment {
 export default async function AssignmentViewPage({ params }: PageProps) {
   console.log("🚀 Starting to load assignment page...");
 
-  if (!params?.id) {
+  // Fix 1: Properly resolve params and never access params.id directly
+  const resolvedParams = params instanceof Promise ? await params : params;
+  const id = resolvedParams?.id;
+
+  if (!id) {
     console.log("❌ No assignment ID provided");
     notFound();
   }
 
   try {
     console.log("🔍 Fetching assignment data...");
+
+    // Fix 2: Use proper error handling for each Promise
+    // Get assignment data
+    const assignmentPromise = getAssignmentById(id);
+
+    // Try to get answers safely
+    let answersPromise;
+    try {
+      answersPromise = getAssignmentAnswers(id).catch((err) => {
+        console.error("Error fetching answers:", err);
+        return []; // Return empty array on error
+      });
+    } catch (error) {
+      console.error("Error setting up answers promise:", error);
+      answersPromise = Promise.resolve([]);
+    }
+
+    const intakeGroupsPromise = getAllIntakeGroups();
+
+    // Wait for all promises
     const [assignment, answers, intakeGroups] = await Promise.all([
-      getAssignmentById(params.id),
-      getAssignmentAnswers(params.id),
-      getAllIntakeGroups(),
+      assignmentPromise,
+      answersPromise,
+      intakeGroupsPromise,
     ]);
 
     if (!assignment) {
@@ -192,9 +216,10 @@ export default async function AssignmentViewPage({ params }: PageProps) {
             <CardContent>
               <div className="space-y-6">
                 {assignment.questions?.map((question, index) => {
-                  const questionAnswers = answers?.filter(
-                    (ans) => ans.question === question.id
-                  );
+                  // Safely attempt to filter answers - if answers is undefined, use empty array
+                  const questionAnswers = Array.isArray(answers)
+                    ? answers.filter((ans) => ans.question === question.id)
+                    : [];
 
                   return (
                     <div key={question.id} className="border p-4 rounded-lg">
