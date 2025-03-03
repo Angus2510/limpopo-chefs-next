@@ -148,16 +148,38 @@ export async function createStudent(input: FormData | Record<string, any>) {
       data: studentData,
     });
 
-    // If an avatar file is provided, upload it and update the student record
+    // Handle avatar upload if provided
     if (formData.has("avatar")) {
-      // IMPORTANT: Append the student ID to the form data so the uploadAvatar function knows which student to update.
-      formData.append("userId", student.id);
-      try {
-        const avatarResult = await uploadAvatar(formData);
-        console.log("Avatar upload result:", avatarResult);
-      } catch (avatarError) {
-        console.error("Avatar upload failed:", avatarError);
-        // Optionally, you could decide whether to roll back the student creation or continue without the avatar.
+      const avatarFile = formData.get("avatar") as File;
+
+      // Only process if there's actually a file with content
+      if (avatarFile && avatarFile.size > 0) {
+        // Create a new FormData specifically for the avatar upload
+        const avatarFormData = new FormData();
+        avatarFormData.append("avatar", avatarFile);
+        avatarFormData.append("userId", student.id);
+
+        try {
+          const avatarResult = await uploadAvatar(avatarFormData);
+          console.log("Avatar upload result:", avatarResult);
+
+          // If we got a URL back, update the student record
+          if (avatarResult && avatarResult.avatarUrl) {
+            await prisma.students.update({
+              where: { id: student.id },
+              data: {
+                avatarUrl: avatarResult.avatarUrl,
+              },
+            });
+
+            console.log(
+              `Updated student ${student.id} with avatarUrl: ${avatarResult.avatarUrl}`
+            );
+          }
+        } catch (avatarError) {
+          console.error("Avatar upload failed:", avatarError);
+          // Continue without avatar if upload fails
+        }
       }
     }
 
