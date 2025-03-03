@@ -44,7 +44,7 @@ export function StudentCard({ studentData }: StudentCardProps) {
   });
 
   return (
-    <Card className="w-[350px] shadow-lg flex flex-col">
+    <Card className="max-w-md shadow-lg">
       <CardHeader className="flex justify-between items-start p-4 pb-0">
         <Avatar className="h-28 w-28">
           <AvatarImage
@@ -59,27 +59,27 @@ export function StudentCard({ studentData }: StudentCardProps) {
       </CardHeader>
       <CardContent className="p-4 pt-2 pb-4">
         <div className="space-y-2">
-          <div className="flex">
+          <div className="flex flex-wrap">
             <span className="font-semibold w-32">Name:</span>
-            <span>
+            <span className="truncate">
               {firstName} {lastName}
             </span>
           </div>
-          <div className="flex">
+          <div className="flex flex-wrap">
             <span className="font-semibold w-32">Campus:</span>
-            <span>{studentData.campusTitle}</span>
+            <span className="truncate">{studentData.campusTitle}</span>
           </div>
-          <div className="flex">
+          <div className="flex flex-wrap">
             <span className="font-semibold w-32">Student number:</span>
-            <span>{admissionNumber}</span>
+            <span className="truncate">{admissionNumber}</span>
           </div>
-          <div className="flex">
+          <div className="flex flex-wrap">
             <span className="font-semibold w-32">Email address:</span>
-            <span>{studentData.email}</span>
+            <span className="truncate">{studentData.email}</span>
           </div>
-          <div className="flex">
+          <div className="flex flex-wrap">
             <span className="font-semibold w-32">Intake Group:</span>
-            <span>{studentData.intakeGroupTitle}</span>
+            <span className="truncate">{studentData.intakeGroupTitle}</span>
           </div>
         </div>
       </CardContent>

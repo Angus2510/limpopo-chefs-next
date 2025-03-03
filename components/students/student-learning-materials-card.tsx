@@ -8,6 +8,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface Material {
   id: string;
@@ -21,6 +22,7 @@ interface Material {
 
 interface Student {
   intakeGroup: string;
+  intakeGroupTitle?: string; // Added title property
 }
 
 interface StudentMaterialsCardProps {
@@ -111,7 +113,7 @@ const StudentMaterialsCard: React.FC<StudentMaterialsCardProps> = ({
         <CardContent className="p-6">
           <div className="text-center text-gray-500">
             No learning materials are currently available for your intake group:{" "}
-            {student.intakeGroup}
+            {student.intakeGroupTitle || student.intakeGroup}
           </div>
         </CardContent>
       </Card>
@@ -127,76 +129,81 @@ const StudentMaterialsCard: React.FC<StudentMaterialsCardProps> = ({
             Learning Materials
           </CardTitle>
           <CardDescription>
-            Materials for Intake Group: {student.intakeGroup}
+            Materials for Intake Group:{" "}
+            {student.intakeGroupTitle || student.intakeGroup}
           </CardDescription>
         </CardHeader>
 
-        <CardContent className="grid gap-4">
-          {learningMaterials.map((material) => (
-            <div
-              key={material.id}
-              className="flex items-center justify-between p-4 rounded-lg border bg-card hover:bg-accent/10 transition-colors"
-            >
-              <div className="flex items-start gap-4">
-                <File className="h-8 w-8 text-primary" />
-                <div>
-                  <h4 className="font-medium">{material.title}</h4>
-                  {material.description && (
-                    <p className="text-sm text-gray-500 mt-1">
-                      {material.description}
-                    </p>
-                  )}
-                  <div className="flex gap-2 mt-2 text-xs text-gray-500">
-                    {material.fileType && (
-                      <span className="px-2 py-1 rounded-full bg-primary/10">
-                        {material.fileType}
-                      </span>
-                    )}
-                    {material.uploadDate && (
-                      <span className="px-2 py-1 rounded-full bg-primary/10">
-                        Added:{" "}
-                        {new Date(material.uploadDate).toLocaleDateString()}
-                      </span>
-                    )}
-                    {material.moduleNumber && (
-                      <span className="px-2 py-1 rounded-full bg-primary/10">
-                        Module {material.moduleNumber}
-                      </span>
-                    )}
+        <CardContent>
+          <ScrollArea className="h-[500px]">
+            <div className="grid gap-4 pr-4">
+              {learningMaterials.map((material) => (
+                <div
+                  key={material.id}
+                  className="flex items-center justify-between p-4 rounded-lg border bg-card hover:bg-accent/10 transition-colors"
+                >
+                  <div className="flex items-start gap-4">
+                    <File className="h-8 w-8 text-primary" />
+                    <div>
+                      <h4 className="font-medium">{material.title}</h4>
+                      {material.description && (
+                        <p className="text-sm text-gray-500 mt-1">
+                          {material.description}
+                        </p>
+                      )}
+                      <div className="flex gap-2 mt-2 text-xs text-gray-500">
+                        {material.fileType && (
+                          <span className="px-2 py-1 rounded-full bg-primary/10">
+                            {material.fileType}
+                          </span>
+                        )}
+                        {material.uploadDate && (
+                          <span className="px-2 py-1 rounded-full bg-primary/10">
+                            Added:{" "}
+                            {new Date(material.uploadDate).toLocaleDateString()}
+                          </span>
+                        )}
+                        {material.moduleNumber && (
+                          <span className="px-2 py-1 rounded-full bg-primary/10">
+                            Module {material.moduleNumber}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => handleView(material)}
+                    >
+                      <Eye className="mr-2 h-4 w-4" />
+                      View
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => handleDownload(material)}
+                      disabled={downloadingId === material.id}
+                    >
+                      {downloadingId === material.id ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Downloading...
+                        </>
+                      ) : (
+                        <>
+                          <Download className="mr-2 h-4 w-4" />
+                          Download
+                        </>
+                      )}
+                    </Button>
                   </div>
                 </div>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => handleView(material)}
-                >
-                  <Eye className="mr-2 h-4 w-4" />
-                  View
-                </Button>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => handleDownload(material)}
-                  disabled={downloadingId === material.id}
-                >
-                  {downloadingId === material.id ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Downloading...
-                    </>
-                  ) : (
-                    <>
-                      <Download className="mr-2 h-4 w-4" />
-                      Download
-                    </>
-                  )}
-                </Button>
-              </div>
+              ))}
             </div>
-          ))}
+          </ScrollArea>
         </CardContent>
       </Card>
     </div>
