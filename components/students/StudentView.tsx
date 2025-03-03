@@ -1,5 +1,5 @@
 "use client";
-import React from "react";
+import React, { useEffect } from "react";
 import Image from "next/image";
 import { format } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -33,6 +33,21 @@ const StudentView = ({ data }: StudentViewProps) => {
   const { profile = {} } = student || {};
   const { address = {} } = profile;
 
+  // Debug received results
+  useEffect(() => {
+    console.log("Results data received in StudentView:", results?.length || 0);
+    if (results && results.length > 0) {
+      console.log("First result sample:", {
+        id: results[0].id,
+        assignment: results[0].assignment,
+        assignmentTitle: results[0].assignmentTitle,
+        percent: results[0].percent,
+        scores: results[0].scores,
+        status: results[0].status,
+      });
+    }
+  }, [results]);
+
   // Format dates
   const formatDate = (date: string | Date) => {
     if (!date) return "N/A";
@@ -62,7 +77,7 @@ const StudentView = ({ data }: StudentViewProps) => {
                     }`}
                     fill
                     style={{ objectFit: "cover" }}
-                    unoptimized={true} // Add this line to bypass Next.js image optimization
+                    unoptimized={true}
                   />
                 ) : (
                   <div className="w-full h-full bg-gray-200 flex items-center justify-center">
@@ -270,22 +285,42 @@ const StudentView = ({ data }: StudentViewProps) => {
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                      {results.map((result, index) => (
-                        <tr key={result.id || index}>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm">
-                            {formatDate(result.dateTaken)}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm">
-                            {result.assignment || "N/A"}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm">
-                            {result.percent || 0}%
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm">
-                            {result.status || "N/A"}
-                          </td>
-                        </tr>
-                      ))}
+                      {results.map((result, index) => {
+                        // Debug each result during rendering
+                        console.log(`Rendering result ${index}:`, {
+                          title: result.assignmentTitle,
+                          percent: result.percent,
+                        });
+
+                        return (
+                          <tr key={result.id || index}>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm">
+                              {formatDate(result.dateTaken)}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm">
+                              {/* Priority check for title */}
+                              {result.assignmentTitle ||
+                                (result.assignment_title
+                                  ? result.assignment_title
+                                  : "N/A")}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm">
+                              {/* More flexible percent handling */}
+                              {result.percent !== null &&
+                              result.percent !== undefined &&
+                              result.percent !== 0
+                                ? `${result.percent}%`
+                                : result.scores !== null &&
+                                  result.scores !== undefined
+                                ? `${result.scores}%`
+                                : "No score"}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm">
+                              {result.status || "Pending"}
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
