@@ -305,8 +305,6 @@ export async function fetchStudentData(studentId?: string) {
       console.warn("Error fetching learning materials:", error);
     }
 
-    console.log("Data fetch complete. Returning complete student data");
-
     return {
       student: completeStudent,
       guardians: guardians,

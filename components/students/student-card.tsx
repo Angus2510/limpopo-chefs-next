@@ -15,6 +15,7 @@ interface Student {
   intakeGroup: string[];
   campus: string;
   admissionNumber: string;
+  avatarUrl?: string;
 
   // Add these properties that are set in fetchStudentData.ts
   email: string;
@@ -43,11 +44,11 @@ export function StudentCard({ studentData }: StudentCardProps) {
   });
 
   return (
-    <Card className="w-[350px] shadow-lg p-4">
-      <CardHeader className="flex justify-between items-start">
+    <Card className="w-[350px] shadow-lg flex flex-col">
+      <CardHeader className="flex justify-between items-start p-4 pb-0">
         <Avatar className="h-28 w-28">
           <AvatarImage
-            src={profilePicture || "/placeholder.svg"}
+            src={studentData.avatarUrl || "/placeholder.svg"}
             alt={`${firstName} ${lastName}`}
           />
           <AvatarFallback>
@@ -56,8 +57,8 @@ export function StudentCard({ studentData }: StudentCardProps) {
           </AvatarFallback>
         </Avatar>
       </CardHeader>
-      <CardContent>
-        <div className="space-y-4">
+      <CardContent className="p-4 pt-2 pb-4">
+        <div className="space-y-2">
           <div className="flex">
             <span className="font-semibold w-32">Name:</span>
             <span>

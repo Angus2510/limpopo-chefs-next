@@ -62,6 +62,7 @@ const StudentView = ({ data }: StudentViewProps) => {
                     }`}
                     fill
                     style={{ objectFit: "cover" }}
+                    unoptimized={true} // Add this line to bypass Next.js image optimization
                   />
                 ) : (
                   <div className="w-full h-full bg-gray-200 flex items-center justify-center">

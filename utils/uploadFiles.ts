@@ -1,7 +1,6 @@
 import {
   S3Client,
   PutObjectCommand,
-  ObjectCannedACL,
   ServerSideEncryption,
   StorageClass,
 } from "@aws-sdk/client-s3";
@@ -46,9 +45,9 @@ export async function uploadFileToS3(
     Key: filePath,
     Body: file,
     ContentType: contentType,
-    ACL: "private" as ObjectCannedACL, // Ensure this is correctly typed
-    StorageClass: "STANDARD" as StorageClass, // Ensure this is correctly typed
-    ServerSideEncryption: "AES256" as ServerSideEncryption, // Ensure this is correctly typed
+    // Remove the ACL parameter completely
+    StorageClass: "STANDARD" as StorageClass,
+    ServerSideEncryption: "AES256" as ServerSideEncryption,
   };
 
   try {
