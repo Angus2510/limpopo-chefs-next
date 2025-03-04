@@ -4,6 +4,12 @@ import Image from "next/image";
 import { format } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 
 // Define prop type for the component
 interface StudentViewProps {
@@ -365,16 +371,63 @@ const StudentView = ({ data }: StudentViewProps) => {
             </CardHeader>
             <CardContent>
               {documents && documents.length > 0 ? (
-                <ul className="space-y-2">
-                  {documents.map((doc, index) => (
-                    <li key={doc.id || index} className="flex items-center">
-                      <span className="mr-2">📄</span>
-                      <span>
-                        {doc.title || doc.filename || `Document ${index + 1}`}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
+                <Accordion type="single" collapsible className="w-full">
+                  <AccordionItem value="general">
+                    <AccordionTrigger>General Documents</AccordionTrigger>
+                    <AccordionContent>
+                      <ul className="space-y-2">
+                        {documents
+                          .filter((doc) => doc.category !== "legal")
+                          .map((doc, index) => (
+                            <li
+                              key={doc.id || index}
+                              className="flex items-center p-2 hover:bg-gray-50"
+                            >
+                              <span className="mr-2">📄</span>
+                              <span className="flex-grow">
+                                {doc.title ||
+                                  doc.filename ||
+                                  `Document ${index + 1}`}
+                              </span>
+                              {doc.uploadDate && (
+                                <span className="text-sm text-gray-500">
+                                  {formatDate(doc.uploadDate)}
+                                </span>
+                              )}
+                            </li>
+                          ))}
+                      </ul>
+                    </AccordionContent>
+                  </AccordionItem>
+
+                  <AccordionItem value="legal">
+                    <AccordionTrigger>Legal Documents</AccordionTrigger>
+                    <AccordionContent>
+                      <ul className="space-y-2">
+                        {documents
+                          .filter((doc) => doc.category === "legal")
+                          .map((doc, index) => (
+                            <li
+                              key={doc.id || index}
+                              className="flex items-center p-2 hover:bg-gray-50"
+                            >
+                              <span className="mr-2">⚖️</span>
+                              <span className="flex-grow">
+                                {doc.title ||
+                                  doc.filename ||
+                                  `Legal Document ${index + 1}`}
+                              </span>
+                              {doc.uploadDate && (
+                                <span className="text-sm text-gray-500">
+                                  {formatDate(doc.uploadDate)}
+                                </span>
+                              )}
+                            </li>
+                          ))}
+                      </ul>
+                    </AccordionContent>
+                  </AccordionItem>
+                </Accordion>
               ) : (
                 <p className="text-gray-500">No documents available</p>
               )}
