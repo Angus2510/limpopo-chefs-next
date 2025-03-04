@@ -30,6 +30,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/use-toast";
+import { uploadDocument } from "@/lib/actions/uploads/uploadDocuments";
 
 const documentTypes = ["pdf", "doc", "docx", "xls", "xlsx"] as const;
 type DocumentType = (typeof documentTypes)[number];
@@ -89,7 +90,10 @@ export default function UploadDocumentDialog({
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
+      title: undefined,
       description: "",
+      category: undefined,
+      file: undefined,
     },
   });
 
@@ -103,28 +107,25 @@ export default function UploadDocumentDialog({
       formData.append("category", values.category);
       formData.append("studentId", studentId);
 
-      const response = await fetch("/api/documents/upload", {
-        method: "POST",
-        body: formData,
-      });
+      const result = await uploadDocument(formData);
 
-      if (!response.ok) {
-        throw new Error("Upload failed");
+      if (result.success) {
+        toast({
+          title: "Success",
+          description: "Document uploaded successfully",
+        });
+        setOpen(false);
+        form.reset();
+        onUploadComplete();
+      } else {
+        throw new Error(result.error || "Failed to upload document");
       }
-
-      toast({
-        title: "Success",
-        description: "Document uploaded successfully",
-      });
-
-      setOpen(false);
-      form.reset();
-      onUploadComplete();
     } catch (error) {
       console.error("Error during upload:", error);
       toast({
         title: "Error",
-        description: "Failed to upload document",
+        description:
+          error instanceof Error ? error.message : "Failed to upload document",
         variant: "destructive",
       });
     } finally {
@@ -149,7 +150,10 @@ export default function UploadDocumentDialog({
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Document Type</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
+                  <Select
+                    onValueChange={field.onChange}
+                    value={field.value || ""}
+                  >
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Select document type" />
@@ -188,7 +192,10 @@ export default function UploadDocumentDialog({
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Category</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
+                  <Select
+                    onValueChange={field.onChange}
+                    value={field.value || ""}
+                  >
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Select a category" />
@@ -207,15 +214,19 @@ export default function UploadDocumentDialog({
             <FormField
               control={form.control}
               name="file"
-              render={({ field: { onChange, ...field } }) => (
+              render={({ field: { onChange, value, ...field } }) => (
                 <FormItem>
                   <FormLabel>File</FormLabel>
                   <FormControl>
                     <Input
                       type="file"
                       accept={documentTypes.map((type) => `.${type}`).join(",")}
-                      onChange={(e) => onChange(e.target.files)}
-                      {...field}
+                      onChange={(e) => {
+                        const files = e.target.files;
+                        if (files?.length) {
+                          onChange(files);
+                        }
+                      }}
                     />
                   </FormControl>
                   <FormMessage />
