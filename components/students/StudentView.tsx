@@ -32,19 +32,31 @@ const StudentView = ({ data }: StudentViewProps) => {
   } = data;
   const { profile = {} } = student || {};
   const { address = {} } = profile;
-
+  console.log(
+    "INCOMING RAW RESULTS DATA:",
+    JSON.stringify(results.slice(0, 1), null, 2)
+  );
   // Debug received results
+
   useEffect(() => {
     console.log("Results data received in StudentView:", results?.length || 0);
     if (results && results.length > 0) {
-      console.log("First result sample:", {
-        id: results[0].id,
-        assignment: results[0].assignment,
-        assignmentTitle: results[0].assignmentTitle,
-        percent: results[0].percent,
-        scores: results[0].scores,
-        status: results[0].status,
-      });
+      const firstResult = results[0];
+
+      // Log EXACTLY what properties are available
+      console.log(
+        "First result EXACT properties:",
+        JSON.stringify(Object.keys(firstResult))
+      );
+      console.log(
+        "First result complete data:",
+        JSON.stringify(firstResult, null, 2)
+      );
+
+      // Log each property individually to see what's there
+      console.log("assignmentTitle property:", firstResult.assignmentTitle);
+      console.log("assignment property:", firstResult.assignment);
+      console.log("assignmentId property:", firstResult.assignmentId);
     }
   }, [results]);
 
@@ -274,7 +286,7 @@ const StudentView = ({ data }: StudentViewProps) => {
                           Date
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Assignment
+                          Assessment
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Score
@@ -286,10 +298,12 @@ const StudentView = ({ data }: StudentViewProps) => {
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
                       {results.map((result, index) => {
-                        // Debug each result during rendering
-                        console.log(`Rendering result ${index}:`, {
-                          title: result.assignmentTitle,
-                          percent: result.percent,
+                        // Log each result to see what properties are available
+                        console.log(`Result ${index} data:`, {
+                          id: result.id,
+                          assignment: result.assignment, // This should have the title
+                          type: typeof result.assignment,
+                          properties: Object.keys(result),
                         });
 
                         return (
@@ -297,12 +311,9 @@ const StudentView = ({ data }: StudentViewProps) => {
                             <td className="px-6 py-4 whitespace-nowrap text-sm">
                               {formatDate(result.dateTaken)}
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm">
-                              {/* Priority check for title */}
-                              {result.assignmentTitle ||
-                                (result.assignment_title
-                                  ? result.assignment_title
-                                  : "N/A")}
+                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                              {result.assignments?.title ||
+                                "Unknown Assignment"}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm">
                               {/* More flexible percent handling */}
