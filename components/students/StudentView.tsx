@@ -26,6 +26,40 @@ interface StudentViewProps {
   };
 }
 
+// Add these types at the top of StudentView.tsx
+interface CollectedFee {
+  id: string;
+  balance: string;
+  credit?: number | null;
+  debit?: number | null;
+  description: string;
+  transactionDate?: Date;
+}
+
+interface PayableFee {
+  id: string;
+  amount: number;
+  arrears: number;
+  dueDate?: Date;
+}
+
+interface StudentFinances {
+  collectedFees?: CollectedFee[];
+  payableFees?: PayableFee[];
+}
+
+// Update the StudentViewProps interface
+interface StudentViewProps {
+  data: {
+    student: any;
+    guardians: any[];
+    results?: any[];
+    wellnessRecords?: any[];
+    finances?: StudentFinances;
+    documents?: any[];
+  };
+}
+
 // Pure presentation component - receives all data via props
 const StudentView = ({ data }: StudentViewProps) => {
   const {
@@ -355,10 +389,108 @@ const StudentView = ({ data }: StudentViewProps) => {
               <CardTitle>Financial Information</CardTitle>
             </CardHeader>
             <CardContent>
-              {/* Implement finances view here */}
-              <p className="text-gray-500">
-                Financial records will be displayed here
-              </p>
+              <div className="space-y-6">
+                {/* Payable Fees */}
+                <div>
+                  <h3 className="text-lg font-semibold mb-4">Payable Fees</h3>
+                  {finances?.payableFees && finances.payableFees.length > 0 ? (
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Due Date
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Amount
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Arrears
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                          {finances.payableFees.map((fee) => (
+                            <tr key={fee.id}>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                {formatDate(fee.dueDate)}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                R {fee.amount.toFixed(2)}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                R {fee.arrears.toFixed(2)}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <p className="text-gray-500">No payable fees found</p>
+                  )}
+                </div>
+
+                {/* Collected Fees */}
+                <div>
+                  <h3 className="text-lg font-semibold mb-4">
+                    Payment History
+                  </h3>
+                  {finances?.collectedFees &&
+                  finances.collectedFees.length > 0 ? (
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Date
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Description
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Credit
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Debit
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Balance
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                          {finances.collectedFees.map((fee) => (
+                            <tr key={fee.id}>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                {formatDate(fee.transactionDate)}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                {fee.description}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                {fee.credit
+                                  ? `R ${Number(fee.credit).toFixed(2)}`
+                                  : "-"}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                {fee.debit
+                                  ? `R ${Number(fee.debit).toFixed(2)}`
+                                  : "-"}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                R {fee.balance}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <p className="text-gray-500">No payment history found</p>
+                  )}
+                </div>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -377,23 +509,36 @@ const StudentView = ({ data }: StudentViewProps) => {
                     <AccordionContent>
                       <ul className="space-y-2">
                         {documents
-                          .filter((doc) => doc.category !== "legal")
-                          .map((doc, index) => (
+                          .filter((doc) => doc.category === "general")
+                          .map((doc) => (
                             <li
-                              key={doc.id || index}
-                              className="flex items-center p-2 hover:bg-gray-50"
+                              key={doc.id}
+                              className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-lg"
                             >
-                              <span className="mr-2">📄</span>
-                              <span className="flex-grow">
-                                {doc.title ||
-                                  doc.filename ||
-                                  `Document ${index + 1}`}
-                              </span>
-                              {doc.uploadDate && (
+                              <div className="flex items-center space-x-3">
+                                <span className="text-xl">📄</span>
+                                <div>
+                                  <p className="font-medium">{doc.title}</p>
+                                  <p className="text-sm text-gray-500">
+                                    {doc.description}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="flex items-center space-x-4">
                                 <span className="text-sm text-gray-500">
-                                  {formatDate(doc.uploadDate)}
+                                  {doc.uploadDate
+                                    ? formatDate(doc.uploadDate)
+                                    : "No date"}
                                 </span>
-                              )}
+                                <a
+                                  href={doc.documentUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-blue-600 hover:text-blue-800"
+                                >
+                                  View
+                                </a>
+                              </div>
                             </li>
                           ))}
                       </ul>
@@ -406,22 +551,35 @@ const StudentView = ({ data }: StudentViewProps) => {
                       <ul className="space-y-2">
                         {documents
                           .filter((doc) => doc.category === "legal")
-                          .map((doc, index) => (
+                          .map((doc) => (
                             <li
-                              key={doc.id || index}
-                              className="flex items-center p-2 hover:bg-gray-50"
+                              key={doc.id}
+                              className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-lg"
                             >
-                              <span className="mr-2">⚖️</span>
-                              <span className="flex-grow">
-                                {doc.title ||
-                                  doc.filename ||
-                                  `Legal Document ${index + 1}`}
-                              </span>
-                              {doc.uploadDate && (
+                              <div className="flex items-center space-x-3">
+                                <span className="text-xl">⚖️</span>
+                                <div>
+                                  <p className="font-medium">{doc.title}</p>
+                                  <p className="text-sm text-gray-500">
+                                    {doc.description}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="flex items-center space-x-4">
                                 <span className="text-sm text-gray-500">
-                                  {formatDate(doc.uploadDate)}
+                                  {doc.uploadDate
+                                    ? formatDate(doc.uploadDate)
+                                    : "No date"}
                                 </span>
-                              )}
+                                <a
+                                  href={doc.documentUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-blue-600 hover:text-blue-800"
+                                >
+                                  View
+                                </a>
+                              </div>
                             </li>
                           ))}
                       </ul>
