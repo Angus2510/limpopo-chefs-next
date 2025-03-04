@@ -31,6 +31,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/use-toast";
 import { uploadDocument } from "@/lib/actions/uploads/uploadDocuments";
+import { useRouter } from "next/navigation";
 
 const documentTypes = ["pdf", "doc", "docx", "xls", "xlsx"] as const;
 type DocumentType = (typeof documentTypes)[number];
@@ -84,6 +85,7 @@ export default function UploadDocumentDialog({
   studentId,
   onUploadComplete,
 }: Props) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -116,7 +118,7 @@ export default function UploadDocumentDialog({
         });
         setOpen(false);
         form.reset();
-        onUploadComplete();
+        router.refresh(); // Use router.refresh() instead of onUploadComplete
       } else {
         throw new Error(result.error || "Failed to upload document");
       }
