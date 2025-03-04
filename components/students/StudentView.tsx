@@ -4,12 +4,16 @@ import Image from "next/image";
 import { format } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import UploadDocumentDialog from "@/components/dialogs/uploads/UploadDocumentDialog";
+import { Trash2 } from "lucide-react";
+import { deleteDocument } from "@/lib/actions/documents/deleteDocument";
 
 // Define prop type for the component
 interface StudentViewProps {
@@ -498,8 +502,15 @@ const StudentView = ({ data }: StudentViewProps) => {
         {/* Documents Tab */}
         <TabsContent value="documents">
           <Card>
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle>Documents</CardTitle>
+              <UploadDocumentDialog
+                studentId={student.id}
+                onUploadComplete={() => {
+                  // You can implement a refresh function here
+                  router.refresh();
+                }}
+              />
             </CardHeader>
             <CardContent>
               {documents && documents.length > 0 ? (
@@ -526,18 +537,49 @@ const StudentView = ({ data }: StudentViewProps) => {
                               </div>
                               <div className="flex items-center space-x-4">
                                 <span className="text-sm text-gray-500">
-                                  {doc.uploadDate
-                                    ? formatDate(doc.uploadDate)
-                                    : "No date"}
+                                  {formatDate(doc.uploadDate)}
                                 </span>
-                                <a
-                                  href={doc.documentUrl}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-blue-600 hover:text-blue-800"
-                                >
-                                  View
-                                </a>
+                                <div className="flex items-center gap-2">
+                                  <a
+                                    href={doc.filePath}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-blue-600 hover:text-blue-800"
+                                  >
+                                    View
+                                  </a>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="text-red-600 hover:text-red-800"
+                                    onClick={async () => {
+                                      if (
+                                        confirm(
+                                          "Are you sure you want to delete this document?"
+                                        )
+                                      ) {
+                                        try {
+                                          await deleteDocument(doc.id);
+                                          toast({
+                                            title: "Success",
+                                            description:
+                                              "Document deleted successfully",
+                                          });
+                                          router.refresh();
+                                        } catch (error) {
+                                          toast({
+                                            title: "Error",
+                                            description:
+                                              "Failed to delete document",
+                                            variant: "destructive",
+                                          });
+                                        }
+                                      }
+                                    }}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
                               </div>
                             </li>
                           ))}
@@ -567,18 +609,49 @@ const StudentView = ({ data }: StudentViewProps) => {
                               </div>
                               <div className="flex items-center space-x-4">
                                 <span className="text-sm text-gray-500">
-                                  {doc.uploadDate
-                                    ? formatDate(doc.uploadDate)
-                                    : "No date"}
+                                  {formatDate(doc.uploadDate)}
                                 </span>
-                                <a
-                                  href={doc.documentUrl}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-blue-600 hover:text-blue-800"
-                                >
-                                  View
-                                </a>
+                                <div className="flex items-center gap-2">
+                                  <a
+                                    href={doc.filePath}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-blue-600 hover:text-blue-800"
+                                  >
+                                    View
+                                  </a>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="text-red-600 hover:text-red-800"
+                                    onClick={async () => {
+                                      if (
+                                        confirm(
+                                          "Are you sure you want to delete this document?"
+                                        )
+                                      ) {
+                                        try {
+                                          await deleteDocument(doc.id);
+                                          toast({
+                                            title: "Success",
+                                            description:
+                                              "Document deleted successfully",
+                                          });
+                                          router.refresh();
+                                        } catch (error) {
+                                          toast({
+                                            title: "Error",
+                                            description:
+                                              "Failed to delete document",
+                                            variant: "destructive",
+                                          });
+                                        }
+                                      }
+                                    }}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
                               </div>
                             </li>
                           ))}
