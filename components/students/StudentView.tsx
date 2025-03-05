@@ -119,7 +119,7 @@ const StudentView = ({ data }: StudentViewProps) => {
 
   return (
     <div className="space-y-6">
-       <Button
+      <Button
         variant="ghost"
         className="mb-4 flex items-center gap-2"
         onClick={() => router.back()}

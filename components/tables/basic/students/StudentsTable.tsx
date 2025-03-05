@@ -96,21 +96,31 @@ const columns = (
       const viewStudent = () => {
         router.push(`/admin/student/studentView/${student.id}`);
       };
-      const editStudent = () => {
+      const editStudent = (e: React.MouseEvent) => {
+        e.stopPropagation(); // Stop the row click event from firing
         router.push(`/admin/student/edit/${student.id}`);
       };
       return (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="h-8 w-8 p-0">
+            <Button
+              variant="ghost"
+              className="h-8 w-8 p-0"
+              onClick={(e) => e.stopPropagation()} // Stop row click when opening dropdown
+            >
               <span className="sr-only">Open menu</span>
               <MoreHorizontal className="h-4 w-4" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
+          <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+            {" "}
+            {/* Stop row click in dropdown */}
             <DropdownMenuLabel>Actions</DropdownMenuLabel>
             <DropdownMenuItem
-              onClick={() => navigator.clipboard.writeText(student.id)}
+              onClick={(e) => {
+                e.stopPropagation();
+                navigator.clipboard.writeText(student.id);
+              }}
             >
               Copy Student No
             </DropdownMenuItem>

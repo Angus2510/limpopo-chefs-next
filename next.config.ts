@@ -2,7 +2,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   typescript: {
-    ignoreBuildErrors: true, // Ensure type checking during build
+    ignoreBuildErrors: true,
   },
   experimental: {
     serverActions: {
@@ -10,9 +10,15 @@ const nextConfig: NextConfig = {
     },
   },
   images: {
-    domains: [
-      "limpopochefs-media.s3.eu-north-1.amazonaws.com", // Allow images from your S3 bucket
-    ],
+    domains: ["limpopochefs-media.s3.eu-north-1.amazonaws.com"],
+  },
+  compiler: {
+    removeConsole:
+      process.env.NODE_ENV === "production"
+        ? {
+            exclude: ["error", "warn"],
+          }
+        : false,
   },
 };
 
