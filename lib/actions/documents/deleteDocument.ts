@@ -1,29 +1,50 @@
 "use server";
 
 import prisma from "@/lib/db";
+import { deleteFile } from "@/lib/s3-operations";
 
-export async function deleteDocument(documentId: string) {
+export async function deleteDocument(documentId: string): Promise<boolean> {
   try {
-    // First get the document to get the file path
-    const document = await prisma.documents.findUnique({
+    // Try to find the document in general documents first
+    let document = await prisma.generaldocuments.findUnique({
       where: { id: documentId },
     });
+
+    if (!document) {
+      // If not found in general documents, try legal documents
+      document = await prisma.legaldocuments.findUnique({
+        where: { id: documentId },
+      });
+    }
 
     if (!document) {
       throw new Error("Document not found");
     }
 
     // Delete the file from S3
-    await deleteFileFromS3(document.filePath);
+    const fileKey = document.documentUrl;
+    const s3Success = await deleteFile(fileKey);
 
-    // Delete the document record from the database
-    await prisma.documents.delete({
-      where: { id: documentId },
-    });
+    if (!s3Success) {
+      throw new Error("Failed to delete file from storage");
+    }
 
-    return { success: true };
+    // Delete from the appropriate collection
+    if (
+      await prisma.generaldocuments.findUnique({ where: { id: documentId } })
+    ) {
+      await prisma.generaldocuments.delete({
+        where: { id: documentId },
+      });
+    } else {
+      await prisma.legaldocuments.delete({
+        where: { id: documentId },
+      });
+    }
+
+    return true;
   } catch (error) {
     console.error("Error deleting document:", error);
-    throw new Error("Failed to delete document");
+    return false;
   }
 }

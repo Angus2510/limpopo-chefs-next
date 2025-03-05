@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
-import StudentView from "@/components/students/StudentView";
+import StudentView from "@/components/students/StudentView/index";
 import { fetchStudentData } from "@/lib/actions/student/fetchStudentData";
 import { ContentLayout } from "@/components/layout/content-layout";
 
