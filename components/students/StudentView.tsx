@@ -14,6 +14,8 @@ import {
 import UploadDocumentDialog from "@/components/dialogs/uploads/UploadDocumentDialog";
 import { Trash2 } from "lucide-react";
 import { deleteDocument } from "@/lib/actions/documents/deleteDocument";
+import { useRouter } from "next/navigation";
+import { ArrowLeft } from "lucide-react";
 
 // Define prop type for the component
 interface StudentViewProps {
@@ -66,6 +68,7 @@ interface StudentViewProps {
 
 // Pure presentation component - receives all data via props
 const StudentView = ({ data }: StudentViewProps) => {
+  const router = useRouter();
   const {
     student,
     guardians = [],
@@ -116,6 +119,15 @@ const StudentView = ({ data }: StudentViewProps) => {
 
   return (
     <div className="space-y-6">
+       <Button
+        variant="ghost"
+        className="mb-4 flex items-center gap-2"
+        onClick={() => router.back()}
+      >
+        <ArrowLeft className="h-4 w-4" />
+        Back to Students
+      </Button>
+
       <Card>
         <CardHeader>
           <CardTitle>Student Information</CardTitle>
