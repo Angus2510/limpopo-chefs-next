@@ -1,5 +1,5 @@
 import * as React from "react";
-import { ColumnDef, flexRender } from "@tanstack/react-table";
+import { ColumnDef, flexRender, Row } from "@tanstack/react-table";
 import {
   Table,
   TableBody,
@@ -20,6 +20,8 @@ interface DataTableProps<TData, TValue> {
   data: TData[];
   pageCount: number;
   filters: Filter[];
+  onRowClick?: (row: Row<TData>) => void;
+  rowClassName?: string;
 }
 
 export function DataTable<TData, TValue>({
@@ -27,6 +29,8 @@ export function DataTable<TData, TValue>({
   data,
   pageCount,
   filters,
+  onRowClick,
+  rowClassName,
 }: DataTableProps<TData, TValue>) {
   const context = React.useContext(SearchParamsContext);
 
@@ -47,8 +51,6 @@ export function DataTable<TData, TValue>({
 
   const {
     table,
-    // setSorting,
-    // setColumnFilters,
     setPageIndex,
     setPageSize,
     globalFilter,
@@ -114,7 +116,15 @@ export function DataTable<TData, TValue>({
           <TableBody>
             {table.getRowModel().rows?.length ? (
               table.getRowModel().rows.map((row) => (
-                <TableRow key={row.id}>
+                <TableRow
+                  key={row.id}
+                  onClick={() => onRowClick?.(row)}
+                  className={`${rowClassName || ""} ${
+                    onRowClick
+                      ? "cursor-pointer hover:bg-gray-50 transition-colors"
+                      : ""
+                  }`}
+                >
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id}>
                       {flexRender(

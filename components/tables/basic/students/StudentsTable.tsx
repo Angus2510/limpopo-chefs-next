@@ -19,22 +19,39 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { MoreHorizontal } from "lucide-react";
 
-interface StudentsTableProps {
-  students: any[];
-  pageCount: number;
-  campuses: { id: string; title: string }[];
-  intakeGroups: { id: string; title: string }[];
-  initialSearch: any;
+interface Student {
+  id: string;
+  admissionNumber: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  idNumber: string;
+  campuses: string;
+  intakeGroups: string;
+  inactiveReason?: string;
 }
 
 // Let TypeScript infer the router type
 const columns = (
   router: ReturnType<typeof useRouter>
-): ColumnDef<any, any>[] => [
+): ColumnDef<Student, any>[] => [
   {
     accessorKey: "admissionNumber",
     header: "Student No",
-    enableSorting: true,
+    cell: ({ row }) => {
+      const student = row.original;
+      return (
+        <div
+          onClick={(e) => {
+            e.stopPropagation(); // Prevent double navigation
+            router.push(`/admin/student/studentView/${student.id}`);
+          }}
+          className="cursor-pointer hover:underline"
+        >
+          {student.admissionNumber}
+        </div>
+      );
+    },
   },
   {
     accessorKey: "firstName",
@@ -157,6 +174,10 @@ export function StudentsTable({
         data={students}
         pageCount={pageCount}
         filters={initialFilters}
+        onRowClick={(row) => {
+          router.push(`/admin/student/studentView/${row.original.id}`);
+        }}
+        rowClassName="cursor-pointer hover:bg-gray-50"
       />
     </SearchParamsProvider>
   );
