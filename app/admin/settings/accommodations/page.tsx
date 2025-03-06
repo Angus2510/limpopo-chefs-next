@@ -18,22 +18,14 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/components/ui/use-toast";
-import { Pencil, Trash, Plus } from "lucide-react";
-import { getAllAccommodations } from "@/lib/actions/accommodation/action";
+import { Pencil, Trash, Plus, Search } from "lucide-react";
+import { Accommodation } from "@/app/api/accommodations/types/accommodations";
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
 
 const AccommodationManager = () => {
-  interface Accommodation {
-    id: string;
-    roomNumber: string;
-    address: string;
-    costPerBed: number;
-    numberOfOccupants: number;
-    occupantType: string;
-    occupants: string[];
-    roomType: string;
-  }
-
   const [accommodations, setAccommodations] = useState<Accommodation[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
   const [isOpen, setIsOpen] = useState(false);
   const [editingAccommodation, setEditingAccommodation] =
     useState<Accommodation | null>(null);
@@ -46,13 +38,11 @@ const AccommodationManager = () => {
     roomType: "",
   });
 
-  useEffect(() => {
-    fetchAccommodations();
-  }, []);
-
   const fetchAccommodations = async () => {
     try {
-      const data = await getAllAccommodations();
+      const response = await fetch("/api/accommodations");
+      if (!response.ok) throw new Error("Failed to fetch");
+      const data = await response.json();
       setAccommodations(data);
     } catch (error) {
       toast({
@@ -63,7 +53,75 @@ const AccommodationManager = () => {
     }
   };
 
-  // Open form and set initial values
+  useEffect(() => {
+    fetchAccommodations();
+  }, []);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const url = editingAccommodation
+        ? `/api/accommodations/${editingAccommodation.id}`
+        : "/api/accommodations";
+
+      const response = await fetch(url, {
+        method: editingAccommodation ? "PUT" : "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(formData),
+      });
+
+      if (!response.ok) throw new Error("Failed to save");
+
+      setIsOpen(false);
+      setEditingAccommodation(null);
+      fetchAccommodations();
+      toast({
+        title: "Success",
+        description: `Accommodation ${
+          editingAccommodation ? "updated" : "created"
+        } successfully`,
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: `Failed to ${
+          editingAccommodation ? "update" : "create"
+        } accommodation`,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    try {
+      const response = await fetch(`/api/accommodations/${id}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) throw new Error("Failed to delete");
+
+      fetchAccommodations();
+      toast({
+        title: "Success",
+        description: "Accommodation deleted successfully",
+      });
+    } catch {
+      toast({
+        title: "Error",
+        description: "Failed to delete accommodation",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const filteredAccommodations = accommodations.filter((accommodation) =>
+    Object.values(accommodation).some((value) =>
+      String(value).toLowerCase().includes(searchQuery.toLowerCase())
+    )
+  );
+
   const openForm = (accommodation: Accommodation | null) => {
     setEditingAccommodation(accommodation);
     setFormData(
@@ -79,68 +137,15 @@ const AccommodationManager = () => {
     setIsOpen(true);
   };
 
-  // Handle form changes
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value });
-  };
-
-  // Handle form submission
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      if (editingAccommodation) {
-        // Update existing accommodation
-        await fetch(`/api/accommodations/${editingAccommodation.id}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(formData),
-        });
-      } else {
-        // Create new accommodation
-        await fetch("/api/accommodations", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(formData),
-        });
-      }
-
-      setIsOpen(false);
-      setEditingAccommodation(null);
-      fetchAccommodations();
-      toast({
-        title: "Success",
-        description: `Accommodation ${
-          editingAccommodation ? "updated" : "created"
-        } successfully`,
-      });
-    } catch {
-      toast({
-        title: "Error",
-        description: `Failed to ${
-          editingAccommodation ? "update" : "create"
-        } accommodation`,
-        variant: "destructive",
-      });
-    }
-  };
-
-  // Handle delete
-  const handleDelete = async (id: string) => {
-    try {
-      await fetch(`/api/accommodations/${id}`, { method: "DELETE" });
-      fetchAccommodations();
-      toast({
-        title: "Success",
-        description: "Accommodation deleted successfully",
-      });
-    } catch {
-      toast({
-        title: "Error",
-        description: "Failed to delete accommodation",
-        variant: "destructive",
-      });
-    }
+    setFormData((prev) => ({
+      ...prev,
+      [name]:
+        name.includes("cost") || name.includes("number")
+          ? Number(value)
+          : value,
+    }));
   };
 
   return (
@@ -222,6 +227,16 @@ const AccommodationManager = () => {
         </Dialog>
       </div>
 
+      <div className="mb-4 relative">
+        <Input
+          placeholder="Search accommodations..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="pl-10"
+        />
+        <Search className="w-4 h-4 absolute left-3 top-3 text-gray-400" />
+      </div>
+
       <Table>
         <TableHeader>
           <TableRow>
@@ -234,7 +249,7 @@ const AccommodationManager = () => {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {accommodations.map((accommodation) => (
+          {filteredAccommodations.map((accommodation) => (
             <TableRow key={accommodation.id}>
               <TableCell>{accommodation.roomNumber}</TableCell>
               <TableCell>{accommodation.address}</TableCell>
