@@ -4,6 +4,11 @@ import { useState } from "react";
 import { toast } from "@/components/ui/use-toast";
 import { getViewUrl, getDownloadUrl, deleteFile } from "@/lib/s3-operations";
 
+interface DownloadParams {
+  fileKey: string;
+  fileName?: string;
+}
+
 export function useS3() {
   const [loading, setLoading] = useState<string | null>(null);
 
@@ -22,14 +27,19 @@ export function useS3() {
     }
   };
 
-  const handleDownloadFile = async (fileKey: string, fileName?: string) => {
+  const handleDownloadFile = async ({ fileKey, fileName }: DownloadParams) => {
     try {
       setLoading(fileKey);
-      const signedUrl = await getDownloadUrl({ fileKey, fileName });
+      const signedUrl = await getDownloadUrl({
+        fileKey: String(fileKey),
+        fileName: String(fileName),
+      });
 
       const link = document.createElement("a");
       link.href = signedUrl;
-      link.download = fileName || fileKey.split("/").pop() || "download";
+      // Use the provided fileName or extract from fileKey
+      link.download =
+        fileName || String(fileKey).split("/").pop() || "download";
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);

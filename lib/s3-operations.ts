@@ -106,16 +106,14 @@ export async function getDownloadUrl({
     await validateConfig();
     await verifyAuth();
 
-    // Get the default filename from the fileKey if it's a string
-    const defaultFileName =
-      typeof fileKey === "string" ? fileKey.split("/").pop() : "download";
+    // Ensure fileKey is a string and handle fileName safely
+    const safeFileKey = String(fileKey);
+    const safeFileName = fileName || safeFileKey.split("/").pop() || "download";
 
     const command = new GetObjectCommand({
       Bucket: process.env.S3_BUCKET_NAME,
-      Key: fileKey,
-      ResponseContentDisposition: `attachment; filename="${
-        fileName || defaultFileName || "download"
-      }"`,
+      Key: safeFileKey,
+      ResponseContentDisposition: `attachment; filename="${safeFileName}"`,
     });
 
     const signedUrl = await getSignedUrl(s3Client, command, {

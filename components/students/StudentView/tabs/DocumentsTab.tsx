@@ -92,6 +92,21 @@ export function DocumentsTab({ documents, studentId }: DocumentsTabProps) {
     const fileName = document.title;
     const isDeleting = deletingId === document.id;
 
+    const handleDocumentDownload = async () => {
+      try {
+        await downloadFile({
+          fileKey: String(fileKey),
+          fileName: document.title,
+        });
+      } catch (error) {
+        console.error("Download error:", error);
+        toast({
+          title: "Error",
+          description: "Failed to download document",
+          variant: "destructive",
+        });
+      }
+    };
     return (
       <li className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-lg">
         <div className="flex items-center space-x-3">
@@ -119,7 +134,7 @@ export function DocumentsTab({ documents, studentId }: DocumentsTabProps) {
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => downloadFile({ fileKey, fileName })}
+              onClick={handleDocumentDownload}
               disabled={loading === fileKey || isDeleting}
             >
               {loading === fileKey ? (
