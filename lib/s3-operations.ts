@@ -111,7 +111,7 @@ export async function getDownloadUrl({
     const safeFileName = fileName || safeFileKey.split("/").pop() || "download";
 
     const command = new GetObjectCommand({
-      Bucket: process.env.S3_BUCKET_NAME,
+      Bucket: process.env["S3_BUCKET_NAME"],
       Key: safeFileKey,
       ResponseContentDisposition: `attachment; filename="${safeFileName}"`,
     });

@@ -2,63 +2,60 @@
 
 import prisma from "@/lib/db";
 import bcrypt from "bcryptjs";
-import { StaffFormValues } from "@/schemas/staff/addStaffFormSchema";
+import { z } from "zod";
+import { staffFormSchema } from "@/schemas/staff/addStaffFormSchema";
+import sendEmailNotification from "@/utils/emailService";
+import { staffCreationTemplate } from "@/lib/email-templates/addingStaff";
 
-interface CreateStaffData {
-  formData: FormData;
-  selectedRoles: string[];
-}
-
-export async function createStaff({
-  formData,
-  selectedRoles,
-}: CreateStaffData) {
+export async function createStaff(data: z.infer<typeof staffFormSchema>) {
   try {
-    // Generate a default password
-    const staffPassword = generatePassword(12);
-    const hashedStaffPassword = await bcrypt.hash(staffPassword, 10);
+    const staffPassword = Array.from(crypto.getRandomValues(new Uint8Array(8)))
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
 
-    // Create the staff member
+    const hashedPassword = await bcrypt.hash(staffPassword, 10);
+
     const staff = await prisma.staffs.create({
       data: {
-        username: formData.get("username") as string,
-        email: formData.get("email") as string,
-        password: hashedStaffPassword,
+        username: data.username,
+        email: data.email,
+        password: hashedPassword,
         active: true,
+        agreementAccepted: true,
+        agreementAcceptedDate: new Date(),
+        mustChangePassword: true,
+        userType: "staff",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        v: 0,
         profile: {
-          firstName: formData.get("firstName") as string,
-          lastName: formData.get("lastName") as string,
-          dateOfBirth: formData.get("dateOfBirth")
-            ? new Date(formData.get("dateOfBirth") as string)
-            : null,
-          homeLanguage: formData.get("homeLanguage") as string,
-          mobileNumber: formData.get("mobileNumber") as string,
-          gender: formData.get("gender") as string,
-          idNumber: formData.get("idNumber") as string,
-          position: formData.get("position") as string,
-          department: formData.get("department") as string,
-          designation: formData.get("designation") as string,
-          address: {
-            street1: formData.get("address.street1") as string,
-            street2: (formData.get("address.street2") as string) || "",
-            city: formData.get("address.city") as string,
-            province: formData.get("address.province") as string,
-            country: formData.get("address.country") as string,
-            postalCode: formData.get("address.postalCode") as string,
-          },
+          firstName: data.firstName,
+          lastName: data.lastName,
+          dateOfBirth: data.dateOfBirth,
+          gender: data.gender,
+          idNumber: data.idNumber,
+          mobileNumber: data.mobileNumber,
+          designation: data.designation,
+          employeeId: data.employeeId,
+          emergencyContact: data.emergencyContact,
+          maritalStatus: data.maritalStatus,
+          address: data.address,
+          postalAddress: data.address,
         },
+        roles: data.roles,
       },
     });
 
-    // Assign roles if any are selected
-    if (selectedRoles.length > 0) {
-      await prisma.userRole.createMany({
-        data: selectedRoles.map((roleId) => ({
-          userId: staff.id,
-          roleId,
-          userType: "Staff",
-        })),
-      });
+    // Send welcome email
+    try {
+      await sendEmailNotification(
+        data.email,
+        "Welcome to Limpopo Chefs Academy - Staff Account Created",
+        staffCreationTemplate(data.firstName, data.username, staffPassword)
+      );
+    } catch (emailError) {
+      console.error("Failed to send welcome email:", emailError);
+      // Continue even if email fails
     }
 
     return {
@@ -70,7 +67,10 @@ export async function createStaff({
     console.error("Error creating staff:", error);
     return {
       success: false,
-      error: "Failed to create staff member",
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to create staff member",
     };
   }
 }

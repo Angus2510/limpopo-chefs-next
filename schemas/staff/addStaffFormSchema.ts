@@ -1,27 +1,22 @@
 import * as z from "zod";
 
 export const staffFormSchema = z.object({
-  username: z.string().min(2, "Username must be at least 2 characters"),
-  firstName: z.string().min(2, "First name is required"),
-  lastName: z.string().min(2, "Last name is required"),
-  dateOfBirth: z.string().optional(),
-  idNumber: z.string().min(6, "ID/Passport number is required"),
+  username: z.string().min(3, "Username must be at least 3 characters"),
   email: z.string().email("Invalid email address"),
-  homeLanguage: z.string().optional(),
-  gender: z.string().min(1, "Gender is required"),
-  position: z.string().optional(),
-  department: z.string().optional(),
-  designation: z.string().optional(),
-  mobileNumber: z.string().min(10, "Mobile number is required"),
-  address: z.object({
-    street1: z.string().min(1, "Street address is required"),
-    street2: z.string().optional(),
-    city: z.string().min(1, "City is required"),
-    province: z.string().min(1, "Province is required"),
-    country: z.string().min(1, "Country is required"),
-    postalCode: z.string().min(1, "Postal code is required"),
-  }),
-  roles: z.array(z.string()).optional(),
+  firstName: z.string().min(2, "First name must be at least 2 characters"),
+  lastName: z.string().min(2, "Last name must be at least 2 characters"),
+  dateOfBirth: z.string().nullable(),
+  gender: z.string().nullable(),
+  idNumber: z.string().nullable(),
+  mobileNumber: z.string().nullable(),
+  designation: z.string().nullable(),
+  employeeId: z.string().nullable(),
+  emergencyContact: z.string().nullable(),
+  maritalStatus: z.string().nullable(),
+  address: z
+    .object({
+      street1: z.string(),
+    })
+    .nullable(),
+  roles: z.array(z.string()).min(1, "At least one role is required"),
 });
-
-export type StaffFormValues = z.infer<typeof staffFormSchema>;
