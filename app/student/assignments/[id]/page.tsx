@@ -52,8 +52,8 @@ export default function AssignmentTestPage({
   const [tabHiddenTime, setTabHiddenTime] = useState<number | null>(null);
   const [windowFocused, setWindowFocused] = useState(true);
   const [blurStartTime, setBlurStartTime] = useState<number | null>(null);
-  const TAB_HIDDEN_LIMIT = 10000; // 10 seconds in milliseconds
-  const BLUR_TIME_LIMIT = 10000; // 10 seconds in milliseconds
+  const TAB_HIDDEN_LIMIT = 10000;
+  const BLUR_TIME_LIMIT = 10000;
   let autoSubmitTimeout: NodeJS.Timeout;
 
   useEffect(() => {
@@ -61,7 +61,6 @@ export default function AssignmentTestPage({
     loadAssignment();
   }, []);
 
-  // Original tab visibility effect
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.hidden) {
@@ -97,7 +96,6 @@ export default function AssignmentTestPage({
     };
   }, [tabHiddenTime]);
 
-  // New window focus detection effect
   useEffect(() => {
     const handleWindowBlur = () => {
       setWindowFocused(false);
@@ -110,15 +108,11 @@ export default function AssignmentTestPage({
         variant: "destructive",
       });
 
-      // Set timeout for auto-submission
       autoSubmitTimeout = setTimeout(async () => {
         try {
-          // Force submit and redirect
           await handleSubmitTest();
-          // Additional force redirect
           window.location.href = "/student/assignments";
         } catch (error) {
-          // Ensure redirect happens even on error
           window.location.href = "/student/assignments";
         }
       }, BLUR_TIME_LIMIT);
@@ -130,7 +124,6 @@ export default function AssignmentTestPage({
       if (blurStartTime) {
         const timeAway = Date.now() - blurStartTime;
         if (timeAway < BLUR_TIME_LIMIT) {
-          // Clear the auto-submit timeout if they return in time
           clearTimeout(autoSubmitTimeout);
           toast({
             title: "Welcome Back",
@@ -139,43 +132,38 @@ export default function AssignmentTestPage({
           });
         }
       }
-
       setBlurStartTime(null);
     };
 
-    // Add event listeners for window focus/blur
     window.addEventListener("blur", handleWindowBlur);
     window.addEventListener("focus", handleWindowFocus);
 
-    // Cleanup
     return () => {
       window.removeEventListener("blur", handleWindowBlur);
       window.removeEventListener("focus", handleWindowFocus);
       clearTimeout(autoSubmitTimeout);
     };
   }, []);
+
   const handleBeforeUnload = (e: BeforeUnloadEvent) => {
     if (!assignment) return;
     e.preventDefault();
     e.returnValue = "";
   };
 
-  // Security measures effect
   useEffect(() => {
     const handleKeydown = (e: KeyboardEvent) => {
-      // Show warning for common keyboard shortcuts
       if (
         (e.ctrlKey || e.metaKey) &&
-        (e.key === "c" || // Copy
-          e.key === "v" || // Paste
-          e.key === "p" || // Print
-          e.key === "a" || // Select all
-          e.key === "f" || // Find
-          e.key === "s" || // Save
-          e.key === "u" || // View source
-          e.key === "o") // Open
+        (e.key === "c" ||
+          e.key === "v" ||
+          e.key === "p" ||
+          e.key === "a" ||
+          e.key === "f" ||
+          e.key === "s" ||
+          e.key === "u" ||
+          e.key === "o")
       ) {
-        // Remove preventDefault to allow the action
         toast({
           title: "Warning",
           description:
@@ -186,17 +174,14 @@ export default function AssignmentTestPage({
     };
 
     const handleContextMenu = (e: MouseEvent) => {
-      // Show warning instead of preventing right-click
       toast({
         title: "Warning",
         description: "Using right-click menu during a test is not recommended",
         variant: "warning",
       });
-      // Remove preventDefault to allow the context menu
     };
 
     const handleFocus = () => {
-      // Check if the active element is part of the test
       const activeElement = document.activeElement;
       if (
         activeElement &&
@@ -211,13 +196,11 @@ export default function AssignmentTestPage({
       }
     };
 
-    // Add event listeners
     document.addEventListener("keydown", handleKeydown);
     document.addEventListener("contextmenu", handleContextMenu);
     document.addEventListener("focus", handleFocus, true);
     window.addEventListener("beforeunload", handleBeforeUnload);
 
-    // Remove the user-select restriction
     document.body.style.userSelect = "text";
 
     return () => {
@@ -228,7 +211,6 @@ export default function AssignmentTestPage({
     };
   }, []);
 
-  // Timer effect
   useEffect(() => {
     if (timeRemaining <= 0) return;
 
@@ -250,9 +232,8 @@ export default function AssignmentTestPage({
       console.log("📚 Fetching assignment details...");
       const data = await getAssignmentById(params.id);
       setAssignment(data);
-      setTimeRemaining(data.duration * 60); // Convert minutes to seconds
+      setTimeRemaining(data.duration * 60);
 
-      // Initialize answers array
       const initialAnswers = data.questions.map((q) => ({
         questionId: q.id,
         answer: q.type === "matching" ? {} : "",
@@ -291,17 +272,14 @@ export default function AssignmentTestPage({
       console.log("📝 Submitting test answers...");
       await submitAssignment(assignment.id, answers);
 
-      // Remove all event listeners that might prevent navigation
       window.removeEventListener("beforeunload", handleBeforeUnload);
       window.onbeforeunload = null;
       clearTimeout(autoSubmitTimeout);
 
       console.log("✅ Test submitted successfully");
 
-      // Force immediate redirect
       const redirectToAssignments = () => {
         router.replace("/student/assignments");
-        // Fallback redirect
         setTimeout(() => {
           window.location.href = "/student/assignments";
         }, 100);
@@ -310,12 +288,12 @@ export default function AssignmentTestPage({
       redirectToAssignments();
     } catch (error) {
       console.error("❌ Failed to submit test:", error);
-      // Even on error, remove event listeners and redirect
       window.removeEventListener("beforeunload", handleBeforeUnload);
       window.onbeforeunload = null;
       router.replace("/student/assignments");
     }
   };
+
   const renderQuestion = (question: Question) => {
     const currentAnswer = answers.find(
       (a) => a.questionId === question.id
@@ -336,6 +314,11 @@ export default function AssignmentTestPage({
                     handleAnswerChange(question.id, e.target.value)
                   }
                   className="h-4 w-4"
+                  autoComplete="off"
+                  autoCapitalize="off"
+                  autoCorrect="off"
+                  spellCheck="false"
+                  data-lpignore="true"
                 />
                 <span>{option.value}</span>
               </label>
@@ -363,6 +346,11 @@ export default function AssignmentTestPage({
                     handleAnswerChange(question.id, newAnswer);
                   }}
                   className="border rounded p-1"
+                  autoComplete="off"
+                  autoCapitalize="off"
+                  autoCorrect="off"
+                  spellCheck="false"
+                  data-lpignore="true"
                 >
                   <option value="">Select answer</option>
                   {question.options.map((opt) => (
@@ -383,6 +371,11 @@ export default function AssignmentTestPage({
             onChange={(e) => handleAnswerChange(question.id, e.target.value)}
             className="w-full h-32 p-2 border rounded"
             placeholder="Enter your answer here..."
+            autoComplete="off"
+            autoCapitalize="off"
+            autoCorrect="off"
+            spellCheck="false"
+            data-lpignore="true"
           />
         );
     }
@@ -406,7 +399,6 @@ export default function AssignmentTestPage({
         className="container mx-auto py-6 space-y-6 test-content"
         tabIndex={-1}
       >
-        {/* Warning Card */}
         <Card className="bg-warning/10 border-warning">
           <CardContent className="py-4">
             <p className="text-sm text-warning font-medium">
@@ -416,7 +408,6 @@ export default function AssignmentTestPage({
           </CardContent>
         </Card>
 
-        {/* Timer Card */}
         <Card className="bg-primary/5">
           <CardContent className="py-4">
             <div className="flex justify-between items-center">
@@ -427,36 +418,52 @@ export default function AssignmentTestPage({
                   {(timeRemaining % 60).toString().padStart(2, "0")}
                 </p>
               </div>
-              <Button onClick={handleSubmitTest} variant="destructive">
+              <Button
+                onClick={handleSubmitTest}
+                variant="destructive"
+                type="button"
+              >
                 Submit Test
               </Button>
             </div>
           </CardContent>
         </Card>
 
-        {/* Questions */}
-        {assignment.questions.map((question, index) => (
-          <Card key={question.id}>
-            <CardHeader>
-              <CardTitle className="flex justify-between">
-                <span>Question {index + 1}</span>
-                <span className="text-sm text-muted-foreground">
-                  {question.mark} marks
-                </span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <p className="text-lg">{question.text}</p>
-              {renderQuestion(question)}
-            </CardContent>
-          </Card>
-        ))}
-        <div className="flex flex-col items-center justify-center min-h-screen">
-          <Button onClick={handleSubmitTest} variant="destructive">
-            Submit Test
-          </Button>
-          <h1 className="mt-4 text-lg font-bold">---END OF TEST---</h1>
-        </div>
+        <form
+          onSubmit={(e) => e.preventDefault()}
+          autoComplete="off"
+          spellCheck="false"
+          className="space-y-6"
+        >
+          {assignment.questions.map((question, index) => (
+            <Card key={question.id}>
+              <CardHeader>
+                <CardTitle className="flex justify-between">
+                  <span>Question {index + 1}</span>
+                  <span className="text-sm text-muted-foreground">
+                    {question.mark} marks
+                  </span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <p className="text-lg">{question.text}</p>
+                {renderQuestion(question)}
+              </CardContent>
+            </Card>
+          ))}
+
+          <div className="flex flex-col items-center justify-center py-8">
+            <Button
+              onClick={handleSubmitTest}
+              variant="destructive"
+              type="button"
+              className="mb-4"
+            >
+              Submit Test
+            </Button>
+            <h1 className="text-lg font-bold">---END OF TEST---</h1>
+          </div>
+        </form>
       </div>
     </ContentLayout>
   );
