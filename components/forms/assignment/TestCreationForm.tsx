@@ -69,13 +69,14 @@ interface TestCreationFormProps {
   outcomes: Array<{
     id: string;
     title: string;
+    type: string;
     hidden: boolean;
   }>;
 }
 
 interface Question {
-  questionText: string; // Changed from text
-  questionType: string; // Changed from type
+  questionText: string;
+  questionType: string;
   mark: string;
   correctAnswer: string;
   options: Array<{
@@ -98,7 +99,11 @@ interface FormValues {
   questions: Question[];
 }
 
-// Add this interface after your existing interfaces
+interface MarkSummary {
+  totalMarks: number;
+  questionCount: number;
+}
+
 interface AssignmentDataPayload {
   title: string;
   type: "test" | "task";
@@ -122,6 +127,7 @@ interface AssignmentDataPayload {
     }>;
   }[];
 }
+
 // Main Component
 const TestCreationForm: React.FC<TestCreationFormProps> = ({
   intakeGroups,
@@ -145,7 +151,7 @@ const TestCreationForm: React.FC<TestCreationFormProps> = ({
     },
   });
 
-  const { control, setValue, watch, handleSubmit, reset } = form;
+  const { control, setValue, watch, handleSubmit } = form;
 
   // Questions Array Management
   const {
@@ -166,10 +172,26 @@ const TestCreationForm: React.FC<TestCreationFormProps> = ({
     options: [],
   });
 
+  // Calculate marks summary
+  const calculateMarkSummary = (questions: Question[]): MarkSummary => {
+    return questions.reduce(
+      (acc, question) => ({
+        totalMarks: acc.totalMarks + parseInt(question.mark || "0", 10),
+        questionCount: acc.questionCount + 1,
+      }),
+      { totalMarks: 0, questionCount: 0 }
+    );
+  };
+
   // Watched Fields
   const selectedType = watch("type");
   const selectedIntakeGroups = watch("intakeGroups") || [];
   const selectedOutcomes = watch("outcomes") || [];
+
+  // Filter outcomes based on selected type
+  const filteredOutcomes = outcomes.filter(
+    (outcome) => !outcome.hidden && outcome.type === selectedType.toUpperCase()
+  );
 
   // Remove Selected Items Handler
   const removeSelected = (field: "intakeGroups" | "outcomes", id: string) => {
@@ -181,8 +203,6 @@ const TestCreationForm: React.FC<TestCreationFormProps> = ({
   };
 
   // Form Submission
-  // Update the onSubmit function
-  // In TestCreationForm.tsx, update the onSubmit function
   const onSubmit = async (data: FormValues) => {
     if (isSubmitting) return;
     setIsSubmitting(true);
@@ -199,7 +219,7 @@ const TestCreationForm: React.FC<TestCreationFormProps> = ({
         intakeGroups: data.intakeGroups || [],
         individualStudents: [],
         outcomes: data.outcomes || [],
-        lecturer: "", // Remove SYSTEM - will be handled by server action
+        lecturer: "",
         questions: data.questions.map((q) => ({
           text: q.questionText.trim(),
           type: q.questionType,
@@ -371,8 +391,6 @@ const TestCreationForm: React.FC<TestCreationFormProps> = ({
                         <CommandInput placeholder="Search intake groups..." />
                         <CommandEmpty>No intake group found.</CommandEmpty>
                         <ScrollArea className="h-[200px]">
-                          {" "}
-                          {/* Add ScrollArea here */}
                           <CommandGroup>
                             {intakeGroups.map((group) => (
                               <CommandItem
@@ -445,10 +463,9 @@ const TestCreationForm: React.FC<TestCreationFormProps> = ({
                       <Command>
                         <CommandInput placeholder="Search outcomes..." />
                         <CommandEmpty>No outcome found.</CommandEmpty>
-                        <CommandGroup>
-                          {outcomes
-                            .filter((outcome) => !outcome.hidden)
-                            .map((outcome) => (
+                        <ScrollArea className="h-[200px]">
+                          <CommandGroup>
+                            {filteredOutcomes.map((outcome) => (
                               <CommandItem
                                 key={outcome.id}
                                 onSelect={() => {
@@ -462,7 +479,8 @@ const TestCreationForm: React.FC<TestCreationFormProps> = ({
                                 {outcome.title}
                               </CommandItem>
                             ))}
-                        </CommandGroup>
+                          </CommandGroup>
+                        </ScrollArea>
                       </Command>
                     </PopoverContent>
                   </Popover>
@@ -521,6 +539,24 @@ const TestCreationForm: React.FC<TestCreationFormProps> = ({
             questionFields={questionFields}
             removeQuestion={removeQuestion}
           />
+
+          {/* Mark Summary */}
+          <div className="px-6 py-4 bg-muted/50 rounded-lg mx-6">
+            <div className="flex justify-between items-center">
+              <div className="space-y-1">
+                <h3 className="font-semibold">Assessment Summary</h3>
+                <div className="text-sm text-muted-foreground">
+                  {calculateMarkSummary(questionFields).questionCount} Questions
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium">Total Marks:</span>
+                <Badge variant="secondary" className="text-base px-3">
+                  {calculateMarkSummary(questionFields).totalMarks}
+                </Badge>
+              </div>
+            </div>
+          </div>
 
           {/* Submit Button */}
           <div className="flex justify-end px-5 py-5">
