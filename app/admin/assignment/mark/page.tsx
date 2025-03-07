@@ -291,7 +291,7 @@ export default function MarkAssignmentsPage() {
                     }
                   >
                     <Link href={`/admin/assignment/mark/group/${group.id}`}>
-                      View Assignments
+                      View Assessments
                     </Link>
                   </Button>
                 </TableCell>

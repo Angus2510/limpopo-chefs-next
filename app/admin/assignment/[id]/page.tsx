@@ -16,9 +16,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 import { notFound, useRouter } from "next/navigation";
-import { EditQuestionModal } from "@/components/modals/EditQuestionModal";
-import { updateQuestion } from "@/lib/actions/assignments/updateQuestion";
+import { EditAssignmentModal } from "@/components/modals/EditAssignmentModal";
+import { updateQuestionAnswer } from "@/lib/actions/assignments/updateQuestion";
 
+// Keep all existing interfaces
 interface PageProps {
   params: { id: string } | Promise<{ id: string }>;
 }
@@ -43,7 +44,7 @@ interface Question {
   text: string;
   type: string;
   mark: string;
-  correctAnswer?: any; // Added correctAnswer field
+  correctAnswer?: any;
   options: {
     id: string;
     value?: string;
@@ -72,10 +73,10 @@ export default function AssignmentViewPage({ params }: PageProps) {
   const [answers, setAnswers] = useState<Answer[]>([]);
   const [intakeGroups, setIntakeGroups] = useState<IntakeGroup[]>([]);
   const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
+  const [editingAnswer, setEditingAnswer] = useState<Answer | null>(null);
   const [intakeGroupMap, setIntakeGroupMap] = useState<Map<string, string>>(
     new Map()
   );
-  const [editingAnswer, setEditingAnswer] = useState<Answer | null>(null);
 
   useEffect(() => {
     loadData();
@@ -121,7 +122,6 @@ export default function AssignmentViewPage({ params }: PageProps) {
       setIntakeGroups(intakeGroupsData);
       setIntakeGroupMap(groupMap);
 
-      // Debug info
       if (assignmentData.questions && assignmentData.questions.length > 0) {
         const firstQuestion = assignmentData.questions[0];
         console.log(`Debug - First question type: ${firstQuestion.type}`);
@@ -144,61 +144,38 @@ export default function AssignmentViewPage({ params }: PageProps) {
     }
   };
 
-  const handleQuestionUpdate = async (updatedQuestion: Question) => {
+  const handleUpdate = async (data: any) => {
     try {
-      const result = await updateQuestion(updatedQuestion.id, {
-        text: updatedQuestion.text,
-        mark: updatedQuestion.mark,
-        correctAnswer: updatedQuestion.correctAnswer,
-        options: updatedQuestion.options,
-      });
+      console.log("🚀 Updating assignment data:", data);
+      const result = await updateQuestionAnswer(data);
 
       if (!result.success) {
         throw new Error(result.error);
       }
 
-      // Update local state
-      if (assignment) {
+      // Update both question and answer states
+      if (assignment && data.questionId) {
         const updatedQuestions = assignment.questions.map((q) =>
-          q.id === updatedQuestion.id ? updatedQuestion : q
+          q.id === data.questionId ? result.data.question : q
         );
         setAssignment({ ...assignment, questions: updatedQuestions });
       }
 
-      toast({ description: "Question updated successfully" });
-      setEditingQuestion(null);
-    } catch (error) {
-      toast({
-        variant: "destructive",
-        description: "Failed to update question",
-      });
-    }
-  };
-
-  const handleAnswerUpdate = async (updatedAnswer: Answer) => {
-    try {
-      // Add your answer update logic here
-      const result = await updateAnswer(updatedAnswer.id, {
-        scores: updatedAnswer.scores,
-        moderatedscores: updatedAnswer.moderatedscores,
-      });
-
-      if (!result.success) {
-        throw new Error(result.error);
+      if (data.answerId) {
+        const updatedAnswers = answers.map((a) =>
+          a.id === data.answerId ? result.data.answer : a
+        );
+        setAnswers(updatedAnswers);
       }
 
-      // Update local state
-      const updatedAnswers = answers.map((a) =>
-        a.id === updatedAnswer.id ? updatedAnswer : a
-      );
-      setAnswers(updatedAnswers);
-
-      toast({ description: "Answer updated successfully" });
+      toast({ description: "Changes saved successfully" });
+      setEditingQuestion(null);
       setEditingAnswer(null);
     } catch (error) {
+      console.error("❌ Update failed:", error);
       toast({
         variant: "destructive",
-        description: "Failed to update answer",
+        description: "Failed to save changes",
       });
     }
   };
@@ -217,14 +194,18 @@ export default function AssignmentViewPage({ params }: PageProps) {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setEditingQuestion(question)}
+            onClick={() => {
+              setEditingQuestion(question);
+              const relatedAnswer = questionAnswers[0];
+              setEditingAnswer(relatedAnswer || null);
+            }}
           >
-            Edit Question
+            Edit Question & Score
           </Button>
         </div>
         <p className="mb-4">{question.text}</p>
 
-        {/* Options Section */}
+        {/* Keep existing Options Section */}
         {question.options && question.options.length > 0 && (
           <div className="mb-4">
             <h4 className="font-semibold mb-2">Options:</h4>
@@ -245,7 +226,7 @@ export default function AssignmentViewPage({ params }: PageProps) {
           </div>
         )}
 
-        {/* Correct Answer Section */}
+        {/* Keep existing Correct Answer Section */}
         <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-md">
           <h4 className="font-semibold text-green-700 mb-2">Correct Answer:</h4>
           {question.correctAnswer ? (
@@ -277,7 +258,7 @@ export default function AssignmentViewPage({ params }: PageProps) {
           )}
         </div>
 
-        {/* Student Answers Section */}
+        {/* Keep existing Student Answers Section */}
         {questionAnswers.length > 0 && (
           <div className="mt-4">
             <h4 className="font-semibold mb-2">Student Answers:</h4>
@@ -288,18 +269,9 @@ export default function AssignmentViewPage({ params }: PageProps) {
                     <span className="text-sm">
                       Answered: {format(new Date(answer.answeredAt), "PPp")}
                     </span>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium">
-                        Score: {answer.scores ?? "Not marked"}
-                      </span>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setEditingAnswer(answer)}
-                      >
-                        Edit Score
-                      </Button>
-                    </div>
+                    <span className="text-sm font-medium">
+                      Score: {answer.scores ?? "Not marked"}
+                    </span>
                   </div>
                   <div className="mt-2">
                     {typeof answer.answer === "string" ? (
@@ -334,13 +306,14 @@ export default function AssignmentViewPage({ params }: PageProps) {
   return (
     <ContentLayout title={assignment.title}>
       <div className="container mx-auto py-6 space-y-6">
-        {/* Assignment Details Card */}
+        {/* Keep existing Assignment Details Card */}
         <Card>
           <CardHeader>
             <CardTitle>Assessment Details</CardTitle>
             <CardDescription>Overview and configuration</CardDescription>
           </CardHeader>
           <CardContent>
+            {/* Keep existing Basic Information and Access/Outcomes sections */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Basic Information */}
               <div className="space-y-4">
@@ -429,23 +402,17 @@ export default function AssignmentViewPage({ params }: PageProps) {
         </Card>
       </div>
 
-      {/* Edit Question Modal */}
+      {/* Combined Edit Modal */}
       {editingQuestion && (
-        <EditQuestionModal
+        <EditAssignmentModal
           isOpen={!!editingQuestion}
-          onClose={() => setEditingQuestion(null)}
+          onClose={() => {
+            setEditingQuestion(null);
+            setEditingAnswer(null);
+          }}
           question={editingQuestion}
-          onSave={handleQuestionUpdate}
-        />
-      )}
-
-      {/* Edit Answer Modal */}
-      {editingAnswer && (
-        <EditAnswerModal
-          isOpen={!!editingAnswer}
-          onClose={() => setEditingAnswer(null)}
           answer={editingAnswer}
-          onSave={handleAnswerUpdate}
+          onSave={handleUpdate}
         />
       )}
     </ContentLayout>

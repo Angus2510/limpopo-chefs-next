@@ -118,7 +118,7 @@ export default function AssignmentsList({ assignments }: AssignmentsListProps) {
                 <TableCell className="text-right space-x-2">
                   <Link href={`/admin/assignment/${assignment.id}`}>
                     <Button variant="outline" size="sm">
-                      View
+                      View/Edit
                     </Button>
                   </Link>
                   <Link href={`/admin/assignment/edit/${assignment.id}`}>
