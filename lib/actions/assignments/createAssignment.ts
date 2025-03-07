@@ -120,7 +120,7 @@ export async function createAssignment(data: AssignmentDataPayload) {
         outcome: data.outcomes,
         lecturer: decoded.id,
         questions: questions.map((q) => q.id),
-        password: Math.random().toString(36).slice(-8).toUpperCase(),
+        password: Math.floor(1000 + Math.random() * 9000).toString(),
         createdAt: new Date(),
         updatedAt: new Date(),
         v: 0,
