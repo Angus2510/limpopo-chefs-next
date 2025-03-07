@@ -30,12 +30,14 @@ interface LearningMaterialFormValues {
 interface UploadDialogProps {
   isOpen: boolean;
   onClose: () => void;
+  onSuccess: () => void;
   intakeGroups: { id: string; title: string }[];
 }
 
 export function UploadDialog({
   isOpen,
   onClose,
+  onSuccess,
   intakeGroups,
 }: UploadDialogProps) {
   const form = useForm<LearningMaterialFormValues>({
@@ -78,6 +80,7 @@ export function UploadDialog({
       setIsLoading(false);
       form.reset();
       setSelectedIntakeGroups([]);
+      onSuccess();
       onClose();
     } catch (error) {
       console.error("Failed to upload learning material:", error);

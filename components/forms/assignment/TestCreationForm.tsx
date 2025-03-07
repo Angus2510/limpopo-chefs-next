@@ -42,6 +42,7 @@ import TestDetails from "./TestDetails";
 import AddQuestion from "./AddQuestion";
 import QuestionsList from "./QuestionsList";
 import DatePicker from "@/components/common/DatePicker";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 // Constants
 const ASSIGNMENT_TYPES = {
@@ -369,22 +370,26 @@ const TestCreationForm: React.FC<TestCreationFormProps> = ({
                       <Command>
                         <CommandInput placeholder="Search intake groups..." />
                         <CommandEmpty>No intake group found.</CommandEmpty>
-                        <CommandGroup>
-                          {intakeGroups.map((group) => (
-                            <CommandItem
-                              key={group.id}
-                              onSelect={() => {
-                                const current = field.value || [];
-                                const updated = current.includes(group.id)
-                                  ? current.filter((id) => id !== group.id)
-                                  : [...current, group.id];
-                                setValue("intakeGroups", updated);
-                              }}
-                            >
-                              {group.title}
-                            </CommandItem>
-                          ))}
-                        </CommandGroup>
+                        <ScrollArea className="h-[200px]">
+                          {" "}
+                          {/* Add ScrollArea here */}
+                          <CommandGroup>
+                            {intakeGroups.map((group) => (
+                              <CommandItem
+                                key={group.id}
+                                onSelect={() => {
+                                  const current = field.value || [];
+                                  const updated = current.includes(group.id)
+                                    ? current.filter((id) => id !== group.id)
+                                    : [...current, group.id];
+                                  setValue("intakeGroups", updated);
+                                }}
+                              >
+                                {group.title}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </ScrollArea>
                       </Command>
                     </PopoverContent>
                   </Popover>
@@ -496,7 +501,6 @@ const TestCreationForm: React.FC<TestCreationFormProps> = ({
                   <DatePicker
                     control={control}
                     name="testDateTime"
-                    label="Test Date and Time"
                     showTime={true}
                   />
                   <FormMessage />

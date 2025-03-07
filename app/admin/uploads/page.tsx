@@ -36,7 +36,7 @@ export default async function Uploads({ searchParams }: IndexPageProps) {
   const intakeGroups = await getAllIntakeGroups();
 
   return (
-    <ContentLayout title="Staff">
+    <ContentLayout title="Upload Learning Material">
       <Card className="rounded-lg border-none">
         <CardContent className="p-6">
           <div className="flex justify-between items-center">
