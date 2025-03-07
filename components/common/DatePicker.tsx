@@ -33,7 +33,6 @@ const DatePicker = <T extends FieldValues>({
       name={name}
       render={({ field }) => (
         <FormItem className={className}>
-          {label && <FormLabel>{label}</FormLabel>}
           <FormControl>
             <Input
               type="date"
