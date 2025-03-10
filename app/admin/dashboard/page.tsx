@@ -1,4 +1,3 @@
-// Remove "use client" - make this a server component
 import { ContentLayout } from "@/components/layout/content-layout";
 import CalendarDemo from "@/components/features/calendar-demo";
 import { getAllIntakeGroups } from "@/lib/actions/intakegroup/intakeGroups";
@@ -18,7 +17,7 @@ export default async function DashboardPage() {
     <ContentLayout title="Dashboard">
       <CalendarDemo
         intakeGroups={intakeGroups || []}
-        outcomes={outcomes?.filter((o) => !o.hidden) || []}
+        outcomes={outcomes || []} // Still pass outcomes to avoid type errors, but won't be used
       />
     </ContentLayout>
   );

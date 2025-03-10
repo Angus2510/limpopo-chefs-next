@@ -63,11 +63,12 @@ import {
   deleteEvent,
 } from "@/lib/actions/events/getEvents";
 
+// Interfaces
 interface CalendarDemoProps {
   intakeGroups: {
     id: string;
     title: string;
-    outcome: string[];
+    outcome?: string[];
   }[];
   outcomes: {
     id: string;
@@ -81,17 +82,18 @@ interface Event {
   id: string;
   title: string;
   details: string;
-  startDate: string;
-  endDate?: string;
+  startDate: Date;
+  endDate?: Date | null;
   color: string;
   location: string[];
   assignedTo: string[];
   assignedToModel: string[];
-  outcome: string;
   createdBy: string;
   v: number;
+  allDay: boolean;
 }
 
+// Constants
 const eventTypes = {
   practical: "bg-red-100 text-red-800 border-red-300",
   theory: "bg-blue-100 text-blue-800 border-blue-300",
@@ -99,6 +101,7 @@ const eventTypes = {
   other: "bg-gray-100 text-gray-800 border-gray-300",
 };
 
+// DayCell Component
 function DayCell({
   date,
   events,
@@ -112,9 +115,13 @@ function DayCell({
   isCurrentMonth: boolean;
   onEventClick: (event: Event) => void;
 }) {
-  const dayEvents = events.filter((event) =>
-    isSameDay(parseISO(event.startDate), date)
-  );
+  const dayEvents = events.filter((event) => {
+    const eventDate =
+      typeof event.startDate === "string"
+        ? parseISO(event.startDate)
+        : new Date(event.startDate);
+    return isSameDay(eventDate, date);
+  });
 
   return (
     <div
@@ -154,11 +161,12 @@ function DayCell({
     </div>
   );
 }
-
+// Main Calendar Component
 export default function CalendarDemo({
   intakeGroups,
   outcomes,
 }: CalendarDemoProps) {
+  // States
   const [currentDate, setCurrentDate] = React.useState<Date>(new Date());
   const [events, setEvents] = React.useState<Event[]>([]);
   const [selectedDate, setSelectedDate] = React.useState<Date | null>(null);
@@ -167,36 +175,22 @@ export default function CalendarDemo({
   const [modalMode, setModalMode] = React.useState<
     "create" | "edit" | "delete"
   >("create");
-  const [selectedGroupOutcomes, setSelectedGroupOutcomes] = React.useState<
-    string[]
-  >([]);
   const [loading, setLoading] = React.useState(true);
-  const [openPopover, setOpenPopover] = React.useState<
-    "group" | "outcome" | null
-  >(null);
+  const [isLoading, setIsLoading] = React.useState(false);
+  const [openPopover, setOpenPopover] = React.useState<"group" | null>(null);
   const [newEvent, setNewEvent] = React.useState({
     title: "",
     details: "",
     color: "other",
-    intakeGroups: [] as string[], // Changed to array for multi-select
-    outcomes: [] as string[], // Changed to array for multi-select
+    intakeGroups: [] as string[],
   });
 
-  // Log props on component mount for debugging
-  React.useEffect(() => {
-    console.log("Calendar Props:", {
-      intakeGroups: intakeGroups?.length,
-      outcomes: outcomes?.length,
-      sampleGroup: intakeGroups?.[0],
-    });
-  }, [intakeGroups, outcomes]);
-
+  // Effects
   React.useEffect(() => {
     const fetchEvents = async () => {
       try {
         setLoading(true);
         const eventsData = await getEvents();
-        console.log("Fetched events:", eventsData);
         if (Array.isArray(eventsData)) {
           setEvents(eventsData);
         }
@@ -210,96 +204,55 @@ export default function CalendarDemo({
     fetchEvents();
   }, []);
 
+  // Event Handlers
   const handleIntakeGroupChange = (groupId: string) => {
-    console.log("Selected group:", groupId);
-
-    // Toggle the group selection
     setNewEvent((prev) => {
       const isSelected = prev.intakeGroups.includes(groupId);
       const updatedGroups = isSelected
         ? prev.intakeGroups.filter((id) => id !== groupId)
         : [...prev.intakeGroups, groupId];
 
-      // Update available outcomes based on all selected groups
-      let availableOutcomes: string[] = [];
-      updatedGroups.forEach((gId) => {
-        const group = intakeGroups.find((g) => g.id === gId);
-        if (group?.outcome) {
-          availableOutcomes = [...availableOutcomes, ...group.outcome];
-        }
-      });
-
-      console.log("Available outcomes:", availableOutcomes);
-      setSelectedGroupOutcomes(availableOutcomes);
-
-      // Remove outcomes that are no longer available
-      const validOutcomes = prev.outcomes.filter((o) =>
-        availableOutcomes.includes(o)
-      );
-
       return {
         ...prev,
         intakeGroups: updatedGroups,
-        outcomes: validOutcomes,
       };
     });
 
-    setOpenPopover(null);
-  };
-
-  const handleOutcomeChange = (outcomeId: string) => {
-    setNewEvent((prev) => {
-      const isSelected = prev.outcomes.includes(outcomeId);
-      return {
-        ...prev,
-        outcomes: isSelected
-          ? prev.outcomes.filter((id) => id !== outcomeId)
-          : [...prev.outcomes, outcomeId],
-      };
-    });
     setOpenPopover(null);
   };
 
   const handleEventAction = async () => {
-    if (modalMode === "delete" && selectedEvent) {
-      try {
-        await deleteEvent(selectedEvent.id);
-        setEvents(events.filter((e) => e.id !== selectedEvent.id));
-        setIsModalOpen(false);
-        setSelectedEvent(null);
-      } catch (error) {
-        console.error("Failed to delete event:", error);
-      }
-      return;
-    }
-
     if (
       !selectedDate ||
       newEvent.intakeGroups.length === 0 ||
       !newEvent.title
     ) {
-      console.error("Required fields missing:", {
-        date: selectedDate,
-        groups: newEvent.intakeGroups,
-        title: newEvent.title,
-      });
+      console.error("Required fields missing");
       return;
     }
 
+    setIsLoading(true);
     try {
+      if (modalMode === "delete" && selectedEvent) {
+        const result = await deleteEvent(selectedEvent.id);
+        if (result.success) {
+          setEvents(events.filter((e) => e.id !== selectedEvent.id));
+          setIsModalOpen(false);
+          setSelectedEvent(null);
+        }
+        return;
+      }
+
       const eventData = {
         title: newEvent.title,
-        details: newEvent.details,
+        details: newEvent.details || "",
         startDate: selectedDate,
-        color: newEvent.color,
+        color: newEvent.color || "other",
         location: [],
         assignedTo: [],
         assignedToModel: newEvent.intakeGroups,
-        outcomes: newEvent.outcomes,
-        createdBy: "system",
+        createdBy: "000000000000000000000000",
       };
-
-      console.log("Submitting event data:", eventData);
 
       if (modalMode === "edit" && selectedEvent) {
         const updatedEvent = await updateEvent(selectedEvent.id, eventData);
@@ -316,12 +269,13 @@ export default function CalendarDemo({
         details: "",
         color: "other",
         intakeGroups: [],
-        outcomes: [],
       });
       setIsModalOpen(false);
       setSelectedEvent(null);
     } catch (error) {
       console.error("Failed to handle event:", error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -332,22 +286,12 @@ export default function CalendarDemo({
       details: event.details,
       color: event.color,
       intakeGroups: event.assignedToModel || [],
-      outcomes: [event.outcome].filter(Boolean),
     });
     setModalMode("edit");
     setIsModalOpen(true);
-
-    // Update available outcomes based on selected groups
-    let availableOutcomes: string[] = [];
-    event.assignedToModel.forEach((groupId) => {
-      const group = intakeGroups.find((g) => g.id === groupId);
-      if (group?.outcome) {
-        availableOutcomes = [...availableOutcomes, ...group.outcome];
-      }
-    });
-    setSelectedGroupOutcomes(availableOutcomes);
   };
 
+  // Calendar calculations
   const monthStart = startOfMonth(currentDate);
   const monthEnd = endOfMonth(currentDate);
   const calendarStart = startOfWeek(monthStart);
@@ -367,6 +311,7 @@ export default function CalendarDemo({
 
   return (
     <div className="h-screen flex flex-col p-4">
+      {/* Calendar Header */}
       <div className="flex justify-between items-center mb-4">
         <div className="flex gap-2">
           {Object.entries(eventTypes).map(([type, className]) => (
@@ -397,6 +342,7 @@ export default function CalendarDemo({
         </div>
       </div>
 
+      {/* Calendar Grid */}
       <div className="flex-1 grid grid-cols-7 grid-rows-[auto_1fr] gap-px bg-gray-200 border border-gray-200">
         {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
           <div key={day} className="bg-gray-50 p-2 text-center font-semibold">
@@ -413,6 +359,12 @@ export default function CalendarDemo({
             onClick={() => {
               setSelectedDate(date);
               setModalMode("create");
+              setNewEvent({
+                title: "",
+                details: "",
+                color: "other",
+                intakeGroups: [],
+              });
               setIsModalOpen(true);
             }}
             onEventClick={handleEventClick}
@@ -420,6 +372,7 @@ export default function CalendarDemo({
         ))}
       </div>
 
+      {/* Event Dialog */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
@@ -430,6 +383,7 @@ export default function CalendarDemo({
           </DialogHeader>
 
           <div className="grid gap-4 py-4">
+            {/* Event Title */}
             <div className="grid gap-2">
               <Label htmlFor="title">Event Title</Label>
               <Input
@@ -440,6 +394,8 @@ export default function CalendarDemo({
                 }
               />
             </div>
+
+            {/* Event Details */}
             <div className="grid gap-2">
               <Label htmlFor="details">Details</Label>
               <Textarea
@@ -450,6 +406,8 @@ export default function CalendarDemo({
                 }
               />
             </div>
+
+            {/* Intake Groups */}
             <div className="grid gap-2">
               <Label>Intake Groups</Label>
               <Popover
@@ -472,7 +430,7 @@ export default function CalendarDemo({
                   <Command>
                     <CommandInput placeholder="Search intake groups..." />
                     <CommandEmpty>No intake group found.</CommandEmpty>
-                    <ScrollArea className="h-[200px]">
+                    <ScrollArea className="h-[200px] overflow-y-auto">
                       <CommandGroup>
                         {intakeGroups.map((group) => (
                           <CommandItem
@@ -496,7 +454,7 @@ export default function CalendarDemo({
                 </PopoverContent>
               </Popover>
 
-              {/* Display selected intake groups as badges */}
+              {/* Selected Groups Badges */}
               <div className="flex flex-wrap gap-1 mt-1">
                 {newEvent.intakeGroups.map((groupId) => {
                   const group = intakeGroups.find((g) => g.id === groupId);
@@ -514,77 +472,7 @@ export default function CalendarDemo({
               </div>
             </div>
 
-            <div className="grid gap-2">
-              <Label>Outcomes</Label>
-              <Popover
-                open={openPopover === "outcome"}
-                onOpenChange={(open) => setOpenPopover(open ? "outcome" : null)}
-              >
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    role="combobox"
-                    className="w-full justify-between"
-                    disabled={newEvent.intakeGroups.length === 0}
-                  >
-                    {newEvent.outcomes.length > 0
-                      ? `${newEvent.outcomes.length} outcomes selected`
-                      : "Select outcomes"}
-                    <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-full p-0">
-                  <Command>
-                    <CommandInput placeholder="Search outcomes..." />
-                    <CommandEmpty>No outcome found.</CommandEmpty>
-                    <ScrollArea className="h-[200px]">
-                      <CommandGroup>
-                        {outcomes
-                          .filter(
-                            (outcome) =>
-                              selectedGroupOutcomes.includes(outcome.id) &&
-                              !outcome.hidden
-                          )
-                          .map((outcome) => (
-                            <CommandItem
-                              key={outcome.id}
-                              onSelect={() => handleOutcomeChange(outcome.id)}
-                            >
-                              <Check
-                                className={cn(
-                                  "mr-2 h-4 w-4",
-                                  newEvent.outcomes.includes(outcome.id)
-                                    ? "opacity-100"
-                                    : "opacity-0"
-                                )}
-                              />
-                              {outcome.title}
-                            </CommandItem>
-                          ))}
-                      </CommandGroup>
-                    </ScrollArea>
-                  </Command>
-                </PopoverContent>
-              </Popover>
-
-              {/* Display selected outcomes as badges */}
-              <div className="flex flex-wrap gap-1 mt-1">
-                {newEvent.outcomes.map((outcomeId) => {
-                  const outcome = outcomes.find((o) => o.id === outcomeId);
-                  return outcome ? (
-                    <Badge
-                      key={outcomeId}
-                      variant="secondary"
-                      className="cursor-pointer"
-                      onClick={() => handleOutcomeChange(outcomeId)}
-                    >
-                      {outcome.title} <X className="ml-1 h-3 w-3" />
-                    </Badge>
-                  ) : null;
-                })}
-              </div>
-            </div>
-
+            {/* Event Type */}
             <div className="grid gap-2">
               <Label>Event Type</Label>
               <Select
@@ -615,12 +503,19 @@ export default function CalendarDemo({
                   setModalMode("delete");
                   handleEventAction();
                 }}
+                disabled={isLoading}
               >
-                Delete Event
+                {isLoading ? "Deleting..." : "Delete Event"}
               </Button>
             )}
-            <Button onClick={handleEventAction}>
-              {modalMode === "create" ? "Create Event" : "Update Event"}
+            <Button onClick={handleEventAction} disabled={isLoading}>
+              {isLoading
+                ? modalMode === "create"
+                  ? "Creating..."
+                  : "Updating..."
+                : modalMode === "create"
+                ? "Create Event"
+                : "Update Event"}
             </Button>
           </DialogFooter>
         </DialogContent>
