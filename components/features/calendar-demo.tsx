@@ -8,6 +8,7 @@ import {
   Search,
   Trash2,
   Edit,
+  X,
 } from "lucide-react";
 import {
   addDays,
@@ -55,8 +56,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import { getAllIntakeGroups } from "@/lib/actions/intakegroup/intakeGroups";
-import { getAllOutcomes } from "@/lib/actions/outcome/outcomeQuery";
 import {
   getEvents,
   createEvent,
@@ -65,8 +64,17 @@ import {
 } from "@/lib/actions/events/getEvents";
 
 interface CalendarDemoProps {
-  intakeGroups: IntakeGroup[];
-  outcomes: Outcome[];
+  intakeGroups: {
+    id: string;
+    title: string;
+    outcome: string[];
+  }[];
+  outcomes: {
+    id: string;
+    title: string;
+    type: string;
+    hidden: boolean;
+  }[];
 }
 
 interface Event {
@@ -82,19 +90,6 @@ interface Event {
   outcome: string;
   createdBy: string;
   v: number;
-}
-
-interface IntakeGroup {
-  id: string;
-  title: string;
-  outcome: string[];
-}
-
-interface Outcome {
-  id: string;
-  title: string;
-  type: string;
-  hidden: boolean;
 }
 
 const eventTypes = {
@@ -183,20 +178,28 @@ export default function CalendarDemo({
     title: "",
     details: "",
     color: "other",
-    intakeGroup: "",
-    outcome: "",
+    intakeGroups: [] as string[], // Changed to array for multi-select
+    outcomes: [] as string[], // Changed to array for multi-select
   });
+
+  // Log props on component mount for debugging
+  React.useEffect(() => {
+    console.log("Calendar Props:", {
+      intakeGroups: intakeGroups?.length,
+      outcomes: outcomes?.length,
+      sampleGroup: intakeGroups?.[0],
+    });
+  }, [intakeGroups, outcomes]);
 
   React.useEffect(() => {
     const fetchEvents = async () => {
       try {
         setLoading(true);
-        const response = await fetch("/api/events");
-        if (!response.ok) throw new Error("Failed to fetch events");
-        const eventsData = await response.json();
-
-        console.log("Fetched events:", eventsData); // For debugging
-        setEvents(eventsData);
+        const eventsData = await getEvents();
+        console.log("Fetched events:", eventsData);
+        if (Array.isArray(eventsData)) {
+          setEvents(eventsData);
+        }
       } catch (error) {
         console.error("Failed to fetch events:", error);
       } finally {
@@ -208,20 +211,52 @@ export default function CalendarDemo({
   }, []);
 
   const handleIntakeGroupChange = (groupId: string) => {
-    const selectedGroup = intakeGroups.find((g) => g.id === groupId);
+    console.log("Selected group:", groupId);
 
-    setNewEvent((prev) => ({
-      ...prev,
-      intakeGroup: groupId,
-      outcome: "", // Reset outcome when group changes
-    }));
+    // Toggle the group selection
+    setNewEvent((prev) => {
+      const isSelected = prev.intakeGroups.includes(groupId);
+      const updatedGroups = isSelected
+        ? prev.intakeGroups.filter((id) => id !== groupId)
+        : [...prev.intakeGroups, groupId];
 
-    if (selectedGroup?.outcome) {
-      setSelectedGroupOutcomes(selectedGroup.outcome);
-    } else {
-      setSelectedGroupOutcomes([]);
-    }
+      // Update available outcomes based on all selected groups
+      let availableOutcomes: string[] = [];
+      updatedGroups.forEach((gId) => {
+        const group = intakeGroups.find((g) => g.id === gId);
+        if (group?.outcome) {
+          availableOutcomes = [...availableOutcomes, ...group.outcome];
+        }
+      });
 
+      console.log("Available outcomes:", availableOutcomes);
+      setSelectedGroupOutcomes(availableOutcomes);
+
+      // Remove outcomes that are no longer available
+      const validOutcomes = prev.outcomes.filter((o) =>
+        availableOutcomes.includes(o)
+      );
+
+      return {
+        ...prev,
+        intakeGroups: updatedGroups,
+        outcomes: validOutcomes,
+      };
+    });
+
+    setOpenPopover(null);
+  };
+
+  const handleOutcomeChange = (outcomeId: string) => {
+    setNewEvent((prev) => {
+      const isSelected = prev.outcomes.includes(outcomeId);
+      return {
+        ...prev,
+        outcomes: isSelected
+          ? prev.outcomes.filter((id) => id !== outcomeId)
+          : [...prev.outcomes, outcomeId],
+      };
+    });
     setOpenPopover(null);
   };
 
@@ -238,7 +273,18 @@ export default function CalendarDemo({
       return;
     }
 
-    if (!selectedDate || !newEvent.intakeGroup || !newEvent.title) return;
+    if (
+      !selectedDate ||
+      newEvent.intakeGroups.length === 0 ||
+      !newEvent.title
+    ) {
+      console.error("Required fields missing:", {
+        date: selectedDate,
+        groups: newEvent.intakeGroups,
+        title: newEvent.title,
+      });
+      return;
+    }
 
     try {
       const eventData = {
@@ -248,10 +294,12 @@ export default function CalendarDemo({
         color: newEvent.color,
         location: [],
         assignedTo: [],
-        assignedToModel: [newEvent.intakeGroup],
-        outcome: newEvent.outcome,
-        createdBy: "system", // Replace with actual user ID later
+        assignedToModel: newEvent.intakeGroups,
+        outcomes: newEvent.outcomes,
+        createdBy: "system",
       };
+
+      console.log("Submitting event data:", eventData);
 
       if (modalMode === "edit" && selectedEvent) {
         const updatedEvent = await updateEvent(selectedEvent.id, eventData);
@@ -267,8 +315,8 @@ export default function CalendarDemo({
         title: "",
         details: "",
         color: "other",
-        intakeGroup: "",
-        outcome: "",
+        intakeGroups: [],
+        outcomes: [],
       });
       setIsModalOpen(false);
       setSelectedEvent(null);
@@ -283,11 +331,21 @@ export default function CalendarDemo({
       title: event.title,
       details: event.details,
       color: event.color,
-      intakeGroup: event.assignedToModel[0],
-      outcome: event.outcome,
+      intakeGroups: event.assignedToModel || [],
+      outcomes: [event.outcome].filter(Boolean),
     });
     setModalMode("edit");
     setIsModalOpen(true);
+
+    // Update available outcomes based on selected groups
+    let availableOutcomes: string[] = [];
+    event.assignedToModel.forEach((groupId) => {
+      const group = intakeGroups.find((g) => g.id === groupId);
+      if (group?.outcome) {
+        availableOutcomes = [...availableOutcomes, ...group.outcome];
+      }
+    });
+    setSelectedGroupOutcomes(availableOutcomes);
   };
 
   const monthStart = startOfMonth(currentDate);
@@ -382,7 +440,6 @@ export default function CalendarDemo({
                 }
               />
             </div>
-
             <div className="grid gap-2">
               <Label htmlFor="details">Details</Label>
               <Textarea
@@ -393,9 +450,8 @@ export default function CalendarDemo({
                 }
               />
             </div>
-
             <div className="grid gap-2">
-              <Label>Intake Group</Label>
+              <Label>Intake Groups</Label>
               <Popover
                 open={openPopover === "group"}
                 onOpenChange={(open) => setOpenPopover(open ? "group" : null)}
@@ -406,11 +462,9 @@ export default function CalendarDemo({
                     role="combobox"
                     className="w-full justify-between"
                   >
-                    {newEvent.intakeGroup
-                      ? intakeGroups.find(
-                          (group) => group.id === newEvent.intakeGroup
-                        )?.title
-                      : "Select intake group"}
+                    {newEvent.intakeGroups.length > 0
+                      ? `${newEvent.intakeGroups.length} groups selected`
+                      : "Select intake groups"}
                     <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                   </Button>
                 </PopoverTrigger>
@@ -428,7 +482,7 @@ export default function CalendarDemo({
                             <Check
                               className={cn(
                                 "mr-2 h-4 w-4",
-                                newEvent.intakeGroup === group.id
+                                newEvent.intakeGroups.includes(group.id)
                                   ? "opacity-100"
                                   : "opacity-0"
                               )}
@@ -441,10 +495,27 @@ export default function CalendarDemo({
                   </Command>
                 </PopoverContent>
               </Popover>
+
+              {/* Display selected intake groups as badges */}
+              <div className="flex flex-wrap gap-1 mt-1">
+                {newEvent.intakeGroups.map((groupId) => {
+                  const group = intakeGroups.find((g) => g.id === groupId);
+                  return group ? (
+                    <Badge
+                      key={groupId}
+                      variant="secondary"
+                      className="cursor-pointer"
+                      onClick={() => handleIntakeGroupChange(groupId)}
+                    >
+                      {group.title} <X className="ml-1 h-3 w-3" />
+                    </Badge>
+                  ) : null;
+                })}
+              </div>
             </div>
 
             <div className="grid gap-2">
-              <Label>Outcome</Label>
+              <Label>Outcomes</Label>
               <Popover
                 open={openPopover === "outcome"}
                 onOpenChange={(open) => setOpenPopover(open ? "outcome" : null)}
@@ -454,11 +525,11 @@ export default function CalendarDemo({
                     variant="outline"
                     role="combobox"
                     className="w-full justify-between"
-                    disabled={!newEvent.intakeGroup}
+                    disabled={newEvent.intakeGroups.length === 0}
                   >
-                    {newEvent.outcome
-                      ? outcomes.find((o) => o.id === newEvent.outcome)?.title
-                      : "Select outcome"}
+                    {newEvent.outcomes.length > 0
+                      ? `${newEvent.outcomes.length} outcomes selected`
+                      : "Select outcomes"}
                     <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                   </Button>
                 </PopoverTrigger>
@@ -477,18 +548,12 @@ export default function CalendarDemo({
                           .map((outcome) => (
                             <CommandItem
                               key={outcome.id}
-                              onSelect={() => {
-                                setNewEvent((prev) => ({
-                                  ...prev,
-                                  outcome: outcome.id,
-                                }));
-                                setOpenPopover(null);
-                              }}
+                              onSelect={() => handleOutcomeChange(outcome.id)}
                             >
                               <Check
                                 className={cn(
                                   "mr-2 h-4 w-4",
-                                  newEvent.outcome === outcome.id
+                                  newEvent.outcomes.includes(outcome.id)
                                     ? "opacity-100"
                                     : "opacity-0"
                                 )}
@@ -501,6 +566,23 @@ export default function CalendarDemo({
                   </Command>
                 </PopoverContent>
               </Popover>
+
+              {/* Display selected outcomes as badges */}
+              <div className="flex flex-wrap gap-1 mt-1">
+                {newEvent.outcomes.map((outcomeId) => {
+                  const outcome = outcomes.find((o) => o.id === outcomeId);
+                  return outcome ? (
+                    <Badge
+                      key={outcomeId}
+                      variant="secondary"
+                      className="cursor-pointer"
+                      onClick={() => handleOutcomeChange(outcomeId)}
+                    >
+                      {outcome.title} <X className="ml-1 h-3 w-3" />
+                    </Badge>
+                  ) : null;
+                })}
+              </div>
             </div>
 
             <div className="grid gap-2">
