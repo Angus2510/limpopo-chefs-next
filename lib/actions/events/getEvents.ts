@@ -16,20 +16,65 @@ interface EventData {
 
 export async function getEvents() {
   try {
+    console.log("Fetching events...");
+
+    // Add error handling for prisma connection
+    if (!prisma) {
+      console.error("Prisma client is not initialized");
+      return [];
+    }
+
     const events = await prisma.events.findMany({
       orderBy: {
         startDate: "asc",
       },
+      // Add select to explicitly define what we want to fetch
+      select: {
+        id: true,
+        title: true,
+        details: true,
+        startDate: true,
+        endDate: true,
+        color: true,
+        location: true,
+        assignedTo: true,
+        assignedToModel: true,
+        createdBy: true,
+        v: true,
+        allDay: true,
+      },
     });
-    return events;
+
+    console.log(`Successfully fetched ${events.length} events`);
+
+    // Transform dates to ensure they're properly serialized
+    const serializedEvents = events.map((event) => ({
+      ...event,
+      startDate: event.startDate.toISOString(),
+      endDate: event.endDate ? event.endDate.toISOString() : null,
+    }));
+
+    return serializedEvents;
   } catch (error) {
-    console.error("Failed to fetch events");
+    // More detailed error logging
+    console.error("Failed to fetch events:", error);
+    if (error instanceof Error) {
+      console.error("Error details:", error.message);
+      console.error("Error stack:", error.stack);
+    }
     return [];
   }
 }
 
 export async function createEvent(data: EventData) {
   try {
+    console.log("Creating event with data:", {
+      title: data.title,
+      startDate: data.startDate,
+      color: data.color,
+      assignedToModelCount: data.assignedToModel?.length,
+    });
+
     const event = await prisma.events.create({
       data: {
         title: data.title,
@@ -45,43 +90,13 @@ export async function createEvent(data: EventData) {
         allDay: false,
       },
     });
+
+    console.log("Event created successfully:", event.id);
     return event;
   } catch (error) {
-    console.error("Failed to create event");
+    console.error("Failed to create event:", error);
     throw new Error("Failed to create event");
   }
 }
 
-export async function updateEvent(id: string, data: Partial<EventData>) {
-  try {
-    const event = await prisma.events.update({
-      where: { id },
-      data: {
-        ...(data.title && { title: data.title }),
-        ...(data.details && { details: data.details }),
-        ...(data.startDate && { startDate: new Date(data.startDate) }),
-        ...(data.endDate && { endDate: new Date(data.endDate) }),
-        ...(data.color && { color: data.color }),
-        ...(data.location && { location: data.location }),
-        ...(data.assignedTo && { assignedTo: data.assignedTo }),
-        ...(data.assignedToModel && { assignedToModel: data.assignedToModel }),
-      },
-    });
-    return event;
-  } catch (error) {
-    console.error("Failed to update event");
-    throw new Error("Failed to update event");
-  }
-}
-
-export async function deleteEvent(id: string) {
-  try {
-    await prisma.events.delete({
-      where: { id },
-    });
-    return { success: true, id };
-  } catch (error) {
-    console.error("Failed to delete event");
-    throw new Error("Failed to delete event");
-  }
-}
+// Update the calendar component to handle the serialized dates:
