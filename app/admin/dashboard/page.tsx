@@ -4,16 +4,49 @@ import { useEffect, useState } from "react";
 import { ContentLayout } from "@/components/layout/content-layout";
 import { useRouter } from "next/navigation";
 import useAuthStore from "@/store/authStore";
-
 import CalendarDemo from "@/components/features/calendar-demo";
+import { getAllIntakeGroups } from "@/lib/actions/intakegroup/intakeGroups";
+import { getAllOutcomes } from "@/lib/actions/outcome/outcomeQuery";
+
+interface IntakeGroup {
+  id: string;
+  title: string;
+  outcome: string[];
+}
+
+interface Outcome {
+  id: string;
+  title: string;
+  type: string;
+  hidden: boolean;
+}
 
 export default function ProtectedAdminDashboard() {
   const router = useRouter();
   const { user, isAuthenticated, getToken } = useAuthStore();
   const [isLoading, setIsLoading] = useState(true);
+  const [intakeGroups, setIntakeGroups] = useState<IntakeGroup[]>([]);
+  const [outcomes, setOutcomes] = useState<Outcome[]>([]);
 
   useEffect(() => {
-    // Detailed authentication logging
+    const fetchData = async () => {
+      try {
+        const [groupsData, outcomesData] = await Promise.all([
+          getAllIntakeGroups(),
+          getAllOutcomes(),
+        ]);
+
+        console.log("Fetched data:", { groupsData, outcomesData });
+
+        if (Array.isArray(groupsData)) setIntakeGroups(groupsData);
+        if (Array.isArray(outcomesData))
+          setOutcomes(outcomesData.filter((o) => !o.hidden));
+      } catch (error) {
+        console.error("Failed to fetch data:", error);
+      }
+    };
+
+    // Authentication check
     const checkAuthentication = async () => {
       console.group("Authentication Check");
       console.log("Initial Authentication Status:", isAuthenticated());
@@ -22,7 +55,6 @@ export default function ProtectedAdminDashboard() {
 
       if (token) {
         try {
-          // Optional: Additional token validation if needed
           const response = await fetch("/api/validate-token", {
             method: "POST",
             headers: {
@@ -36,14 +68,13 @@ export default function ProtectedAdminDashboard() {
           }
 
           console.log("Server-side token validation successful");
+          await fetchData(); // Fetch data after authentication
         } catch (error) {
           console.error("Token validation error:", error);
-          // Force logout if token is invalid
           useAuthStore.getState().logout();
         }
       }
 
-      // Final authentication check
       if (!isAuthenticated()) {
         console.log("Redirecting to login");
         router.push("/login");
@@ -56,23 +87,19 @@ export default function ProtectedAdminDashboard() {
     checkAuthentication();
   }, [isAuthenticated, router, getToken, user]);
 
-  // Loading state to prevent flickering
   if (isLoading) {
     return <div>Loading...</div>;
   }
 
-  // Prevent rendering if not authenticated
   if (!isAuthenticated()) {
     return null;
   }
 
-  // Render dashboard content
   return (
     <div>
       <ContentLayout title="Dashboard">
-        <div>Admin Dashboard</div>
+        <CalendarDemo intakeGroups={intakeGroups} outcomes={outcomes} />
       </ContentLayout>
-      <CalendarDemo />
     </div>
   );
 }

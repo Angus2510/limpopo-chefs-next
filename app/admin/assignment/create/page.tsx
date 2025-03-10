@@ -1,6 +1,6 @@
 import { getAllIntakeGroups } from "@/lib/actions/intakegroup/intakeGroups";
 import TestCreationForm from "@/components/forms/assignment/TestCreationForm";
-import { getAllOutcomes } from "@/lib/actions/outcome/outcomeQuery";
+import { getAllOutcomes } from "@/lib/actions/intakegroup/outcome/outcomeQuery";
 import { ContentLayout } from "@/components/layout/content-layout";
 
 async function CreateAssignmentPage() {

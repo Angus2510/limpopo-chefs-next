@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { getAssignmentById } from "@/lib/actions/assignments/getAssignmentById";
 import { getAllIntakeGroups } from "@/lib/actions/intakegroup/intakeGroups";
-import { getAllOutcomes } from "@/lib/actions/outcome/outcomeQuery";
+import { getAllOutcomes } from "@/lib/actions/intakegroup/outcome/outcomeQuery";
 import { ContentLayout } from "@/components/layout/content-layout";
 import EditAssignmentForm from "@/components/assignments/EditAssignmentForm";
 import { notFound } from "next/navigation";
