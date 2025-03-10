@@ -277,18 +277,18 @@ model campus {
 }
 
 model events {
-  id              String    @id @default(auto()) @map("_id") @db.ObjectId
-  v               Int       @map("__v")
-  allDay          Boolean?
-  assignedTo      String[]
-  assignedToModel String[]
-  color           String
-  createdBy       String    @db.ObjectId
-  details         String
-  endDate         DateTime? @db.Date
-  location        String[]
-  startDate       DateTime  @db.Date
-  title           String
+  id             String    @id @default(auto()) @map("_id") @db.ObjectId
+  title          String
+  details        String    @default("")
+  startDate      DateTime
+  endDate        DateTime?
+  color          String    @default("other")  // Add default value
+  location       String[]  @default([])
+  assignedTo     String[]  @default([])
+  assignedToModel String[] @default([])
+  createdBy      String    @db.ObjectId
+  v              Int       @default(1)
+  allDay         Boolean   @default(false)
 }
 
 model finances {

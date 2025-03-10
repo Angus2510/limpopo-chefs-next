@@ -186,16 +186,42 @@ export default function CalendarDemo({
   });
 
   // Effects
+
   React.useEffect(() => {
     const fetchEvents = async () => {
+      console.log("🎯 Starting fetchEvents");
       try {
         setLoading(true);
-        const eventsData = await getEvents();
-        if (Array.isArray(eventsData)) {
-          setEvents(eventsData);
+        const data = await getEvents();
+        console.log("📦 Received data from server:", data);
+
+        if (!Array.isArray(data)) {
+          console.error("⚠️ Data is not an array:", data);
+          setEvents([]);
+          return;
         }
+
+        const formattedEvents = data
+          .filter((event) => event && event.startDate) // Ensure we have valid events
+          .map((event) => {
+            try {
+              return {
+                ...event,
+                startDate: new Date(event.startDate),
+                endDate: event.endDate ? new Date(event.endDate) : null,
+              };
+            } catch (err) {
+              console.error("❌ Error formatting event:", event.id, err);
+              return null;
+            }
+          })
+          .filter(Boolean); // Remove any failed conversions
+
+        console.log("✅ Formatted events:", formattedEvents.length);
+        setEvents(formattedEvents);
       } catch (error) {
-        console.error("Failed to fetch events:", error);
+        console.error("❌ Error in fetchEvents:", error);
+        setEvents([]);
       } finally {
         setLoading(false);
       }
@@ -222,48 +248,61 @@ export default function CalendarDemo({
   };
 
   const handleEventAction = async () => {
-    if (
-      !selectedDate ||
-      newEvent.intakeGroups.length === 0 ||
-      !newEvent.title
-    ) {
-      console.error("Required fields missing");
-      return;
-    }
-
+    console.log("🎯 Starting event action:", modalMode);
     setIsLoading(true);
+
     try {
+      // Handle Delete
       if (modalMode === "delete" && selectedEvent) {
+        console.log("🗑️ Attempting to delete:", selectedEvent.id);
         const result = await deleteEvent(selectedEvent.id);
+
         if (result.success) {
-          setEvents(events.filter((e) => e.id !== selectedEvent.id));
+          console.log("✅ Delete successful");
+          setEvents((current) =>
+            current.filter((e) => e.id !== selectedEvent.id)
+          );
           setIsModalOpen(false);
           setSelectedEvent(null);
+        } else {
+          console.error("❌ Delete failed");
         }
         return;
       }
 
+      // Prepare event data
       const eventData = {
         title: newEvent.title,
         details: newEvent.details || "",
         startDate: selectedDate,
         color: newEvent.color || "other",
-        location: [],
-        assignedTo: [],
         assignedToModel: newEvent.intakeGroups,
-        createdBy: "000000000000000000000000",
       };
 
+      // Handle Update
       if (modalMode === "edit" && selectedEvent) {
+        console.log("📝 Attempting to update:", selectedEvent.id);
         const updatedEvent = await updateEvent(selectedEvent.id, eventData);
-        setEvents(
-          events.map((e) => (e.id === selectedEvent.id ? updatedEvent : e))
+
+        setEvents((current) =>
+          current.map((event) =>
+            event.id === selectedEvent.id
+              ? { ...updatedEvent, startDate: new Date(updatedEvent.startDate) }
+              : event
+          )
         );
-      } else {
+      }
+      // Handle Create
+      else {
+        console.log("📝 Creating new event");
         const createdEvent = await createEvent(eventData);
-        setEvents((prev) => [...prev, createdEvent]);
+        setEvents((current) => [
+          ...current,
+          { ...createdEvent, startDate: new Date(createdEvent.startDate) },
+        ]);
       }
 
+      // Reset form and close modal
       setNewEvent({
         title: "",
         details: "",
@@ -273,24 +312,25 @@ export default function CalendarDemo({
       setIsModalOpen(false);
       setSelectedEvent(null);
     } catch (error) {
-      console.error("Failed to handle event:", error);
+      console.error("❌ Event action failed:", error);
     } finally {
       setIsLoading(false);
     }
   };
 
+  // Update the handleEventClick function
   const handleEventClick = (event: Event) => {
+    console.log("🎯 Event clicked:", event.id);
     setSelectedEvent(event);
     setNewEvent({
       title: event.title,
-      details: event.details,
-      color: event.color,
+      details: event.details || "",
+      color: event.color || "other",
       intakeGroups: event.assignedToModel || [],
     });
     setModalMode("edit");
     setIsModalOpen(true);
   };
-
   // Calendar calculations
   const monthStart = startOfMonth(currentDate);
   const monthEnd = endOfMonth(currentDate);
@@ -499,20 +539,47 @@ export default function CalendarDemo({
             {modalMode !== "create" && (
               <Button
                 variant="destructive"
-                onClick={() => {
-                  setModalMode("delete");
-                  handleEventAction();
+                onClick={async () => {
+                  console.log(
+                    "🗑️ Delete button clicked for event:",
+                    selectedEvent?.id
+                  );
+                  if (!selectedEvent?.id) {
+                    console.error("❌ No event selected for deletion");
+                    return;
+                  }
+                  setIsLoading(true);
+                  try {
+                    const result = await deleteEvent(selectedEvent.id);
+                    console.log("📤 Delete result:", result);
+
+                    if (result.success) {
+                      console.log("✅ Event deleted successfully");
+                      setEvents((current) =>
+                        current.filter((e) => e.id !== selectedEvent.id)
+                      );
+                      setIsModalOpen(false);
+                      setSelectedEvent(null);
+                    } else {
+                      console.error("❌ Failed to delete event");
+                    }
+                  } catch (error) {
+                    console.error("❌ Error during deletion:", error);
+                  } finally {
+                    setIsLoading(false);
+                  }
                 }}
                 disabled={isLoading}
               >
                 {isLoading ? "Deleting..." : "Delete Event"}
               </Button>
             )}
-            <Button onClick={handleEventAction} disabled={isLoading}>
+            <Button
+              onClick={handleEventAction}
+              disabled={isLoading || modalMode === "delete"}
+            >
               {isLoading
-                ? modalMode === "create"
-                  ? "Creating..."
-                  : "Updating..."
+                ? "Updating..."
                 : modalMode === "create"
                 ? "Create Event"
                 : "Update Event"}
