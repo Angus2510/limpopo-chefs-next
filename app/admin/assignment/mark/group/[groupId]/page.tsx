@@ -125,7 +125,8 @@ export default function GroupAssignmentMarkPage() {
       }
 
       const resultsData = await resultsResponse.json();
-      setAssignments(resultsData);
+      // Fix: Access the results array from the response
+      setAssignments(resultsData.results); // <-- This is the key change
     } catch (error) {
       console.error("Error loading assignment data:", error);
       setError(
