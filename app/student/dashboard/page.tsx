@@ -51,14 +51,16 @@ interface LearningMaterial {
   id: string;
   intakeGroup: string[];
 }
-
 interface Event {
   id: string;
-  assignedTo: string[];
   title: string;
-  startTime: string;
-  endTime: string;
-  type: "CLASS" | "MEETING" | "ASSIGNMENT" | "OTHER";
+  startDate: string; // Changed from startTime
+  endDate: string | null; // Changed from endTime
+  details?: string;
+  location?: string[];
+  color: string;
+  assignedToModel: string[]; // Changed from assignedTo
+  type?: "CLASS" | "MEETING" | "ASSIGNMENT" | "OTHER";
 }
 
 interface Finance {

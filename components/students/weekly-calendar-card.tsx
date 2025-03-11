@@ -9,77 +9,121 @@ import {
   addDays,
   addWeeks,
   subWeeks,
-  isSameDay,
   parseISO,
 } from "date-fns";
-
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { getEvents } from "@/lib/actions/events/getEvents";
 
 interface Event {
   id: string;
   title: string;
-  startTime: string;
-  endTime: string;
-  description?: string;
-  location?: string;
-  type: "CLASS" | "MEETING" | "ASSIGNMENT" | "OTHER";
+  details: string;
+  startDate: string;
+  endDate: string | null;
+  color: string;
+  location: string[];
   assignedTo: string[];
-}
-
-interface Student {
-  id: string;
-  profile: {
-    firstName: string;
-    lastName: string;
-  };
+  assignedToModel: string[];
+  createdBy: string;
+  v: number;
+  allDay: boolean;
 }
 
 interface WeeklyCalendarProps {
-  studentData: Student;
-  events: Event[];
+  studentData: {
+    intakeGroup: string[];
+  };
 }
 
-const WeeklyCalendarCard: React.FC<WeeklyCalendarProps> = ({
-  studentData,
-  events,
-}) => {
+const WeeklyCalendarCard: React.FC<WeeklyCalendarProps> = ({ studentData }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const [processedEvents, setProcessedEvents] = useState<Event[]>([]);
+  const [events, setEvents] = useState<Event[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (events) {
-      setProcessedEvents(events);
+    const fetchEvents = async () => {
+      try {
+        console.log(
+          "🔍 Fetching events for weekly calendar:",
+          studentData.intakeGroup[0]
+        );
+        const allEvents = await getEvents();
+        console.log("📦 Retrieved events:", allEvents.length);
+
+        const filtered = allEvents.filter((event) => {
+          const isAssignedToGroup = event.assignedToModel.includes(
+            studentData.intakeGroup[0]
+          );
+          console.log("🔎 Checking event:", {
+            eventId: event.id,
+            eventTitle: event.title,
+            assignedTo: event.assignedToModel,
+            intakeGroup: studentData.intakeGroup[0],
+            isAssigned: isAssignedToGroup,
+          });
+          return isAssignedToGroup;
+        });
+
+        console.log("✅ Filtered events:", filtered.length);
+        setEvents(filtered);
+      } catch (error) {
+        console.error("❌ Error fetching events:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (studentData.intakeGroup?.length) {
+      fetchEvents();
     }
-  }, [events]);
+  }, [studentData.intakeGroup]);
+
+  const getEventsForDate = (date: Date) => {
+    return events.filter((event) => {
+      const eventDate = new Date(event.startDate);
+      return eventDate.toDateString() === date.toDateString();
+    });
+  };
+
+  const formatTime = (dateString: string) => {
+    return new Date(dateString).toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
+  };
+
+  const getEventColorClass = (color: string) => {
+    switch (color.toLowerCase()) {
+      case "class":
+        return "bg-blue-100 text-blue-800";
+      case "meeting":
+        return "bg-green-100 text-green-800";
+      case "assessment":
+        return "bg-yellow-100 text-yellow-800";
+      default:
+        return "bg-gray-100 text-gray-800";
+    }
+  };
 
   const startOfCurrentWeek = startOfWeek(currentDate, { weekStartsOn: 1 });
-  const weekDays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+  const weekDays = ["Mon", "Tue", "Wed", "Thu", "Fri"];
 
   const goToPreviousWeek = () => setCurrentDate(subWeeks(currentDate, 1));
   const goToNextWeek = () => setCurrentDate(addWeeks(currentDate, 1));
 
-  const getEventsForDate = (date: Date) => {
-    return processedEvents.filter((event) =>
-      isSameDay(parseISO(event.startTime), date)
+  if (loading) {
+    return (
+      <Card className="w-full max-w-4xl mx-auto">
+        <CardContent>
+          <div className="text-center py-4">Loading calendar...</div>
+        </CardContent>
+      </Card>
     );
-  };
-
-  // Get event type color
-  const getEventTypeColor = (type: Event["type"]) => {
-    switch (type) {
-      case "CLASS":
-        return "bg-blue-50 border-l-4 border-blue-500";
-      case "MEETING":
-        return "bg-green-50 border-l-4 border-green-500";
-      case "ASSIGNMENT":
-        return "bg-yellow-50 border-l-4 border-yellow-500";
-      default:
-        return "bg-gray-50 border-l-4 border-gray-500";
-    }
-  };
+  }
 
   return (
     <Card className="w-full max-w-4xl mx-auto">
@@ -88,86 +132,130 @@ const WeeklyCalendarCard: React.FC<WeeklyCalendarProps> = ({
           Week of {format(startOfCurrentWeek, "MMMM d, yyyy")}
         </CardTitle>
         <div className="space-x-2">
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={goToPreviousWeek}
-            aria-label="Previous week"
-          >
+          <Button variant="outline" size="icon" onClick={goToPreviousWeek}>
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={goToNextWeek}
-            aria-label="Next week"
-          >
+          <Button variant="outline" size="icon" onClick={goToNextWeek}>
             <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-          {weekDays.slice(0, 3).map((day, index) => renderDateCard(index))}
+          {weekDays.slice(0, 3).map((day, index) => {
+            const date = addDays(startOfCurrentWeek, index);
+            const dateEvents = getEventsForDate(date);
+            return (
+              <Card key={day} className="overflow-hidden">
+                <CardHeader className="p-3">
+                  <CardTitle className="text-lg flex justify-between items-center">
+                    <span>{day}</span>
+                    <span>{format(date, "d")}</span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <ScrollArea className="h-40 w-full">
+                    {dateEvents.length > 0 ? (
+                      <ul className="space-y-2 p-2">
+                        {dateEvents.map((event) => (
+                          <li key={event.id}>
+                            <div className="flex flex-col space-y-1">
+                              <div className="flex justify-between items-start">
+                                <span className="text-sm font-medium">
+                                  {formatTime(event.startDate)}
+                                </span>
+                                <span
+                                  className={`text-xs px-2 py-1 rounded-full ${getEventColorClass(
+                                    event.color
+                                  )}`}
+                                >
+                                  {event.title}
+                                </span>
+                              </div>
+                              {event.details && (
+                                <p className="text-xs text-muted-foreground">
+                                  {event.details}
+                                </p>
+                              )}
+                              {event.location?.length > 0 && (
+                                <p className="text-xs text-muted-foreground">
+                                  📍 {event.location.join(", ")}
+                                </p>
+                              )}
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="p-2 text-sm text-muted-foreground">
+                        No events
+                      </p>
+                    )}
+                  </ScrollArea>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {weekDays.slice(3, 5).map((day, index) => renderDateCard(index + 3))}
+          {weekDays.slice(3, 5).map((day, index) => {
+            const date = addDays(startOfCurrentWeek, index + 3);
+            const dateEvents = getEventsForDate(date);
+            return (
+              <Card key={day} className="overflow-hidden">
+                <CardHeader className="p-3">
+                  <CardTitle className="text-lg flex justify-between items-center">
+                    <span>{day}</span>
+                    <span>{format(date, "d")}</span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <ScrollArea className="h-40 w-full">
+                    {dateEvents.length > 0 ? (
+                      <ul className="space-y-2 p-2">
+                        {dateEvents.map((event) => (
+                          <li key={event.id}>
+                            <div className="flex flex-col space-y-1">
+                              <div className="flex justify-between items-start">
+                                <span className="text-sm font-medium">
+                                  {formatTime(event.startDate)}
+                                </span>
+                                <span
+                                  className={`text-xs px-2 py-1 rounded-full ${getEventColorClass(
+                                    event.color
+                                  )}`}
+                                >
+                                  {event.title}
+                                </span>
+                              </div>
+                              {event.details && (
+                                <p className="text-xs text-muted-foreground">
+                                  {event.details}
+                                </p>
+                              )}
+                              {event.location?.length > 0 && (
+                                <p className="text-xs text-muted-foreground">
+                                  📍 {event.location.join(", ")}
+                                </p>
+                              )}
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="p-2 text-sm text-muted-foreground">
+                        No events
+                      </p>
+                    )}
+                  </ScrollArea>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       </CardContent>
     </Card>
   );
-
-  function renderDateCard(index: number) {
-    const date = addDays(startOfCurrentWeek, index);
-    const isSelected = isSameDay(date, selectedDate);
-    const dateEvents = getEventsForDate(date);
-
-    return (
-      <Card
-        key={weekDays[index]}
-        className={`overflow-hidden ${isSelected ? "ring-2 ring-primary" : ""}`}
-        onClick={() => setSelectedDate(date)}
-      >
-        <CardHeader className="p-3">
-          <CardTitle className="text-lg flex justify-between items-center">
-            <span>{weekDays[index]}</span>
-            <span>{format(date, "d")}</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-0">
-          <ScrollArea className="h-40 w-full">
-            {dateEvents.length > 0 ? (
-              dateEvents.map((event) => (
-                <div
-                  key={event.id}
-                  className={`p-2 ${getEventTypeColor(
-                    event.type
-                  )} hover:bg-opacity-75 transition-colors`}
-                >
-                  <p className="text-sm font-semibold">
-                    {format(parseISO(event.startTime), "HH:mm")}
-                  </p>
-                  <p className="text-sm font-medium">{event.title}</p>
-                  {event.location && (
-                    <p className="text-xs text-muted-foreground">
-                      📍 {event.location}
-                    </p>
-                  )}
-                  {event.description && (
-                    <p className="text-xs text-muted-foreground">
-                      {event.description}
-                    </p>
-                  )}
-                </div>
-              ))
-            ) : (
-              <p className="p-2 text-sm text-muted-foreground">No events</p>
-            )}
-          </ScrollArea>
-        </CardContent>
-      </Card>
-    );
-  }
 };
 
 export default WeeklyCalendarCard;
