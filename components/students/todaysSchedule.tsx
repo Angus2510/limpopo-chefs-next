@@ -1,4 +1,5 @@
 import * as React from "react";
+import { getEvents } from "@/lib/actions/events/getEvents";
 import {
   Card,
   CardContent,
@@ -11,49 +12,87 @@ import {
 interface Event {
   id: string;
   title: string;
-  startTime: string;
-  endTime: string;
-  description?: string;
-  location?: string;
-  type: "CLASS" | "MEETING" | "ASSIGNMENT" | "OTHER";
+  details: string;
+  startDate: string; // ISO string
+  endDate: string | null; // ISO string
+  color: string;
+  location: string[];
   assignedTo: string[];
-}
-
-interface Student {
-  id: string;
-  profile: {
-    firstName: string;
-    lastName: string;
-  };
+  assignedToModel: string[];
+  createdBy: string;
+  v: number;
+  allDay: boolean;
 }
 
 interface TodaysScheduleProps {
-  studentData: Student;
-  events: Event[];
+  studentId: string;
+  intakeGroup?: string; // Add intake group
 }
 
-export function TodaysSchedule({ studentData, events }: TodaysScheduleProps) {
+export function TodaysSchedule({
+  studentId,
+  intakeGroup,
+}: TodaysScheduleProps) {
   const [todaysEvents, setTodaysEvents] = React.useState<Event[]>([]);
+  const [loading, setLoading] = React.useState(true);
 
   React.useEffect(() => {
-    const filterTodaysEvents = () => {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
+    const fetchAndFilterEvents = async () => {
+      try {
+        console.log("🔍 Fetching events for student:", {
+          studentId,
+          intakeGroup,
+        });
+        const allEvents = await getEvents();
+        console.log("📦 Retrieved events:", allEvents.length);
 
-      return events
-        .filter((event) => {
-          const eventDate = new Date(event.startTime);
-          eventDate.setHours(0, 0, 0, 0);
-          return eventDate.getTime() === today.getTime();
-        })
-        .sort(
-          (a, b) =>
-            new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
-        );
+        // Filter for today's events assigned to this student's intake group
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const filteredEvents = allEvents
+          .filter((event) => {
+            // Check if event is assigned to student's intake group
+            const isAssignedToGroup =
+              intakeGroup && event.assignedToModel.includes(intakeGroup);
+            console.log("🔎 Checking event:", {
+              eventId: event.id,
+              eventTitle: event.title,
+              assignedTo: event.assignedToModel,
+              intakeGroup,
+              isAssigned: isAssignedToGroup,
+            });
+
+            // Check if event is today
+            const eventDate = new Date(event.startDate);
+            eventDate.setHours(0, 0, 0, 0);
+            const isToday = eventDate.getTime() === today.getTime();
+            console.log("📅 Date check:", {
+              eventDate: eventDate.toISOString(),
+              today: today.toISOString(),
+              isToday,
+            });
+
+            return isAssignedToGroup && isToday;
+          })
+          .sort(
+            (a, b) =>
+              new Date(a.startDate).getTime() - new Date(b.startDate).getTime()
+          );
+
+        console.log("✅ Filtered events:", filteredEvents.length);
+        setTodaysEvents(filteredEvents);
+      } catch (error) {
+        console.error("❌ Error fetching events:", error);
+      } finally {
+        setLoading(false);
+      }
     };
 
-    setTodaysEvents(filterTodaysEvents());
-  }, [events]);
+    if (intakeGroup) {
+      fetchAndFilterEvents();
+    }
+  }, [studentId, intakeGroup]);
 
   const formatTime = (dateString: string) => {
     return new Date(dateString).toLocaleTimeString("en-US", {
@@ -63,14 +102,14 @@ export function TodaysSchedule({ studentData, events }: TodaysScheduleProps) {
     });
   };
 
-  // Get event type badge color
-  const getEventTypeColor = (type: Event["type"]) => {
-    switch (type) {
-      case "CLASS":
+  // Get event color class
+  const getEventColorClass = (color: string) => {
+    switch (color) {
+      case "blue":
         return "bg-blue-100 text-blue-800";
-      case "MEETING":
+      case "green":
         return "bg-green-100 text-green-800";
-      case "ASSIGNMENT":
+      case "yellow":
         return "bg-yellow-100 text-yellow-800";
       default:
         return "bg-gray-100 text-gray-800";
@@ -84,7 +123,11 @@ export function TodaysSchedule({ studentData, events }: TodaysScheduleProps) {
         <CardDescription>Your daily agenda at a glance.</CardDescription>
       </CardHeader>
       <CardContent>
-        {todaysEvents.length === 0 ? (
+        {loading ? (
+          <div className="text-center text-muted-foreground py-4">
+            Loading schedule...
+          </div>
+        ) : todaysEvents.length === 0 ? (
           <div className="text-center text-muted-foreground py-4">
             No events scheduled for today
           </div>
@@ -94,26 +137,25 @@ export function TodaysSchedule({ studentData, events }: TodaysScheduleProps) {
               <li key={event.id} className="space-y-2">
                 <div className="flex justify-between items-start">
                   <span className="font-medium text-sm text-primary">
-                    {formatTime(event.startTime)}
+                    {formatTime(event.startDate)}
                   </span>
                   <span
-                    className={`text-xs px-2 py-1 rounded-full ${getEventTypeColor(
-                      event.type
+                    className={`text-xs px-2 py-1 rounded-full ${getEventColorClass(
+                      event.color
                     )}`}
                   >
-                    {event.type}
+                    {event.title}
                   </span>
                 </div>
                 <div className="space-y-1">
-                  <span className="text-sm font-medium">{event.title}</span>
-                  {event.description && (
+                  {event.details && (
                     <p className="text-xs text-muted-foreground">
-                      {event.description}
+                      {event.details}
                     </p>
                   )}
-                  {event.location && (
+                  {event.location && event.location.length > 0 && (
                     <p className="text-xs text-muted-foreground">
-                      📍 {event.location}
+                      📍 {event.location.join(", ")}
                     </p>
                   )}
                 </div>

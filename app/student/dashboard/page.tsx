@@ -183,7 +183,10 @@ export default function ProtectedStudentDashboard() {
       <ContentLayout title="Student Dashboard">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 grid-rows-2 gap-4 ">
           <StudentCard studentData={student} />
-          <TodaysSchedule studentData={student} events={events} />
+          <TodaysSchedule
+            studentId={user.id}
+            intakeGroup={student.intakeGroup[0]} // Assuming intakeGroup is an array
+          />
           <div className="mb-2">
             <div className="mb-4">
               <WelHoursCard
