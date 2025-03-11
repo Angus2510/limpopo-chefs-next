@@ -9,11 +9,10 @@ import { ContentLayout } from "@/components/layout/content-layout";
 import { format } from "date-fns";
 import { getAssignmentById } from "@/lib/actions/assignments/getAssignmentById";
 import { submitAssignment } from "@/lib/actions/assignments/assignmentSubmission";
-
 interface Question {
   id: string;
   text: string;
-  type: string;
+  type: "multiple" | "truefalse" | "short" | "long" | "matching";
   mark: string;
   options: {
     id: string;
@@ -22,7 +21,6 @@ interface Question {
     columnB?: string;
   }[];
 }
-
 interface Assignment {
   id: string;
   title: string;
@@ -268,6 +266,15 @@ export default function AssignmentTestPage({
   const handleSubmitTest = async () => {
     if (!assignment) return;
 
+    // Add confirmation dialog before proceeding
+    if (
+      !window.confirm(
+        "Are you sure you want to submit your test? This action cannot be undone."
+      )
+    ) {
+      return;
+    }
+
     try {
       console.log("📝 Submitting test answers...");
       await submitAssignment(assignment.id, answers);
@@ -302,9 +309,12 @@ export default function AssignmentTestPage({
     switch (question.type) {
       case "multiple":
         return (
-          <div className="space-y-2">
+          <div className="space-y-3">
             {question.options.map((option) => (
-              <label key={option.id} className="flex items-center space-x-2">
+              <label
+                key={option.id}
+                className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors"
+              >
                 <input
                   type="radio"
                   name={question.id}
@@ -313,17 +323,67 @@ export default function AssignmentTestPage({
                   onChange={(e) =>
                     handleAnswerChange(question.id, e.target.value)
                   }
-                  className="h-4 w-4"
+                  className="h-5 w-5"
                   autoComplete="off"
-                  autoCapitalize="off"
-                  autoCorrect="off"
-                  spellCheck="false"
-                  data-lpignore="true"
                 />
-                <span>{option.value}</span>
+                <span className="text-base">{option.value}</span>
               </label>
             ))}
           </div>
+        );
+
+      case "truefalse":
+        return (
+          <div className="space-y-3">
+            {["true", "false"].map((value) => (
+              <label
+                key={value}
+                className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors"
+              >
+                <input
+                  type="radio"
+                  name={question.id}
+                  value={value}
+                  checked={currentAnswer === value}
+                  onChange={(e) =>
+                    handleAnswerChange(question.id, e.target.value)
+                  }
+                  className="h-5 w-5"
+                  autoComplete="off"
+                />
+                <span className="text-base capitalize">{value}</span>
+              </label>
+            ))}
+          </div>
+        );
+
+      case "short":
+        return (
+          <input
+            type="text"
+            value={currentAnswer as string}
+            onChange={(e) => handleAnswerChange(question.id, e.target.value)}
+            className="w-full p-2 border rounded-md"
+            placeholder="Enter your short answer here..."
+            autoComplete="off"
+            autoCapitalize="off"
+            autoCorrect="off"
+            spellCheck="false"
+          />
+        );
+
+      case "long":
+        return (
+          <textarea
+            value={currentAnswer as string}
+            onChange={(e) => handleAnswerChange(question.id, e.target.value)}
+            className="w-full h-32 p-2 border rounded-md"
+            placeholder="Enter your detailed answer here..."
+            autoComplete="off"
+            autoCapitalize="off"
+            autoCorrect="off"
+            spellCheck="false"
+          />
         );
 
       case "matching":
@@ -345,12 +405,8 @@ export default function AssignmentTestPage({
                     };
                     handleAnswerChange(question.id, newAnswer);
                   }}
-                  className="border rounded p-1"
+                  className="flex-1 p-2 border rounded-md"
                   autoComplete="off"
-                  autoCapitalize="off"
-                  autoCorrect="off"
-                  spellCheck="false"
-                  data-lpignore="true"
                 >
                   <option value="">Select answer</option>
                   {question.options.map((opt) => (

@@ -180,32 +180,41 @@ export default function ProtectedStudentDashboard() {
 
   const { student, wellnessRecords, results, events, finances } = studentData;
 
+  // Update the return statement with adjusted sizing
   return (
     <div className="min-h-screen bg-primary-200">
       <ContentLayout title="Student Dashboard">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 grid-rows-2 gap-4 ">
-          <StudentCard studentData={student} />
-          <TodaysSchedule
-            studentId={user.id}
-            intakeGroup={student.intakeGroup[0]} // Assuming intakeGroup is an array
-          />
-          <div className="mb-2">
-            <div className="mb-4">
-              <WelHoursCard
-                studentData={student}
-                wellnessRecords={wellnessRecords}
-              />
-            </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 auto-rows-min gap-4">
+          {/* First row */}
+          <div className="w-full max-w-sm">
+            <StudentCard studentData={student} />
+          </div>
+          <div className="w-full max-w-sm">
+            <TodaysSchedule
+              studentId={user.id}
+              intakeGroup={student.intakeGroup[0]}
+            />
+          </div>
+          <div className="w-full max-w-sm space-y-4">
+            <WelHoursCard
+              studentData={student}
+              wellnessRecords={wellnessRecords}
+            />
             <FeesCard studentData={student} finances={finances} />
           </div>
-          <div className="md:col-span-2 lg:col-span-3">
-            <div className="flex gap-4">
-              <WeeklyCalendarCard studentData={student} events={events} />
 
-              <StudentMaterialsCard
-                student={student}
-                learningMaterials={studentData.learningMaterials}
-              />
+          {/* Second row - Full width calendar and materials */}
+          <div className="md:col-span-2 lg:col-span-3">
+            <div className="flex flex-col lg:flex-row gap-4">
+              <div className="flex-1 min-w-0">
+                <WeeklyCalendarCard studentData={student} events={events} />
+              </div>
+              <div className="w-full lg:w-1/3 min-w-0">
+                <StudentMaterialsCard
+                  student={student}
+                  learningMaterials={studentData.learningMaterials}
+                />
+              </div>
             </div>
           </div>
         </div>

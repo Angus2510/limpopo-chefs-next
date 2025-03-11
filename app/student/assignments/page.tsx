@@ -159,6 +159,11 @@ export default function StudentAssignmentsPage() {
                         new Date() < new Date(assignment.availableFrom))
                     }
                     variant={assignment.completed ? "secondary" : "default"}
+                    className={`${
+                      assignment.completed
+                        ? "opacity-50 cursor-not-allowed pointer-events-none"
+                        : ""
+                    }`}
                   >
                     {assignment.completed ? "Completed" : "Start"}
                   </Button>
