@@ -221,7 +221,7 @@ const AttendanceCalendar: React.FC = () => {
     <div className="font-sans max-w-full p-5 text-gray-800">
       <div className="mb-6">
         <h1 className="text-2xl font-bold mb-4">
-          Child's Attendance and Success
+          Child&apos;s Attendance and Success
         </h1>
         <div className="flex flex-wrap items-center gap-4">
           {attendanceTypes.map((type) => (
