@@ -1,9 +1,21 @@
 "use client";
+
 import React, { useState, useEffect } from "react";
 import { QRCodeCanvas } from "qrcode.react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import DatePicker from "@/components/common/DatePicker";
+import { MultiSelect } from "@/components/common/multiselect";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { format } from "date-fns";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+} from "@/components/ui/form";
 import {
   Select,
   SelectContent,
@@ -12,135 +24,245 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { getAllIntakeGroups } from "@/lib/actions/intakegroup/intakeGroups";
+import { getAllCampuses } from "@/lib/actions/campus/campuses";
+import { useForm, FormProvider } from "react-hook-form";
 
 interface QRGeneratorProps {
   initialData?: string;
 }
 
-interface LessonQRData {
-  intakeGroupId: string;
-  intakeGroupTitle: string;
-  timestamp: string;
-  expiresIn: number;
+interface FormData {
+  date: string;
+  campusId: string;
+  intakeGroupIds: string[];
 }
 
-interface IntakeGroup {
+interface LessonQRData {
+  campusId: string;
+  campusTitle: string;
+  intakeGroups: Array<{
+    id: string;
+    title: string;
+  }>;
+  date: string;
+  timestamp: string;
+}
+
+interface StoredQRCode {
   id: string;
-  title: string;
+  data: LessonQRData;
+  createdAt: string;
 }
 
 const QRGenerator: React.FC<QRGeneratorProps> = ({ initialData }) => {
-  const [intakeGroups, setIntakeGroups] = useState<IntakeGroup[]>([]);
-  const [selectedGroup, setSelectedGroup] = useState<string>("");
-  const [expiryTime, setExpiryTime] = useState<number>(15);
+  const [intakeGroups, setIntakeGroups] = useState<
+    Array<{ id: string; title: string }>
+  >([]);
+  const [campuses, setCampuses] = useState<
+    Array<{ id: string; title: string }>
+  >([]);
   const [generatedQR, setGeneratedQR] = useState<string | null>(null);
+  const [storedQRCodes, setStoredQRCodes] = useState<StoredQRCode[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const methods = useForm<FormData>({
+    defaultValues: {
+      date: new Date().toISOString().split("T")[0],
+      campusId: "",
+      intakeGroupIds: [],
+    },
+  });
+
   useEffect(() => {
-    const fetchIntakeGroups = async () => {
+    const fetchData = async () => {
       try {
-        const groups = await getAllIntakeGroups();
-        setIntakeGroups(groups);
+        const [groupsData, campusesData] = await Promise.all([
+          getAllIntakeGroups(),
+          getAllCampuses(),
+        ]);
+        setIntakeGroups(groupsData);
+        setCampuses(campusesData);
       } catch (error) {
-        console.error("Failed to fetch intake groups:", error);
+        console.error("Failed to fetch data:", error);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchIntakeGroups();
+    fetchData();
   }, []);
 
-  const generateQRCode = () => {
+  const generateQRCode = (data: FormData) => {
     const now = new Date();
-    const selectedIntakeGroup = intakeGroups.find(
-      (group) => group.id === selectedGroup
+    const selectedCampus = campuses.find(
+      (campus) => campus.id === data.campusId
+    );
+    const selectedGroups = intakeGroups.filter((group) =>
+      data.intakeGroupIds.includes(group.id)
     );
 
-    if (!selectedIntakeGroup) return;
+    if (!selectedCampus || selectedGroups.length === 0) return;
 
-    const data: LessonQRData = {
-      intakeGroupId: selectedIntakeGroup.id,
-      intakeGroupTitle: selectedIntakeGroup.title,
+    const qrData: LessonQRData = {
+      campusId: selectedCampus.id,
+      campusTitle: selectedCampus.title,
+      intakeGroups: selectedGroups,
+      date: data.date,
       timestamp: now.toISOString(),
-      expiresIn: expiryTime,
     };
-    setGeneratedQR(JSON.stringify(data));
+
+    const newQRCode: StoredQRCode = {
+      id: crypto.randomUUID(),
+      data: qrData,
+      createdAt: now.toISOString(),
+    };
+
+    setStoredQRCodes((prev) => [newQRCode, ...prev]);
+    setGeneratedQR(JSON.stringify(qrData));
   };
 
   if (loading) {
-    return <div>Loading intake groups...</div>;
+    return <div>Loading...</div>;
   }
 
   return (
-    <Card className="w-full max-w-md mx-auto">
-      <CardHeader>
-        <CardTitle>Generate Attendance QR Code</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        <div className="space-y-2">
-          <Label htmlFor="intakeGroup">Intake Group</Label>
-          <Select onValueChange={setSelectedGroup} value={selectedGroup}>
-            <SelectTrigger>
-              <SelectValue placeholder="Select an intake group" />
-            </SelectTrigger>
-            <SelectContent>
-              {intakeGroups.map((group) => (
-                <SelectItem key={group.id} value={group.id}>
-                  {group.title}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+    <div className="space-y-8">
+      <Card className="w-full max-w-md mx-auto">
+        <CardHeader>
+          <CardTitle>Generate Attendance QR Code</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <FormProvider {...methods}>
+            <form
+              onSubmit={methods.handleSubmit(generateQRCode)}
+              className="space-y-6"
+            >
+              <FormField
+                control={methods.control}
+                name="date"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Date</FormLabel>
+                    <FormControl>
+                      <DatePicker control={methods.control} name="date" />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
 
-        <div className="space-y-2">
-          <Label htmlFor="expiry">QR Code Expiry Time</Label>
-          <Select
-            onValueChange={(value) => setExpiryTime(Number(value))}
-            defaultValue="15"
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Select expiry time" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="5">5 minutes</SelectItem>
-              <SelectItem value="15">15 minutes</SelectItem>
-              <SelectItem value="30">30 minutes</SelectItem>
-              <SelectItem value="60">1 hour</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+              <FormField
+                control={methods.control}
+                name="campusId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Campus</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select campus" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {campuses.map((campus) => (
+                          <SelectItem key={campus.id} value={campus.id}>
+                            {campus.title}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </FormItem>
+                )}
+              />
 
-        <Button
-          onClick={generateQRCode}
-          disabled={!selectedGroup}
-          className="w-full"
-          variant={!selectedGroup ? "secondary" : "default"}
-        >
-          Generate QR Code
-        </Button>
+              <FormField
+                control={methods.control}
+                name="intakeGroupIds"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Intake Groups</FormLabel>
+                    <FormControl>
+                      <MultiSelect
+                        options={intakeGroups.map((group) => ({
+                          label: group.title,
+                          value: group.id,
+                        }))}
+                        value={field.value}
+                        onValueChange={field.onChange}
+                        placeholder="Select intake groups"
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
 
-        {generatedQR && (
-          <div className="mt-6 flex flex-col items-center space-y-4">
-            <QRCodeCanvas
-              value={generatedQR}
-              size={200}
-              level="H"
-              includeMargin
-              className="border p-2"
-            />
-            <p className="text-sm text-muted-foreground">
-              QR Code for{" "}
-              {intakeGroups.find((g) => g.id === selectedGroup)?.title}
-            </p>
-            <p className="text-sm text-muted-foreground">
-              Expires in {expiryTime} minutes
-            </p>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={
+                  !methods.watch("campusId") ||
+                  methods.watch("intakeGroupIds").length === 0
+                }
+              >
+                Generate QR Code
+              </Button>
+            </form>
+          </FormProvider>
+
+          {generatedQR && (
+            <div className="mt-6 flex flex-col items-center space-y-4">
+              <QRCodeCanvas
+                value={generatedQR}
+                size={200}
+                level="H"
+                includeMargin
+                className="border p-2"
+              />
+              <p className="text-sm text-muted-foreground">
+                Scan this QR code to mark attendance
+              </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {storedQRCodes.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Generated QR Codes</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ScrollArea className="h-[400px] w-full rounded-md border">
+              <div className="space-y-4 p-4">
+                {storedQRCodes.map((qr) => (
+                  <Card key={qr.id} className="p-4">
+                    <div className="flex items-start space-x-4">
+                      <QRCodeCanvas
+                        value={JSON.stringify(qr.data)}
+                        size={100}
+                        level="H"
+                        includeMargin
+                        className="border p-1"
+                      />
+                      <div className="flex-1 space-y-1">
+                        <p className="font-medium">{qr.data.campusTitle}</p>
+                        <p className="text-sm text-muted-foreground">
+                          Date: {format(new Date(qr.data.date), "PPP")}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          Groups:{" "}
+                          {qr.data.intakeGroups.map((g) => g.title).join(", ")}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Created: {format(new Date(qr.createdAt), "PPP p")}
+                        </p>
+                      </div>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            </ScrollArea>
+          </CardContent>
+        </Card>
+      )}
+    </div>
   );
 };
 

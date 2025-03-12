@@ -40,7 +40,6 @@ const documentTitles = [
   "Student Application Check List",
   "Application Form",
   "Uniform Order Sheet",
-  "Accommodation Application",
   "Student Study Agreement",
   "Accommodation Agreement",
   "Accommodation Inspection",
@@ -52,10 +51,13 @@ const documentTitles = [
   "Substance Abuse Policy",
   "Acknowledgement of Receipt",
   "LCA POPI Act",
+  "POPI Act Consent Form",
   "LCA Chefs Oath",
   "Other Qualification",
   "Certified ID Copy: Parent/Guardian",
   "Certified ID Copy: Student",
+  "Device Policy",
+  "Re-assessment",
 ] as const;
 
 const formSchema = z.object({

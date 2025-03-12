@@ -7,7 +7,7 @@ import { ContentLayout } from "@/components/layout/content-layout";
 
 export default function QRPage() {
   return (
-    <ContentLayout>
+    <ContentLayout title="Class Attendance QR Code">
       <div className="container mx-auto space-y-6">
         <div className="space-y-0.5">
           <h2 className="text-2xl font-bold tracking-tight">
