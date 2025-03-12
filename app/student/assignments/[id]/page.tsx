@@ -335,25 +335,34 @@ export default function AssignmentTestPage({
       case "truefalse":
         return (
           <div className="space-y-3">
-            {["true", "false"].map((value) => (
-              <label
-                key={value}
-                className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors"
-              >
-                <input
-                  type="radio"
-                  name={question.id}
-                  value={value}
-                  checked={currentAnswer === value}
-                  onChange={(e) =>
-                    handleAnswerChange(question.id, e.target.value)
-                  }
-                  className="h-5 w-5"
-                  autoComplete="off"
-                />
-                <span className="text-base capitalize">{value}</span>
-              </label>
-            ))}
+            <label className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors">
+              <input
+                type="radio"
+                name={`question_${question.id}`}
+                value="true"
+                checked={currentAnswer === "true"}
+                onChange={(e) =>
+                  handleAnswerChange(question.id, e.target.value)
+                }
+                className="h-5 w-5"
+                autoComplete="off"
+              />
+              <span className="text-base">True</span>
+            </label>
+            <label className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors">
+              <input
+                type="radio"
+                name={`question_${question.id}`}
+                value="false"
+                checked={currentAnswer === "false"}
+                onChange={(e) =>
+                  handleAnswerChange(question.id, e.target.value)
+                }
+                className="h-5 w-5"
+                autoComplete="off"
+              />
+              <span className="text-base">False</span>
+            </label>
           </div>
         );
 
