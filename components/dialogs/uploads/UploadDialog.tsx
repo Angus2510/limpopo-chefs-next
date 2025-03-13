@@ -19,6 +19,7 @@ import { MultiSelect } from "@/components/common/multiselect";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { uploadLearningMaterial } from "@/lib/actions/uploads/uploadLearningMaterial";
+import { toast } from "@/components/ui/use-toast";
 
 interface LearningMaterialFormValues {
   title: string;
@@ -54,37 +55,116 @@ export function UploadDialog({
     []
   );
   const [isLoading, setIsLoading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   const handleIntakeGroupChange = (newGroups: string[]) => {
     setSelectedIntakeGroups(newGroups);
     form.setValue("intakeGroup", newGroups);
   };
 
-  const onSubmit = async (data: LearningMaterialFormValues) => {
+  const onSubmit = async (values: LearningMaterialFormValues) => {
     try {
-      const formData = new FormData();
+      setIsLoading(true);
+      const file = values.file;
 
-      // Append simple fields
-      formData.append("title", data.title);
-      formData.append("description", data.description);
-      formData.append("file", data.file as Blob);
+      if (!file) {
+        throw new Error("No file selected");
+      }
 
-      // Handle intake groups array separately
-      data.intakeGroup.forEach((groupId, index) => {
-        formData.append(`intakeGroup[${index}]`, groupId);
+      console.log("Starting upload process with values:", {
+        title: values.title,
+        description: values.description,
+        intakeGroups: values.intakeGroup,
+        fileInfo: {
+          name: file.name,
+          size: file.size,
+          type: file.type,
+        },
       });
 
-      // Simulate loading
-      setIsLoading(true);
-      await uploadLearningMaterial(formData);
-      setIsLoading(false);
-      form.reset();
-      setSelectedIntakeGroups([]);
+      // First Phase: Get presigned URL
+      const presignedUrlData = new FormData();
+      presignedUrlData.append("title", values.title);
+      presignedUrlData.append("description", values.description || "");
+      values.intakeGroup.forEach((group, index) => {
+        presignedUrlData.append(`intakeGroup[${index}]`, group);
+      });
+      presignedUrlData.append("fileType", file.type);
+      presignedUrlData.append("fileName", file.name);
+
+      console.log("Requesting presigned URL...");
+      const urlResult = await uploadLearningMaterial(presignedUrlData);
+      console.log("Presigned URL response:", urlResult);
+
+      if (
+        !urlResult.success ||
+        !urlResult.presignedUrl ||
+        !urlResult.filePath
+      ) {
+        throw new Error(urlResult.error || "Failed to get upload URL");
+      }
+
+      // Second Phase: Direct S3 Upload
+      console.log("Starting direct S3 upload...");
+      const uploadResponse = await fetch(urlResult.presignedUrl, {
+        method: "PUT",
+        body: file,
+        headers: {
+          "Content-Type": file.type,
+        },
+        mode: "cors",
+        credentials: "omit",
+      });
+
+      console.log("S3 Upload Response:", {
+        status: uploadResponse.status,
+        ok: uploadResponse.ok,
+        statusText: uploadResponse.statusText,
+      });
+
+      if (!uploadResponse.ok) {
+        throw new Error(`Upload failed: ${uploadResponse.statusText}`);
+      }
+
+      // Third Phase: Save metadata
+      console.log("Saving metadata...");
+      const metadataFormData = new FormData();
+      metadataFormData.append("title", values.title);
+      metadataFormData.append("description", values.description || "");
+      values.intakeGroup.forEach((group, index) => {
+        metadataFormData.append(`intakeGroup[${index}]`, group);
+      });
+      metadataFormData.append("filePath", urlResult.filePath);
+      metadataFormData.append("isMetadataOnly", "true");
+
+      const metadataResult = await uploadLearningMaterial(metadataFormData);
+      console.log("Metadata save result:", metadataResult);
+
+      if (!metadataResult.success) {
+        throw new Error(metadataResult.error || "Failed to save metadata");
+      }
+
+      console.log("Upload process completed successfully");
+      toast({
+        title: "Success",
+        description: "Learning material uploaded successfully",
+      });
+
       onSuccess();
       onClose();
+      form.reset();
+      setSelectedIntakeGroups([]);
     } catch (error) {
-      console.error("Failed to upload learning material:", error);
+      console.error("Upload error:", error);
+      toast({
+        title: "Error",
+        description:
+          error instanceof Error ? error.message : "Failed to upload material",
+        variant: "destructive",
+      });
+    } finally {
       setIsLoading(false);
+      setUploadProgress(0);
     }
   };
 
@@ -122,23 +202,29 @@ export function UploadDialog({
               )}
             />
 
-            <FormItem>
-              <FormLabel>Intake Group</FormLabel>
-              <FormControl>
-                <ScrollArea style={{ maxHeight: "10rem" }}>
-                  <MultiSelect
-                    options={intakeGroups.map((group) => ({
-                      value: group.id,
-                      label: group.title,
-                    }))}
-                    onValueChange={handleIntakeGroupChange}
-                    defaultValue={selectedIntakeGroups}
-                    placeholder="Select Intake Groups"
-                  />
-                </ScrollArea>
-              </FormControl>
-              <FormMessage />
-            </FormItem>
+            <FormField
+              control={form.control}
+              name="intakeGroup"
+              render={() => (
+                <FormItem>
+                  <FormLabel>Intake Group</FormLabel>
+                  <FormControl>
+                    <ScrollArea style={{ maxHeight: "10rem" }}>
+                      <MultiSelect
+                        options={intakeGroups.map((group) => ({
+                          value: group.id,
+                          label: group.title,
+                        }))}
+                        onValueChange={handleIntakeGroupChange}
+                        defaultValue={selectedIntakeGroups}
+                        placeholder="Select Intake Groups"
+                      />
+                    </ScrollArea>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             <FormField
               control={form.control}
@@ -156,6 +242,15 @@ export function UploadDialog({
                 </FormItem>
               )}
             />
+
+            {uploadProgress > 0 && uploadProgress < 100 && (
+              <div className="w-full bg-gray-200 rounded-full h-2.5">
+                <div
+                  className="bg-blue-600 h-2.5 rounded-full transition-all duration-300"
+                  style={{ width: `${uploadProgress}%` }}
+                />
+              </div>
+            )}
 
             <div className="flex justify-end">
               <ButtonLoading isLoading={isLoading}>

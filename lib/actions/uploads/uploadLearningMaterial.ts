@@ -1,14 +1,26 @@
 "use server";
 
+import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import prisma from "@/lib/db";
-import { uploadFileToS3 } from "@/utils/uploadFiles";
-import { Buffer } from "buffer";
+
+// S3 client configuration
+const s3Client = new S3Client({
+  region: process.env["AWS_REGION"] || "eu-north-1",
+  credentials: {
+    accessKeyId: process.env["AWS_ACCESS_KEY_ID"]!,
+    secretAccessKey: process.env["AWS_SECRET_ACCESS_KEY"]!,
+  },
+});
 
 export const uploadLearningMaterial = async (formData: FormData) => {
   const title = formData.get("title") as string;
   const description = formData.get("description") as string;
-  const file = formData.get("file") as File;
+  const isMetadataOnly = formData.get("isMetadataOnly") as string;
+  const fileType = formData.get("fileType") as string;
+  const fileName = formData.get("fileName") as string;
 
+  // Collect intake groups from form data
   const intakeGroups: string[] = [];
   formData.forEach((value, key) => {
     if (key.startsWith("intakeGroup[")) {
@@ -16,55 +28,89 @@ export const uploadLearningMaterial = async (formData: FormData) => {
     }
   });
 
-  const fileType = file.type;
-  const uploadType = "Study Material";
-  const fileBuffer = Buffer.from(await file.arrayBuffer());
+  // Validate intake groups
+  if (intakeGroups.length === 0 && !isMetadataOnly) {
+    return {
+      success: false,
+      error: "At least one intake group must be selected",
+    };
+  }
 
-  const uploadedFiles = await Promise.all(
-    intakeGroups.map(async (group) => {
-      const folder = `learning-materials/${group}`;
-      const fileName = file.name.split(".").slice(0, -1).join(".");
+  // Handle presigned URL request
+  if (!isMetadataOnly) {
+    try {
+      const folder = `learning-materials/${intakeGroups[0]}`;
+      const uniqueFileName = `${fileName
+        .split(".")
+        .slice(0, -1)
+        .join(".")}-${Date.now()}${fileName.substring(
+        fileName.lastIndexOf(".")
+      )}`;
 
-      const s3FilePath = await uploadFileToS3(
-        fileBuffer,
-        folder,
-        fileType,
-        fileName
-      );
+      console.log("Generating presigned URL with params:", {
+        bucket: process.env["S3_BUCKET_NAME"],
+        key: `${folder}/${uniqueFileName}`,
+        contentType: fileType,
+      });
 
-      // Log to verify the file path
-      console.log("S3 file path:", s3FilePath);
+      const command = new PutObjectCommand({
+        Bucket: process.env["S3_BUCKET_NAME"]!,
+        Key: `${folder}/${uniqueFileName}`,
+        ContentType: fileType,
+        StorageClass: "STANDARD",
+        ACL: "private",
+      });
+
+      const presignedUrl = await getSignedUrl(s3Client, command, {
+        expiresIn: 600,
+        signableHeaders: new Set(["host", "content-type"]),
+      });
+
+      console.log("Successfully generated presigned URL");
 
       return {
-        title,
-        uploadType,
-
-        description,
-        intakeGroup: [group], // Store as an array
-        filePath: s3FilePath,
-        v: 1, // Default version number, adjust if needed
-        dateUploaded: new Date(), // Add dateUploaded field if required
+        success: true,
+        presignedUrl,
+        filePath: `${folder}/${uniqueFileName}`,
       };
-    })
-  );
+    } catch (error) {
+      console.error("Error generating presigned URL:", error);
+      return {
+        success: false,
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to generate upload URL",
+      };
+    }
+  }
 
-  // Log uploaded files data before inserting
-  console.log("Uploaded files to be inserted:", uploadedFiles);
-
+  // Handle metadata save
   try {
-    // Insert each uploaded file entry into the database
-    const learningMaterials = await prisma.learningmaterials.createMany({
-      data: uploadedFiles, // Ensure intakeGroup is stored correctly
+    const filePath = formData.get("filePath") as string;
+
+    if (!filePath) {
+      throw new Error("File path is required for metadata save");
+    }
+
+    const learningMaterial = await prisma.learningmaterials.create({
+      data: {
+        title,
+        uploadType: "Study Material",
+        description,
+        intakeGroup: intakeGroups,
+        filePath,
+        v: 1,
+        dateUploaded: new Date(),
+      },
     });
 
-    console.log("Learning Materials created:", learningMaterials);
-    return { success: true, data: learningMaterials };
+    return { success: true, data: learningMaterial };
   } catch (error) {
-    if (error instanceof Error) {
-      console.error("Error creating learning material:", error.message);
-    } else {
-      console.error("Unknown error:", error);
-    }
-    throw new Error("Failed to create learning material");
+    console.error("Error saving metadata:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to save metadata",
+    };
   }
 };
