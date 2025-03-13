@@ -2,19 +2,24 @@
 
 import prisma from "@/lib/db";
 
-// READ
-export async function getEvents() {
-  console.log("🔍 Starting getEvents");
-  try {
-    // Add logging to check Prisma connection
-    console.log("📡 Checking Prisma connection");
-    if (!prisma) {
-      console.error("❌ Prisma client is not initialized");
-      return [];
-    }
+interface EventData {
+  title: string;
+  details?: string;
+  startDate: string;
+  endDate?: string | null;
+  color?: string;
+  assignedToModel?: string[];
+}
 
-    // Try to get events with explicit select
+export async function getEvents() {
+  if (!prisma) {
+    console.error("❌ No Prisma client");
+    return [];
+  }
+
+  try {
     const rawEvents = await prisma.events.findMany({
+      where: { v: 1 },
       select: {
         id: true,
         title: true,
@@ -31,94 +36,60 @@ export async function getEvents() {
       },
     });
 
-    console.log("📦 Raw events data:", JSON.stringify(rawEvents, null, 2));
+    if (!Array.isArray(rawEvents)) return [];
 
-    if (!Array.isArray(rawEvents)) {
-      console.error("❌ Events is not an array:", rawEvents);
-      return [];
-    }
-
-    // Safe serialization
-    const events = rawEvents
-      .map((event) => {
-        try {
-          return {
-            ...event,
-            startDate:
-              event.startDate instanceof Date
-                ? event.startDate.toISOString()
-                : new Date(event.startDate).toISOString(),
-            endDate: event.endDate
-              ? event.endDate instanceof Date
-                ? event.endDate.toISOString()
-                : new Date(event.endDate).toISOString()
-              : null,
-          };
-        } catch (err) {
-          console.error("❌ Error processing event:", event.id, err);
-          return null;
-        }
-      })
-      .filter(Boolean); // Remove any failed conversions
-
-    console.log("✅ Successfully processed events:", events.length);
-    return events;
+    return rawEvents.map((event) => ({
+      ...event,
+      startDate: new Date(event.startDate).toISOString(),
+      endDate: event.endDate ? new Date(event.endDate).toISOString() : null,
+    }));
   } catch (error) {
-    console.error("❌ Error in getEvents:", {
-      message: error instanceof Error ? error.message : "Unknown error",
-      stack: error instanceof Error ? error.stack : undefined,
-    });
+    console.error("❌ Error:", error);
     return [];
   }
 }
 
-// CREATE
-export async function createEvent(data: any) {
-  console.log("📝 Creating event:", data);
+export async function createEvent(data: EventData) {
   try {
     const event = await prisma.events.create({
       data: {
         title: data.title,
-        details: data.details || "",
+        details: data.details ?? "",
         startDate: new Date(data.startDate),
         endDate: data.endDate ? new Date(data.endDate) : null,
-        color: data.color || "other",
+        color: data.color ?? "other",
         location: [],
         assignedTo: [],
-        assignedToModel: data.assignedToModel || [],
+        assignedToModel: data.assignedToModel ?? [],
         createdBy: "000000000000000000000000",
         v: 1,
         allDay: false,
       },
     });
 
-    console.log("✅ Created event:", event.id);
     return {
       ...event,
       startDate: event.startDate.toISOString(),
-      endDate: event.endDate ? event.endDate.toISOString() : null,
+      endDate: event.endDate?.toISOString() ?? null,
     };
   } catch (error) {
-    console.error("❌ Error creating event:", error);
+    console.error("❌ Error:", error);
     throw error;
   }
 }
 
-// UPDATE
-export async function updateEvent(id: string, data: any) {
-  console.log("📝 Attempting to update event:", { id, data });
+export async function updateEvent(id: string, data: Partial<EventData>) {
   try {
     const event = await prisma.events.update({
       where: { id },
       data: {
-        title: data.title,
-        details: data.details || "",
-        startDate: new Date(data.startDate),
-        endDate: data.endDate ? new Date(data.endDate) : null,
-        color: data.color || "other",
-        assignedToModel: data.assignedToModel || [],
+        ...(data.title && { title: data.title }),
+        ...(data.details && { details: data.details }),
+        ...(data.startDate && { startDate: new Date(data.startDate) }),
+        ...(data.endDate && { endDate: new Date(data.endDate) }),
+        ...(data.color && { color: data.color }),
+        ...(data.assignedToModel && { assignedToModel: data.assignedToModel }),
       },
-      // Explicitly select all fields
       select: {
         id: true,
         title: true,
@@ -135,30 +106,26 @@ export async function updateEvent(id: string, data: any) {
       },
     });
 
-    console.log("✅ Successfully updated event:", event.id);
     return {
       ...event,
       startDate: event.startDate.toISOString(),
-      endDate: event.endDate ? event.endDate.toISOString() : null,
+      endDate: event.endDate?.toISOString() ?? null,
     };
   } catch (error) {
-    console.error("❌ Error updating event:", error);
+    console.error("❌ Error:", error);
     throw error;
   }
 }
 
-// DELETE
 export async function deleteEvent(id: string) {
-  console.log("🗑️ Attempting to delete event:", id);
   try {
-    const deletedEvent = await prisma.events.delete({
+    const { id: deletedId } = await prisma.events.delete({
       where: { id },
-      select: { id: true }, // Only select what we need
+      select: { id: true },
     });
-    console.log("✅ Successfully deleted event:", id);
-    return { success: true, id: deletedEvent.id };
+    return { success: true, id: deletedId };
   } catch (error) {
-    console.error("❌ Error deleting event:", error);
+    console.error("❌ Error:", error);
     return { success: false, id };
   }
 }
