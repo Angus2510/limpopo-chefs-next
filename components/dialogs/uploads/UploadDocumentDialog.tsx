@@ -90,6 +90,7 @@ export default function UploadDocumentDialog({
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -104,26 +105,63 @@ export default function UploadDocumentDialog({
   const onSubmit = async (values: FormData) => {
     try {
       setLoading(true);
-      const formData = new FormData();
-      formData.append("file", values.file[0]);
-      formData.append("title", values.title);
-      formData.append("description", values.description || "");
-      formData.append("category", values.category);
-      formData.append("studentId", studentId);
+      const file = values.file[0];
 
-      const result = await uploadDocument(formData);
+      // Create initial FormData for getting presigned URL
+      const initialFormData = new FormData();
+      initialFormData.append("title", values.title);
+      initialFormData.append("category", values.category);
+      initialFormData.append("studentId", studentId);
+      initialFormData.append("fileType", file.type);
+      initialFormData.append("fileName", file.name);
 
-      if (result.success) {
-        toast({
-          title: "Success",
-          description: "Document uploaded successfully",
-        });
-        setOpen(false);
-        form.reset();
-        router.refresh(); // Use router.refresh() instead of onUploadComplete
-      } else {
-        throw new Error(result.error || "Failed to upload document");
+      // Get presigned URL and file path
+      const urlResult = await uploadDocument(initialFormData);
+
+      if (
+        !urlResult.success ||
+        !urlResult.presignedUrl ||
+        !urlResult.filePath
+      ) {
+        throw new Error(urlResult.error || "Failed to get upload URL");
       }
+
+      // Upload directly to S3
+      const uploadResponse = await fetch(urlResult.presignedUrl, {
+        method: "PUT",
+        body: file,
+        headers: {
+          "Content-Type": file.type,
+        },
+      });
+
+      if (!uploadResponse.ok) {
+        throw new Error("Failed to upload file to S3");
+      }
+
+      // Save metadata after successful upload
+      const metadataFormData = new FormData();
+      metadataFormData.append("title", values.title);
+      metadataFormData.append("description", values.description || "");
+      metadataFormData.append("category", values.category);
+      metadataFormData.append("studentId", studentId);
+      metadataFormData.append("documentUrl", urlResult.filePath);
+
+      const metadataResult = await uploadDocument(metadataFormData);
+
+      if (!metadataResult.success) {
+        throw new Error(
+          metadataResult.error || "Failed to save document metadata"
+        );
+      }
+
+      toast({
+        title: "Success",
+        description: "Document uploaded successfully",
+      });
+      setOpen(false);
+      form.reset();
+      router.refresh();
     } catch (error) {
       console.error("Error during upload:", error);
       toast({
@@ -134,6 +172,7 @@ export default function UploadDocumentDialog({
       });
     } finally {
       setLoading(false);
+      setUploadProgress(0);
     }
   };
 
@@ -237,6 +276,15 @@ export default function UploadDocumentDialog({
                 </FormItem>
               )}
             />
+
+            {uploadProgress > 0 && uploadProgress < 100 && (
+              <div className="w-full bg-gray-200 rounded-full h-2.5">
+                <div
+                  className="bg-blue-600 h-2.5 rounded-full"
+                  style={{ width: `${uploadProgress}%` }}
+                />
+              </div>
+            )}
 
             <div className="flex justify-end space-x-2">
               <Button
