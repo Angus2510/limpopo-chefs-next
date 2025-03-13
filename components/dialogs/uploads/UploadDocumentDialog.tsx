@@ -40,6 +40,7 @@ const documentTitles = [
   "Student Application Check List",
   "Application Form",
   "Uniform Order Sheet",
+  "Accommodation Application",
   "Student Study Agreement",
   "Accommodation Agreement",
   "Accommodation Inspection",
@@ -51,13 +52,10 @@ const documentTitles = [
   "Substance Abuse Policy",
   "Acknowledgement of Receipt",
   "LCA POPI Act",
-  "POPI Act Consent Form",
   "LCA Chefs Oath",
   "Other Qualification",
   "Certified ID Copy: Parent/Guardian",
   "Certified ID Copy: Student",
-  "Device Policy",
-  "Re-assessment Policy",
 ] as const;
 
 const formSchema = z.object({
@@ -107,16 +105,27 @@ export default function UploadDocumentDialog({
       setLoading(true);
       const file = values.file[0];
 
-      // Create initial FormData for getting presigned URL
-      const initialFormData = new FormData();
-      initialFormData.append("title", values.title);
-      initialFormData.append("category", values.category);
-      initialFormData.append("studentId", studentId);
-      initialFormData.append("fileType", file.type);
-      initialFormData.append("fileName", file.name);
+      console.log("Starting upload process with values:", {
+        title: values.title,
+        category: values.category,
+        fileInfo: {
+          name: file.name,
+          size: file.size,
+          type: file.type,
+        },
+      });
 
-      // Get presigned URL and file path
-      const urlResult = await uploadDocument(initialFormData);
+      // First Phase: Get presigned URL
+      const presignedUrlData = new FormData();
+      presignedUrlData.append("title", values.title);
+      presignedUrlData.append("category", values.category);
+      presignedUrlData.append("studentId", studentId);
+      presignedUrlData.append("fileType", file.type);
+      presignedUrlData.append("fileName", file.name);
+
+      console.log("Requesting presigned URL...");
+      const urlResult = await uploadDocument(presignedUrlData);
+      console.log("Presigned URL response:", urlResult);
 
       if (
         !urlResult.success ||
@@ -126,28 +135,48 @@ export default function UploadDocumentDialog({
         throw new Error(urlResult.error || "Failed to get upload URL");
       }
 
-      // Upload directly to S3
-      const uploadResponse = await fetch(urlResult.presignedUrl, {
-        method: "PUT",
-        body: file,
-        headers: {
-          "Content-Type": file.type,
-        },
-      });
+      // Second Phase: Direct S3 Upload
+      console.log("Starting direct S3 upload...");
 
-      if (!uploadResponse.ok) {
-        throw new Error("Failed to upload file to S3");
+      try {
+        const uploadResponse = await fetch(urlResult.presignedUrl, {
+          method: "PUT",
+          body: file,
+          headers: {
+            "Content-Type": file.type,
+            "x-amz-acl": "private",
+          },
+          mode: "cors",
+          credentials: "omit",
+        });
+
+        if (!uploadResponse.ok) {
+          console.error("S3 Upload failed:", {
+            status: uploadResponse.status,
+            statusText: uploadResponse.statusText,
+          });
+          throw new Error(`Upload failed: ${uploadResponse.statusText}`);
+        }
+
+        console.log("S3 upload successful");
+      } catch (uploadError) {
+        console.error("S3 upload error:", uploadError);
+        throw new Error(`Upload failed: ${uploadError.message}`);
       }
 
-      // Save metadata after successful upload
+      // Third Phase: Save metadata
+      console.log("S3 upload successful, saving metadata...");
+
       const metadataFormData = new FormData();
       metadataFormData.append("title", values.title);
       metadataFormData.append("description", values.description || "");
       metadataFormData.append("category", values.category);
       metadataFormData.append("studentId", studentId);
       metadataFormData.append("documentUrl", urlResult.filePath);
+      metadataFormData.append("isMetadataOnly", "true");
 
       const metadataResult = await uploadDocument(metadataFormData);
+      console.log("Metadata save result:", metadataResult);
 
       if (!metadataResult.success) {
         throw new Error(
@@ -155,15 +184,18 @@ export default function UploadDocumentDialog({
         );
       }
 
+      console.log("Upload process completed successfully");
       toast({
         title: "Success",
         description: "Document uploaded successfully",
       });
+
       setOpen(false);
       form.reset();
+      onUploadComplete();
       router.refresh();
     } catch (error) {
-      console.error("Error during upload:", error);
+      console.error("Upload error details:", error);
       toast({
         title: "Error",
         description:
@@ -193,10 +225,7 @@ export default function UploadDocumentDialog({
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Document Type</FormLabel>
-                  <Select
-                    onValueChange={field.onChange}
-                    value={field.value || ""}
-                  >
+                  <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Select document type" />
@@ -235,10 +264,7 @@ export default function UploadDocumentDialog({
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Category</FormLabel>
-                  <Select
-                    onValueChange={field.onChange}
-                    value={field.value || ""}
-                  >
+                  <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Select a category" />
@@ -270,6 +296,7 @@ export default function UploadDocumentDialog({
                           onChange(files);
                         }
                       }}
+                      {...field}
                     />
                   </FormControl>
                   <FormMessage />

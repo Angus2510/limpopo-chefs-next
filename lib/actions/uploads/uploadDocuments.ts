@@ -48,12 +48,13 @@ export const getPresignedUrl = async (
       Key: `${folder}/${fileName}`,
       ContentType: fileType,
       StorageClass: "STANDARD",
-      ServerSideEncryption: "AES256",
+      ACL: "private",
     });
 
     const presignedUrl = await getSignedUrl(s3Client, command, {
       expiresIn: 600,
     });
+
     return {
       success: true,
       presignedUrl,
@@ -125,11 +126,22 @@ export const uploadDocument = async (formData: FormData) => {
     const description = formData.get("description") as string;
     const category = formData.get("category") as string;
     const studentId = formData.get("studentId") as string;
-    const file = formData.get("file") as File;
     const documentUrl = formData.get("documentUrl") as string;
+    const fileType = formData.get("fileType") as string;
+    const fileName = formData.get("fileName") as string;
 
-    // Check if this is a direct S3 upload (documentUrl provided)
+    console.log("Processing upload request with:", {
+      title,
+      category,
+      studentId,
+      hasDocumentUrl: !!documentUrl,
+      fileType,
+      fileName,
+    });
+
+    // If documentUrl is provided, this is a metadata-only save
     if (documentUrl) {
+      console.log("Saving metadata only...");
       return await saveDocumentMetadata({
         title,
         description,
@@ -139,8 +151,15 @@ export const uploadDocument = async (formData: FormData) => {
       });
     }
 
-    // Validation
-    if (!title || !category || !studentId || !file) {
+    // Validation for presigned URL request
+    if (!title || !category || !studentId || !fileType || !fileName) {
+      console.error("Missing required fields:", {
+        title,
+        category,
+        studentId,
+        fileType,
+        fileName,
+      });
       return {
         success: false,
         error: "Missing required fields",
@@ -157,17 +176,23 @@ export const uploadDocument = async (formData: FormData) => {
     }
 
     const folder = `documents/${category}/${documentTypeFolder}/${studentId}`;
-    const fileName = `${file.name
+    const uniqueFileName = `${fileName
       .split(".")
       .slice(0, -1)
-      .join(".")}-${Date.now()}${file.name.substring(
-      file.name.lastIndexOf(".")
+      .join(".")}-${Date.now()}${fileName.substring(
+      fileName.lastIndexOf(".")
     )}`;
+
+    console.log("Generating presigned URL for:", {
+      folder,
+      uniqueFileName,
+      contentType: fileType,
+    });
 
     // Get presigned URL for upload
     const { success, presignedUrl, filePath, error } = await getPresignedUrl(
-      fileName,
-      file.type,
+      uniqueFileName,
+      fileType,
       folder
     );
 
@@ -178,7 +203,6 @@ export const uploadDocument = async (formData: FormData) => {
       };
     }
 
-    // Return the presigned URL and file path for frontend upload
     return {
       success: true,
       presignedUrl,
