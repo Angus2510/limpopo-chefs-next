@@ -139,34 +139,43 @@ export default function UploadDocumentDialog({
       console.log("Starting direct S3 upload...");
 
       try {
+        // Create a blob with the correct content type
+        const blob = new Blob([await file.arrayBuffer()], { type: file.type });
+
         const uploadResponse = await fetch(urlResult.presignedUrl, {
           method: "PUT",
-          body: file,
+          body: blob,
           headers: {
             "Content-Type": file.type,
-            "x-amz-acl": "private",
           },
           mode: "cors",
           credentials: "omit",
         });
 
+        console.log("S3 Upload Response:", {
+          status: uploadResponse.status,
+          ok: uploadResponse.ok,
+          statusText: uploadResponse.statusText,
+        });
+
         if (!uploadResponse.ok) {
-          console.error("S3 Upload failed:", {
-            status: uploadResponse.status,
-            statusText: uploadResponse.statusText,
-          });
-          throw new Error(`Upload failed: ${uploadResponse.statusText}`);
+          throw new Error(
+            `Upload failed with status: ${uploadResponse.status} - ${uploadResponse.statusText}`
+          );
         }
 
         console.log("S3 upload successful");
       } catch (uploadError) {
         console.error("S3 upload error:", uploadError);
-        throw new Error(`Upload failed: ${uploadError.message}`);
+        throw new Error(
+          uploadError instanceof Error
+            ? uploadError.message
+            : "Failed to upload to S3"
+        );
       }
 
       // Third Phase: Save metadata
-      console.log("S3 upload successful, saving metadata...");
-
+      console.log("Saving metadata...");
       const metadataFormData = new FormData();
       metadataFormData.append("title", values.title);
       metadataFormData.append("description", values.description || "");

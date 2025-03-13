@@ -53,6 +53,13 @@ export const getPresignedUrl = async (
 
     const presignedUrl = await getSignedUrl(s3Client, command, {
       expiresIn: 600,
+      signableHeaders: new Set(["host"]), // Add this line
+    });
+
+    console.log("Generated presigned URL with params:", {
+      bucket: process.env.S3_BUCKET_NAME,
+      key: `${folder}/${fileName}`,
+      contentType: fileType,
     });
 
     return {
