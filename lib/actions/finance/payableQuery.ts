@@ -1,3 +1,5 @@
+"use server";
+
 import prisma from "@/lib/db";
 import { type GetPayableSchema } from "@/types/payable/payable";
 
@@ -25,55 +27,44 @@ export const getPayableData = async (input: GetPayableSchema) => {
 
   const whereConditions: any = {};
 
-  // Split search query into terms and search across multiple fields
   if (search) {
-    const searchTerms = search.split(" ");
-    whereConditions.AND = searchTerms.map((term) => ({
-      OR: [
-        {
-          admissionNumber: {
-            contains: term,
-            mode: "insensitive",
-          },
+    whereConditions.OR = [
+      {
+        admissionNumber: {
+          contains: search,
+          mode: "insensitive",
         },
-        {
-          email: {
-            contains: term,
-            mode: "insensitive",
-          },
+      },
+      {
+        email: {
+          contains: search,
+          mode: "insensitive",
         },
-        {
-          profile: {
-            is: {
+      },
+      {
+        profile: {
+          OR: [
+            {
               firstName: {
-                contains: term,
+                contains: search,
                 mode: "insensitive",
               },
             },
-          },
-        },
-        {
-          profile: {
-            is: {
+            {
               lastName: {
-                contains: term,
+                contains: search,
                 mode: "insensitive",
               },
             },
-          },
+          ],
         },
-        {
-          profile: {
-            is: {
-              idNumber: {
-                contains: term,
-                mode: "insensitive",
-              },
-            },
-          },
+      },
+      {
+        campus: {
+          hasSome: [search],
         },
-      ],
-    }));
+      },
+    ];
   }
 
   if (email) {
@@ -83,21 +74,16 @@ export const getPayableData = async (input: GetPayableSchema) => {
     };
   }
 
-  // Initialize the campus and intake group maps
+  // Initialize maps for campus and intake group lookups
   const campusMap: { [key: string]: string } = {};
   const intakeGroupMap: { [key: string]: string } = {};
 
-  // Fetch campus IDs for given campus titles if filtered
+  // Handle campus filtering
   let campusIds: string[] = [];
   if (campusTitles && campusTitles.length > 0) {
     const campuses = await prisma.campus.findMany({
-      where: {
-        title: { in: campusTitles },
-      },
-      select: {
-        id: true,
-        title: true,
-      },
+      where: { title: { in: campusTitles } },
+      select: { id: true, title: true },
     });
     campusIds = campuses.map((campus) => campus.id);
     campuses.forEach((campus) => {
@@ -105,24 +91,20 @@ export const getPayableData = async (input: GetPayableSchema) => {
     });
   }
 
-  // Fetch intake group IDs for given intake group titles if filtered
+  // Handle intake group filtering
   let intakeGroupIds: string[] = [];
   if (intakeGroupTitles && intakeGroupTitles.length > 0) {
-    const intakeGroups = await prisma.intakeGroup.findMany({
-      where: {
-        title: { in: intakeGroupTitles },
-      },
-      select: {
-        id: true,
-        title: true,
-      },
+    const intakeGroups = await prisma.intakegroups.findMany({
+      where: { title: { in: intakeGroupTitles } },
+      select: { id: true, title: true },
     });
-    intakeGroupIds = intakeGroups.map((intakeGroup) => intakeGroup.id);
-    intakeGroups.forEach((intakeGroup) => {
-      intakeGroupMap[intakeGroup.id] = intakeGroup.title;
+    intakeGroupIds = intakeGroups.map((group) => group.id);
+    intakeGroups.forEach((group) => {
+      intakeGroupMap[group.id] = group.title;
     });
   }
 
+  // Apply filters
   if (campusIds.length > 0) {
     whereConditions.campus = { hasSome: campusIds };
   }
@@ -131,19 +113,14 @@ export const getPayableData = async (input: GetPayableSchema) => {
     whereConditions.intakeGroup = { hasSome: intakeGroupIds };
   }
 
-  let orderByCondition = {};
+  // Handle sorting
+  const orderByCondition =
+    sortColumn === "firstName" || sortColumn === "lastName"
+      ? { profile: { [sortColumn]: sortOrder } }
+      : { [sortColumn]: sortOrder };
 
-  if (sortColumn === "firstName" || sortColumn === "lastName") {
-    orderByCondition = {
-      profile: {
-        [sortColumn]: sortOrder,
-      },
-    };
-  } else {
-    orderByCondition = { [sortColumn]: sortOrder };
-  }
-
-  const data = await prisma.student.findMany({
+  // Fetch students with all necessary data
+  const data = await prisma.students.findMany({
     where: whereConditions,
     select: {
       id: true,
@@ -167,12 +144,13 @@ export const getPayableData = async (input: GetPayableSchema) => {
     orderBy: orderByCondition,
   });
 
-  const totalStudents = await prisma.student.count({
+  const totalStudents = await prisma.students.count({
     where: whereConditions,
   });
 
+  // Fetch financial data for all students
   const studentIds = data.map((student) => student.id);
-  const finances = await prisma.finance.findMany({
+  const finances = await prisma.finances.findMany({
     where: { student: { in: studentIds } },
     select: {
       student: true,
@@ -185,14 +163,16 @@ export const getPayableData = async (input: GetPayableSchema) => {
     },
   });
 
+  // Create a map of financial data
   const financeMap = finances.reduce((acc: any, finance) => {
     acc[finance.student] = finance.payableFees;
     return acc;
   }, {});
 
+  // Calculate page count
   const pageCount = Math.ceil(totalStudents / per_page);
 
-  // Collect all unique campus and intake group IDs from the fetched students
+  // Get all unique campus and intake group IDs
   const allCampusIds = new Set<string>();
   const allIntakeGroupIds = new Set<string>();
   data.forEach((student) => {
@@ -200,34 +180,25 @@ export const getPayableData = async (input: GetPayableSchema) => {
     student.intakeGroup.forEach((id) => allIntakeGroupIds.add(id));
   });
 
-  // Fetch titles for all unique campus IDs
+  // Fetch all campus titles
   const campuses = await prisma.campus.findMany({
-    where: {
-      id: { in: Array.from(allCampusIds) },
-    },
-    select: {
-      id: true,
-      title: true,
-    },
+    where: { id: { in: Array.from(allCampusIds) } },
+    select: { id: true, title: true },
   });
   campuses.forEach((campus) => {
     campusMap[campus.id] = campus.title;
   });
 
-  // Fetch titles for all unique intake group IDs
-  const intakeGroups = await prisma.intakeGroup.findMany({
-    where: {
-      id: { in: Array.from(allIntakeGroupIds) },
-    },
-    select: {
-      id: true,
-      title: true,
-    },
+  // Fetch all intake group titles
+  const intakeGroups = await prisma.intakegroups.findMany({
+    where: { id: { in: Array.from(allIntakeGroupIds) } },
+    select: { id: true, title: true },
   });
-  intakeGroups.forEach((intakeGroup) => {
-    intakeGroupMap[intakeGroup.id] = intakeGroup.title;
+  intakeGroups.forEach((group) => {
+    intakeGroupMap[group.id] = group.title;
   });
 
+  // Transform and return the data
   const students = data.map((student) => {
     const payableFees = financeMap[student.id] || [];
     const payableAmounts = payableFees.map((fee) => fee.amount).join(", ");

@@ -18,7 +18,6 @@ const documentFolderMap = {
   "Student Application Check List": "application",
   "Application Form": "application",
   "Uniform Order Sheet": "uniform",
-  "Accommodation Application": "accommodation",
   "Student Study Agreement": "agreements",
   "Accommodation Agreement": "accommodation",
   "Accommodation Inspection": "accommodation",
@@ -34,6 +33,9 @@ const documentFolderMap = {
   "Other Qualification": "education",
   "Certified ID Copy: Parent/Guardian": "identification",
   "Certified ID Copy: Student": "identification",
+  "Device Policy": "policy",
+  "Re-assessment Policy": "policy",
+  "Popi Act Concent Form": "policy",
 } as const;
 
 // Function to generate presigned URL

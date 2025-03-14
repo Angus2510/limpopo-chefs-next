@@ -2,7 +2,7 @@
 import { ContentLayout } from "@/components/layout/content-layout";
 import { Card, CardContent } from "@/components/ui/card";
 import * as React from "react";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import {
   Table,
@@ -14,10 +14,11 @@ import {
 } from "@/components/ui/table";
 import { Switch } from "@/components/ui/switch";
 import { DataTableSkeleton } from "@/components/tables/basic/data-table-skeleton";
-import { debounce } from "lodash";
 import { getPayableData } from "@/lib/actions/finance/payableQuery";
 import { fetchStudentFinances } from "@/lib/actions/student/fetchStudentFinances";
 import { toggleStudentPortal } from "@/lib/actions/student/toggleStudentPortal";
+import { useRouter, useSearchParams } from "next/navigation";
+import { searchParamsSchema } from "@/types/student/students";
 
 interface Student {
   id: string;
@@ -52,7 +53,11 @@ interface StudentFinances {
 }
 
 const PayablePage = () => {
-  const [searchQuery, setSearchQuery] = useState("");
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const [searchQuery, setSearchQuery] = useState(
+    searchParams.get("search") || ""
+  );
   const [students, setStudents] = useState<Student[]>([]);
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [selectedStudentFinances, setSelectedStudentFinances] =
@@ -62,12 +67,15 @@ const PayablePage = () => {
   const fetchStudents = async (query: string = "") => {
     setLoading(true);
     try {
-      const { students } = await getPayableData({
+      const searchObject = {
         search: query,
         page: 1,
         per_page: 100,
         sort: "admissionNumber.asc",
-      });
+      };
+
+      const validatedParams = searchParamsSchema.parse(searchObject);
+      const { students } = await getPayableData(validatedParams);
       setStudents(students);
     } catch (error) {
       console.error("Error fetching students:", error);
@@ -76,20 +84,24 @@ const PayablePage = () => {
   };
 
   useEffect(() => {
-    fetchStudents();
-  }, []);
-
-  const debouncedSearch = useCallback(
-    debounce((query: string) => {
-      fetchStudents(query);
-    }, 300),
-    []
-  );
+    const initialSearch = searchParams.get("search") || "";
+    setSearchQuery(initialSearch);
+    fetchStudents(initialSearch);
+  }, [searchParams]);
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     const query = e.target.value;
     setSearchQuery(query);
-    debouncedSearch(query);
+
+    const params = new URLSearchParams(searchParams.toString());
+    if (query) {
+      params.set("search", query);
+    } else {
+      params.delete("search");
+    }
+
+    router.push(`?${params.toString()}`);
+    fetchStudents(query);
   };
 
   const handleStudentSelect = async (student: Student) => {
@@ -137,6 +149,9 @@ const PayablePage = () => {
               onChange={handleSearch}
               className="max-w-md"
             />
+            {loading && (
+              <p className="mt-2 text-sm text-gray-500">Searching...</p>
+            )}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
