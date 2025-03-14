@@ -68,19 +68,9 @@ export function getMenuList(pathname: string): Group[] {
             icon: DollarSign,
             submenus: [
               {
-                href: "/admin/finance/collect",
-                label: "Fees: Paid",
-                active: pathname === "admin/finance/collect",
-              },
-              {
                 href: "/admin/finance/payable",
                 label: "Fees: To Pay",
                 active: pathname === "admin/finance/payable",
-              },
-              {
-                href: "/admin/finance/sheet",
-                label: "Finance Sheet",
-                active: pathname === "admin/finance/sheet",
               },
             ],
           },
