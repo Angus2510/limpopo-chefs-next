@@ -6,10 +6,10 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 // S3 client configuration
 const s3Client = new S3Client({
-  region: process.env.AWS_REGION || "eu-north-1",
+  region: process.env["AWS_REGION"] || "eu-north-1",
   credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
+    accessKeyId: process.env["AWS_ACCESS_KEY_ID"]!,
+    secretAccessKey: process.env["AWS_SECRET_ACCESS_KEY"]!,
   },
 });
 
@@ -46,7 +46,7 @@ export const getPresignedUrl = async (
 ) => {
   try {
     const command = new PutObjectCommand({
-      Bucket: process.env.S3_BUCKET_NAME!,
+      Bucket: process.env["S3_BUCKET_NAME"]!,
       Key: `${folder}/${fileName}`,
       ContentType: fileType,
       StorageClass: "STANDARD",
@@ -59,7 +59,7 @@ export const getPresignedUrl = async (
     });
 
     console.log("Generated presigned URL with params:", {
-      bucket: process.env.S3_BUCKET_NAME,
+      bucket: process.env["S3_BUCKET_NAME"],
       key: `${folder}/${fileName}`,
       contentType: fileType,
     });
