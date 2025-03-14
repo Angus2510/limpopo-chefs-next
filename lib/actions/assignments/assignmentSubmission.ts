@@ -11,7 +11,7 @@ interface SubmitAnswer {
 
 export async function submitAssignment(
   assignmentId: string,
-  answers: SubmitAnswer[]
+  answers: { questionId: string; answer: string | { [key: string]: string } }[]
 ) {
   try {
     console.group("📝 Assignment Submission Debug");

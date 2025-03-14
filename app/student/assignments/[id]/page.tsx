@@ -14,7 +14,7 @@ import { RulesDialog } from "@/components/dialogs/assignments/RulesDialog";
 interface Question {
   id: string;
   text: string;
-  type: string;
+  type: "short-answer" | "long-answer" | "multiple-choice" | "true-false"; // Update these types to match
   mark: string;
   options: {
     id: string;
@@ -97,13 +97,7 @@ export default function AssignmentTestPage({
         if (tabHiddenTime) {
           const timeHidden = Date.now() - tabHiddenTime;
           if (timeHidden > TAB_HIDDEN_LIMIT) {
-            toast({
-              title: "Test Auto-Submitted",
-              description:
-                "Test was automatically submitted due to leaving the page for too long",
-              variant: "destructive",
-            });
-            handleSubmitTest();
+            handleSubmitTest(); // This will now use the corrected submission function
           }
         }
         setTabHiddenTime(null);
@@ -114,7 +108,7 @@ export default function AssignmentTestPage({
     return () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [tabHiddenTime]);
+  }, [tabHiddenTime, assignment?.id]);
 
   useEffect(() => {
     const handleBlur = () => {
@@ -152,17 +146,20 @@ export default function AssignmentTestPage({
     try {
       console.log("📚 Fetching assignment details...");
       const data = await getAssignmentById(params.id);
+      console.log(
+        "Loaded question types:",
+        data.questions.map((q) => q.type)
+      ); // Add this
       setAssignment(data);
       setTimeRemaining(data.duration * 60);
 
       const initialAnswers = data.questions.map((q) => ({
         questionId: q.id,
-        answer: q.type === "matching" ? {} : "",
+        answer: q.type === "multiple-choice" ? "" : "", // Changed from matching
       }));
+      console.log("Initial answers:", initialAnswers); // Add this
       setAnswers(initialAnswers);
       setLoading(false);
-
-      console.log("✅ Assignment loaded successfully");
     } catch (error) {
       console.error("❌ Failed to load assignment:", error);
       toast({
@@ -178,11 +175,17 @@ export default function AssignmentTestPage({
     if (!assignment) return;
 
     try {
-      await submitAssignment({
+      console.log("Submitting test with data:", {
         assignmentId: assignment.id,
         answers: answers,
         timeSpent: assignment.duration * 60 - timeRemaining,
       });
+
+      // Call submitAssignment with correct parameter structure
+      await submitAssignment(
+        assignment.id, // Pass assignmentId directly
+        answers // Pass answers array directly
+      );
 
       toast({
         title: "Success",
@@ -212,12 +215,14 @@ export default function AssignmentTestPage({
   };
 
   const renderQuestion = (question: Question) => {
+    console.log("Rendering question:", question); // Add this debug log
     const currentAnswer = answers.find(
       (a) => a.questionId === question.id
     )?.answer;
 
     switch (question.type) {
-      case "multiple":
+      case "multiple-choice":
+        console.log("Rendering multiple choice options:", question.options); // Add this
         return (
           <div className="space-y-2">
             {question.options.map((option) => (
@@ -230,7 +235,7 @@ export default function AssignmentTestPage({
                   onChange={(e) =>
                     handleAnswerChange(question.id, e.target.value)
                   }
-                  className="h-4 w-4"
+                  className="h-4 w-4 border-gray-300 text-primary focus:ring-primary"
                 />
                 <span>{option.value}</span>
               </label>
@@ -238,40 +243,7 @@ export default function AssignmentTestPage({
           </div>
         );
 
-      case "matching":
-        return (
-          <div className="grid grid-cols-2 gap-4">
-            {question.options.map((option) => (
-              <div key={option.id} className="flex items-center space-x-2">
-                <span className="font-medium">{option.columnA}</span>
-                <select
-                  value={
-                    (currentAnswer as { [key: string]: string })?.[
-                      option.columnA!
-                    ] || ""
-                  }
-                  onChange={(e) => {
-                    const newAnswer = {
-                      ...(currentAnswer as { [key: string]: string }),
-                      [option.columnA!]: e.target.value,
-                    };
-                    handleAnswerChange(question.id, newAnswer);
-                  }}
-                  className="border rounded p-1"
-                >
-                  <option value="">Select answer</option>
-                  {question.options.map((opt) => (
-                    <option key={opt.columnB} value={opt.columnB}>
-                      {opt.columnB}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            ))}
-          </div>
-        );
-
-      case "truefalse":
+      case "true-false":
         return (
           <div className="space-x-4">
             <label className="inline-flex items-center">
@@ -303,15 +275,21 @@ export default function AssignmentTestPage({
           </div>
         );
 
-      default:
+      case "short-answer":
+      case "long-answer":
         return (
           <textarea
             value={currentAnswer as string}
             onChange={(e) => handleAnswerChange(question.id, e.target.value)}
-            className="w-full h-32 p-2 border rounded"
+            className="w-full p-2 border rounded"
             placeholder="Enter your answer here..."
+            rows={question.type === "long-answer" ? 6 : 2}
           />
         );
+
+      default:
+        console.log("Question type not handled:", question.type); // Add this
+        return null;
     }
   };
 
