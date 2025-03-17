@@ -16,14 +16,6 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import {
   Select,
   SelectContent,
   SelectItem,
@@ -32,20 +24,14 @@ import {
 } from "@/components/ui/select";
 import { DataTableSkeleton } from "@/components/tables/basic/data-table-skeleton";
 import { getPayableData } from "@/lib/actions/finance/payableQuery";
-import { fetchStudentFinances } from "@/lib/actions/student/fetchStudentFinances";
 import { toggleStudentPortal } from "@/lib/actions/student/toggleStudentPortal";
-import { updateStudentBalance } from "@/lib/actions/finance/updateStudentBalance";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   searchParamsSchema,
   type GetPayableSchema,
 } from "@/types/payable/payable";
 import { format } from "date-fns";
-import type {
-  Student,
-  StudentFinances,
-  BalanceAdjustment,
-} from "@/types/finance/types";
+import type { Student } from "@/types/finance/types";
 import { useToast } from "@/components/ui/use-toast";
 
 // Pagination constants
@@ -64,24 +50,12 @@ const PayablePage = () => {
     searchParams.get("search") || ""
   );
   const [students, setStudents] = useState<Student[]>([]);
-  const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
-  const [selectedStudentFinances, setSelectedStudentFinances] =
-    useState<StudentFinances | null>(null);
   const [loading, setLoading] = useState(false);
-  const [isBalanceModalOpen, setIsBalanceModalOpen] = useState(false);
 
   // Pagination state
   const [pageIndex, setPageIndex] = useState(0);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [pageCount, setPageCount] = useState(0);
-
-  // Balance adjustment state
-  const [adjustment, setAdjustment] = useState<BalanceAdjustment>({
-    type: "debit",
-    amount: 0,
-    description: "",
-    date: new Date(),
-  });
 
   // Fetch students function
   const fetchStudents = useCallback(
@@ -130,7 +104,7 @@ const PayablePage = () => {
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const query = e.target.value;
       setSearchQuery(query);
-      setPageIndex(0); // Reset to first page on search
+      setPageIndex(0);
 
       if (searchTimeout.current) {
         clearTimeout(searchTimeout.current);
@@ -176,21 +150,10 @@ const PayablePage = () => {
 
   // Student selection handler
   const handleStudentSelect = useCallback(
-    async (student: Student) => {
-      setSelectedStudent(student);
-      try {
-        const finances = await fetchStudentFinances(student.id);
-        setSelectedStudentFinances(finances);
-      } catch (error) {
-        console.error("Error fetching student finances:", error);
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: "Failed to fetch student finances",
-        });
-      }
+    (student: Student) => {
+      router.push(`/admin/finance/student-balance/${student.id}`);
     },
-    [toast]
+    [router]
   );
 
   // Portal access toggle handler
@@ -204,12 +167,6 @@ const PayablePage = () => {
               ? { ...student, profileBlocked: enabled ? "No" : "Yes" }
               : student
           )
-        );
-
-        setSelectedStudent((prev) =>
-          prev?.id === studentId
-            ? { ...prev, profileBlocked: enabled ? "No" : "Yes" }
-            : prev
         );
 
         toast({
@@ -226,44 +183,6 @@ const PayablePage = () => {
       }
     },
     [toast]
-  );
-
-  // Balance adjustment handler
-  const handleBalanceAdjustment = useCallback(
-    async (studentId: string) => {
-      try {
-        setLoading(true);
-        await updateStudentBalance(studentId, adjustment);
-        await fetchStudents(searchQuery);
-
-        if (selectedStudent?.id === studentId) {
-          const finances = await fetchStudentFinances(studentId);
-          setSelectedStudentFinances(finances);
-        }
-
-        setIsBalanceModalOpen(false);
-        setAdjustment({
-          type: "debit",
-          amount: 0,
-          description: "",
-          date: new Date(),
-        });
-        toast({
-          title: "Success",
-          description: "Balance adjusted successfully",
-        });
-      } catch (error) {
-        console.error("Error adjusting balance:", error);
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: "Failed to adjust balance",
-        });
-      } finally {
-        setLoading(false);
-      }
-    },
-    [adjustment, searchQuery, selectedStudent, toast, fetchStudents]
   );
 
   // Utility functions
@@ -333,14 +252,6 @@ const PayablePage = () => {
                 </SelectContent>
               </Select>
             </div>
-            {selectedStudent && (
-              <Button
-                onClick={() => setIsBalanceModalOpen(true)}
-                disabled={loading}
-              >
-                Adjust Balance
-              </Button>
-            )}
           </div>
 
           {loading ? (
@@ -367,13 +278,11 @@ const PayablePage = () => {
                   {students.map((student) => (
                     <TableRow
                       key={student.id}
-                      className={`${
-                        selectedStudent?.id === student.id ? "bg-muted/50" : ""
-                      } ${
+                      className={
                         parseFloat(student.payableAmounts) > 0
                           ? "text-red-600"
                           : ""
-                      }`}
+                      }
                     >
                       <TableCell>{student.admissionNumber}</TableCell>
                       <TableCell>
@@ -437,76 +346,6 @@ const PayablePage = () => {
           )}
         </CardContent>
       </Card>
-
-      <Dialog open={isBalanceModalOpen} onOpenChange={setIsBalanceModalOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Adjust Balance</DialogTitle>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="type">Transaction Type</Label>
-              <Select
-                value={adjustment.type}
-                onValueChange={(value: "credit" | "debit") =>
-                  setAdjustment((prev) => ({ ...prev, type: value }))
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="credit">Credit</SelectItem>
-                  <SelectItem value="debit">Debit</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="amount">Amount</Label>
-              <Input
-                id="amount"
-                type="number"
-                value={adjustment.amount}
-                onChange={(e) =>
-                  setAdjustment((prev) => ({
-                    ...prev,
-                    amount: parseFloat(e.target.value) || 0,
-                  }))
-                }
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="description">Description</Label>
-              <Input
-                id="description"
-                value={adjustment.description}
-                onChange={(e) =>
-                  setAdjustment((prev) => ({
-                    ...prev,
-                    description: e.target.value,
-                  }))
-                }
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setIsBalanceModalOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={() => handleBalanceAdjustment(selectedStudent!.id)}
-              disabled={
-                loading || !adjustment.description || !adjustment.amount
-              }
-            >
-              {loading ? "Saving..." : "Save Changes"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </ContentLayout>
   );
 };
