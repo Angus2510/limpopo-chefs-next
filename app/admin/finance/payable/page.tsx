@@ -15,35 +15,14 @@ import {
 } from "@/components/ui/table";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { DataTableSkeleton } from "@/components/tables/basic/data-table-skeleton";
 import { getPayableData } from "@/lib/actions/finance/payableQuery";
 import { fetchStudentFinances } from "@/lib/actions/student/fetchStudentFinances";
 import { toggleStudentPortal } from "@/lib/actions/student/toggleStudentPortal";
-import { updateStudentBalance } from "@/lib/actions/finance/updateStudentBalance";
 import { useRouter, useSearchParams } from "next/navigation";
 import { searchParamsSchema } from "@/types/student/students";
 import { format } from "date-fns";
-import {
-  Student,
-  StudentFinances,
-  BalanceAdjustment,
-} from "@/types/finance/types";
+import { Student, StudentFinances } from "@/types/finance/types";
 import { useToast } from "@/components/ui/use-toast";
 
 const PayablePage = () => {
@@ -58,13 +37,6 @@ const PayablePage = () => {
   const [selectedStudentFinances, setSelectedStudentFinances] =
     useState<StudentFinances | null>(null);
   const [loading, setLoading] = useState(false);
-  const [isBalanceModalOpen, setIsBalanceModalOpen] = useState(false);
-  const [adjustment, setAdjustment] = useState<BalanceAdjustment>({
-    type: "debit",
-    amount: 0,
-    description: "",
-    date: new Date(),
-  });
 
   const fetchStudents = async (query: string = "") => {
     setLoading(true);
@@ -166,40 +138,6 @@ const PayablePage = () => {
     }
   };
 
-  const handleBalanceAdjustment = async (studentId: string) => {
-    try {
-      setLoading(true);
-      await updateStudentBalance(studentId, adjustment);
-      await fetchStudents(searchQuery);
-
-      if (selectedStudent?.id === studentId) {
-        const finances = await fetchStudentFinances(studentId);
-        setSelectedStudentFinances(finances);
-      }
-
-      setIsBalanceModalOpen(false);
-      setAdjustment({
-        type: "debit",
-        amount: 0,
-        description: "",
-        date: new Date(),
-      });
-      toast({
-        title: "Success",
-        description: "Balance adjusted successfully",
-      });
-    } catch (error) {
-      console.error("Error adjusting balance:", error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to adjust balance",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const formatDate = (dateString: string) => {
     try {
       return format(new Date(dateString), "dd MMM yyyy");
@@ -235,8 +173,6 @@ const PayablePage = () => {
           </div>
 
           <div className="space-y-6">
-            {" "}
-            {/* Changed from grid to space-y-6 for vertical spacing */}
             <div className="w-full">
               {loading ? (
                 <DataTableSkeleton
@@ -339,13 +275,14 @@ const PayablePage = () => {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => {
-                              setSelectedStudent(student);
-                              setIsBalanceModalOpen(true);
-                            }}
+                            onClick={() =>
+                              router.push(
+                                `/admin/finance/student-balance/${student.id}`
+                              )
+                            }
                             className="w-full max-w-[120px]"
                           >
-                            Adjust Balance
+                            View Balance
                           </Button>
                         </TableCell>
                       </TableRow>
@@ -434,84 +371,6 @@ const PayablePage = () => {
           </div>
         </CardContent>
       </Card>
-
-      <Dialog open={isBalanceModalOpen} onOpenChange={setIsBalanceModalOpen}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>Adjust Student Balance</DialogTitle>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="type" className="text-right">
-                Type
-              </Label>
-              <Select
-                value={adjustment.type}
-                onValueChange={(value: "credit" | "debit") =>
-                  setAdjustment((prev) => ({ ...prev, type: value }))
-                }
-              >
-                <SelectTrigger className="col-span-3">
-                  <SelectValue placeholder="Select type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="credit">Credit</SelectItem>
-                  <SelectItem value="debit">Debit</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="amount" className="text-right">
-                Amount
-              </Label>
-              <Input
-                id="amount"
-                type="number"
-                className="col-span-3"
-                value={adjustment.amount}
-                onChange={(e) =>
-                  setAdjustment((prev) => ({
-                    ...prev,
-                    amount: parseFloat(e.target.value) || 0,
-                  }))
-                }
-              />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="description" className="text-right">
-                Description
-              </Label>
-              <Input
-                id="description"
-                className="col-span-3"
-                value={adjustment.description}
-                onChange={(e) =>
-                  setAdjustment((prev) => ({
-                    ...prev,
-                    description: e.target.value,
-                  }))
-                }
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setIsBalanceModalOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={() =>
-                selectedStudent && handleBalanceAdjustment(selectedStudent.id)
-              }
-              disabled={loading}
-            >
-              {loading ? "Saving..." : "Save Changes"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </ContentLayout>
   );
 };
