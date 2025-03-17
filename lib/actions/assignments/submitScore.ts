@@ -1,35 +1,25 @@
-"use server";
 import prisma from "@/lib/db";
 
 export async function submitScore(
   assignmentId: string,
   scores: Record<string, number>,
-  staffId: string
+  staffId: string,
+  assignmentType: "test" | "task"
 ) {
-  // Validate inputs
-  if (!assignmentId) throw new Error("Missing assignment ID");
-  if (!scores || typeof scores !== "object")
-    throw new Error("Invalid scores object");
-  if (!staffId) throw new Error("Missing staff ID");
-
   try {
-    console.log("Submitting score with params:", {
-      assignmentId,
-      scores,
-      staffId,
-    });
-
-    // Calculate total score from the individual scores
+    // Calculate total score
     const totalScore = Object.values(scores).reduce(
       (sum, score) => sum + score,
       0
     );
 
-    console.log("Calculated total score:", totalScore);
-
     // Calculate percentage
-    // If you need the total possible score, you could pass it as a parameter
-    // For now, we're just storing the raw score
+    const maxPossibleScore = 100; // Adjust this based on your scoring system
+    const percentageScore = Math.round((totalScore / maxPossibleScore) * 100);
+
+    // Determine overall outcome
+    const overallOutcome =
+      percentageScore >= 40 ? "Competent" : "Not Yet Competent";
 
     const result = await prisma.assignmentresults.update({
       where: {
@@ -37,21 +27,18 @@ export async function submitScore(
       },
       data: {
         scores: totalScore,
+        percent: percentageScore,
+        [assignmentType === "test" ? "testScore" : "taskScore"]: totalScore,
         status: "marked",
         markedBy: staffId,
         moderatedscores: JSON.stringify(scores),
-        // Remove markedAt as it doesn't exist in the schema
+        overallOutcome,
       },
     });
 
-    console.log("Update successful, result:", result);
     return { success: true, data: result };
   } catch (error) {
-    // Safer error logging that handles null/undefined
-    console.error(
-      "Error submitting score:",
-      error ? error.toString() : "Unknown error"
-    );
+    console.error("Error submitting score:", error);
     return {
       success: false,
       error: error?.toString() || "Unknown error occurred",
