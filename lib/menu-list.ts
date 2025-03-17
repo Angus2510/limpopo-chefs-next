@@ -189,11 +189,7 @@ export function getMenuList(pathname: string): Group[] {
                 label: "Graduate Student",
                 active: pathname === "/admin/admin/graduate",
               },
-              {
-                href: "/admin/admin/change-student-intake-group",
-                label: "Change Student Intake",
-                active: pathname === "/admin/admin/change-student-intake-group",
-              },
+
               {
                 href: "/admin/admin/alumni",
                 label: "Alumni",
