@@ -2,6 +2,7 @@
 
 import prisma from "@/lib/db";
 import { type GetPayableSchema } from "@/types/payable/payable";
+import { getAllCampuses } from "../campus/campuses";
 
 export const getPayableData = async (input: GetPayableSchema) => {
   const {
@@ -15,29 +16,32 @@ export const getPayableData = async (input: GetPayableSchema) => {
   const offset = (page - 1) * per_page;
   const [sortColumn, sortOrder] = sort.split(".") as [string, "asc" | "desc"];
 
-  // Base query conditions
-  const whereConditions: any = {
-    active: true,
-  };
+  // Base query conditions - removed active filter to show all students
+  const whereConditions: any = {};
 
-  // Add search conditions if present
+  // Split search query into terms and search across multiple fields
   if (search) {
-    whereConditions.OR = [
-      { admissionNumber: { contains: search, mode: "insensitive" } },
-      { email: { contains: search, mode: "insensitive" } },
-      {
-        profile: {
-          path: ["firstName"],
-          string_contains: search,
+    const searchTerms = search.split(" ");
+    whereConditions.AND = searchTerms.map((term) => ({
+      OR: [
+        { admissionNumber: { contains: term, mode: "insensitive" } },
+        { email: { contains: term, mode: "insensitive" } },
+        {
+          profile: {
+            is: {
+              firstName: { contains: term, mode: "insensitive" },
+            },
+          },
         },
-      },
-      {
-        profile: {
-          path: ["lastName"],
-          string_contains: search,
+        {
+          profile: {
+            is: {
+              lastName: { contains: term, mode: "insensitive" },
+            },
+          },
         },
-      },
-    ];
+      ],
+    }));
   }
 
   // Add campus filter
@@ -48,7 +52,13 @@ export const getPayableData = async (input: GetPayableSchema) => {
   }
 
   try {
-    // First, get all students
+    // Fetch campuses first for mapping
+    const campuses = await getAllCampuses();
+    const campusMap = new Map(
+      campuses.map((campus) => [campus.id, campus.title])
+    );
+
+    // Fetch all students
     const students = await prisma.students.findMany({
       where: whereConditions,
       select: {
@@ -121,14 +131,16 @@ export const getPayableData = async (input: GetPayableSchema) => {
           .filter(Boolean)
           .sort((a, b) => a!.getTime() - b!.getTime());
 
-        // Get campus titles
-        const campusList = student.campus || [];
+        // Map campus IDs to titles
+        const campusList = student.campus.map(
+          (campusId) => campusMap.get(campusId) || "Unknown Campus"
+        );
 
         return {
           id: student.id,
           admissionNumber: student.admissionNumber,
-          firstName: student.profile.firstName,
-          lastName: student.profile.lastName,
+          firstName: student.profile?.firstName || "",
+          lastName: student.profile?.lastName || "",
           email: student.email,
           campuses: campusList.join(", "),
           profileBlocked: student.inactiveReason ? "Yes" : "No",
@@ -145,10 +157,13 @@ export const getPayableData = async (input: GetPayableSchema) => {
       if (a.hasOverduePayments && !b.hasOverduePayments) return -1;
       if (!a.hasOverduePayments && b.hasOverduePayments) return 1;
 
-      // Then by amount
+      // Then by amount due
       const amountA = parseFloat(a.payableAmounts) || 0;
       const amountB = parseFloat(b.payableAmounts) || 0;
-      return amountB - amountA;
+      if (amountA !== amountB) return amountB - amountA;
+
+      // Finally by admission number
+      return a.admissionNumber.localeCompare(b.admissionNumber);
     });
 
     return {
