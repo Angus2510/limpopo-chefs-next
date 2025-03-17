@@ -3,7 +3,7 @@
 import { ContentLayout } from "@/components/layout/content-layout";
 import { Card, CardContent } from "@/components/ui/card";
 import * as React from "react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Input } from "@/components/ui/input";
 import {
   Table,
@@ -16,7 +16,6 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { DataTableSkeleton } from "@/components/tables/basic/data-table-skeleton";
-import { getPayableData } from "@/lib/actions/finance/payableQuery";
 import { fetchStudentFinances } from "@/lib/actions/student/fetchStudentFinances";
 import { toggleStudentPortal } from "@/lib/actions/student/toggleStudentPortal";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -24,6 +23,8 @@ import { searchParamsSchema } from "@/types/student/students";
 import { format } from "date-fns";
 import { Student, StudentFinances } from "@/types/finance/types";
 import { useToast } from "@/components/ui/use-toast";
+import { debounce } from "lodash";
+import { getPayableData } from "@/lib/actions/finance/payableQuery";
 
 const PayablePage = () => {
   const { toast } = useToast();
@@ -41,53 +42,67 @@ const PayablePage = () => {
   const fetchStudents = async (query: string = "") => {
     setLoading(true);
     try {
-      const searchObject = {
-        search: query,
+      // Create a well-formed search object
+      const searchObject: GetPayableSchema = {
         page: 1,
         per_page: 100,
         sort: "admissionNumber.asc",
+        campusTitles: [],
+        intakeGroupTitles: [],
       };
 
-      const validatedParams = searchParamsSchema.parse(searchObject);
-      const { students } = await getPayableData(validatedParams);
+      // Only add search if it's not empty
+      if (query.trim()) {
+        searchObject.search = query;
+      }
 
-      const sortedStudents = students.sort((a, b) => {
-        const amountA = parseFloat(a.payableAmounts) || 0;
-        const amountB = parseFloat(b.payableAmounts) || 0;
-        return amountB - amountA;
-      });
+      const response = await getPayableData(searchObject);
 
-      setStudents(sortedStudents);
+      if (!response || !Array.isArray(response.students)) {
+        throw new Error("Invalid response format");
+      }
+
+      setStudents(response.students);
     } catch (error) {
       console.error("Error fetching students:", error);
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to fetch students",
+        description:
+          error instanceof Error ? error.message : "Failed to fetch students",
       });
+      setStudents([]);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
+
+  const debouncedFetch = useCallback(
+    debounce((query: string) => {
+      const params = new URLSearchParams(searchParams.toString());
+      if (query) {
+        params.set("search", query);
+      } else {
+        params.delete("search");
+      }
+      router.push(`?${params.toString()}`);
+      fetchStudents(query);
+    }, 300),
+    [searchParams, router]
+  );
 
   useEffect(() => {
     const initialSearch = searchParams.get("search") || "";
     setSearchQuery(initialSearch);
     fetchStudents(initialSearch);
-  }, [searchParams]);
+
+    // No need for cleanup since we're using useCallback
+  }, [searchParams, fetchStudents]);
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     const query = e.target.value;
     setSearchQuery(query);
-
-    const params = new URLSearchParams(searchParams.toString());
-    if (query) {
-      params.set("search", query);
-    } else {
-      params.delete("search");
-    }
-
-    router.push(`?${params.toString()}`);
-    fetchStudents(query);
+    debouncedFetch(query);
   };
 
   const handleStudentSelect = async (student: Student) => {
@@ -179,16 +194,12 @@ const PayablePage = () => {
                   columnCount={7}
                   searchableColumnCount={2}
                   filterableColumnCount={1}
-                  cellWidths={[
-                    "10%", // Student No.
-                    "20%", // Name
-                    "15%", // Campus
-                    "15%", // Balance Due
-                    "15%", // Due Date
-                    "10%", // Portal Access
-                    "15%", // Actions
-                  ]}
+                  cellWidths={["10%", "20%", "15%", "15%", "15%", "10%", "15%"]}
                 />
+              ) : students.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  No students found
+                </div>
               ) : (
                 <Table className="w-full table-fixed">
                   <TableHeader>
