@@ -21,11 +21,25 @@ export async function POST(request: Request) {
       });
 
       if (user && bcrypt.compareSync(password, user.password)) {
+        // Check if student account is disabled
+        if (type === "Student" && user.active === false) {
+          return NextResponse.json(
+            {
+              error: "Account disabled",
+              reason: user.inactiveReason || "Your account has been disabled",
+              accountDisabled: true,
+            },
+            { status: 403 }
+          );
+        }
+
         // Create JWT token
         const token = jwt.sign(
           {
             id: user.id,
             userType: type,
+            // Add active status for students to the token
+            ...(type === "Student" && { active: user.active }),
           },
           process.env["JWT_SECRET"]!,
           { expiresIn: "1h" }
@@ -37,6 +51,11 @@ export async function POST(request: Request) {
           firstName: user.firstName,
           lastName: user.lastName,
           userType: type,
+          // Include active status and reason for students
+          ...(type === "Student" && {
+            active: user.active,
+            inactiveReason: user.inactiveReason,
+          }),
         };
 
         // Create response

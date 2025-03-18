@@ -2,8 +2,7 @@
 
 import Link from "next/link";
 import { LayoutGrid, LogOut, User } from "lucide-react";
-import { useEffect, useState } from "react";
-import Cookies from "js-cookie";
+import { useEffect } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -22,43 +21,37 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import useAuthStore from "../../store/authStore";
+import { useAuth } from "@/context/auth-context";
 import { useRouter } from "next/navigation";
 
 export function UserNav() {
   const router = useRouter();
-  const logout = useAuthStore((state) => state.logout);
+  // Use the context-based auth system instead of Zustand
+  const { user, logout, isAuthenticated } = useAuth();
 
-  const [user, setUser] = useState<{
-    name: string;
-    email: string;
-    avatar?: string;
-  } | null>(null);
-  const [accessToken, setAccessToken] = useState<string | null>(null);
+  const userFullName =
+    user?.firstName && user?.lastName
+      ? `${user.firstName} ${user.lastName}`
+      : user?.firstName || user?.lastName || "Guest User";
 
-  useEffect(() => {
-    // Retrieve user data and token from cookies
-    const userData = Cookies.get("user"); // Check for user data cookie
-    const token = Cookies.get("accessToken"); // Check for token cookie
+  const userEmail = user?.id || "No ID available";
+  const userAvatar = user?.avatar;
+  const userInitial = user?.firstName
+    ? user.firstName.charAt(0).toUpperCase()
+    : user?.lastName
+    ? user.lastName.charAt(0).toUpperCase()
+    : "G";
 
-    if (userData && token) {
-      try {
-        const parsedUser = JSON.parse(userData);
-        setUser(parsedUser); // Set user in state
-        setAccessToken(token); // Set token in state
-      } catch (error) {
-        console.error("Error parsing user data from cookies:", error);
-      }
-    }
-  }, []);
-
-  const handleLogout = () => {
-    // Clear cookies and log out the user
-    Cookies.remove("user"); // Remove user cookie on logout
-    Cookies.remove("accessToken"); // Remove token cookie on logout
-    logout();
+  const handleLogout = async () => {
+    await logout();
     router.push("/login");
   };
+
+  // For debugging only - remove in production
+  useEffect(() => {
+    console.log("Auth context user:", user);
+    console.log("Is authenticated:", isAuthenticated());
+  }, [user, isAuthenticated]);
 
   return (
     <DropdownMenu>
@@ -72,13 +65,16 @@ export function UserNav() {
               >
                 <Avatar className="h-8 w-8">
                   <AvatarImage
-                    src={user?.avatar || "/default-avatar.png"}
+                    src={userAvatar || "/default-avatar.png"}
                     alt="Avatar"
                   />
                   <AvatarFallback className="bg-transparent">
-                    {user?.name ? user.name.charAt(0).toUpperCase() : "JD"}
+                    {userInitial}
                   </AvatarFallback>
                 </Avatar>
+                {isAuthenticated() && (
+                  <span className="absolute bottom-0 right-0 h-2 w-2 rounded-full bg-green-500" />
+                )}
               </Button>
             </DropdownMenuTrigger>
           </TooltipTrigger>
@@ -89,11 +85,9 @@ export function UserNav() {
       <DropdownMenuContent className="w-56" align="end" forceMount>
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col space-y-1">
-            <p className="text-sm font-medium leading-none">
-              {user?.name || "John Doe"}
-            </p>
+            <p className="text-sm font-medium leading-none">{userFullName}</p>
             <p className="text-xs leading-none text-muted-foreground">
-              {user?.email || "johndoe@example.com"}
+              {userEmail}
             </p>
           </div>
         </DropdownMenuLabel>

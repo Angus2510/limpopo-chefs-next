@@ -52,15 +52,20 @@ export default function LoginForm() {
 
       console.log("Login Response Status:", response.status);
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error("Login Error Response:", errorData);
-        throw new Error(
-          errorData.error || "Invalid credentials or server error"
-        );
+      const result = await response.json();
+
+      // Check for disabled account before checking other response statuses
+      if (response.status === 403 && result.accountDisabled) {
+        console.log("Account disabled, redirecting to disabled page");
+        router.push("/account-disabled");
+        return;
       }
 
-      const result = await response.json();
+      if (!response.ok) {
+        console.error("Login Error Response:", result);
+        throw new Error(result.error || "Invalid credentials or server error");
+      }
+
       const { accessToken = "", user } = result;
 
       console.log("Login Result:", {

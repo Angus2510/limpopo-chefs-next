@@ -6,14 +6,15 @@ interface DecodedToken {
   id: string | number;
   userType: string;
   exp: number;
+  active?: boolean; // Added to handle student active status
 }
 
 export function middleware(request: NextRequest) {
   const token = request.cookies.get("accessToken")?.value;
   const currentPath = request.nextUrl.pathname;
 
-  // Skip middleware for API routes
-  if (currentPath.startsWith("/api/")) {
+  // Skip middleware for API routes and the account-disabled page
+  if (currentPath.startsWith("/api/") || currentPath === "/account-disabled") {
     return NextResponse.next();
   }
 
@@ -51,6 +52,13 @@ export function middleware(request: NextRequest) {
       }
 
       const userType = decoded.userType;
+
+      // Check if student account is disabled
+      if (userType === "Student" && decoded.active === false) {
+        console.log("Disabled student account attempting access");
+        return NextResponse.redirect(new URL("/account-disabled", request.url));
+      }
+
       const userPath = `/${userType.toLowerCase()}`;
 
       console.log("Access Check:", {
@@ -86,7 +94,7 @@ export function middleware(request: NextRequest) {
   return NextResponse.next();
 }
 
-// ✅ Correct config format (no need for exclusions)
+// Update config to include the account-disabled route
 export const config = {
   matcher: [
     "/dashboard/:path*",
