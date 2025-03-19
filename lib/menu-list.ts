@@ -134,9 +134,9 @@ export function getMenuList(pathname: string): Group[] {
             icon: FileCheck,
             submenus: [
               {
-                href: "admin/results/capture",
+                href: "/admin/results/capture",
                 label: "Capture Results",
-                active: pathname === "admin/results/capture",
+                active: pathname === "/admin/results/capture",
               },
               {
                 href: "admin/results/sor",

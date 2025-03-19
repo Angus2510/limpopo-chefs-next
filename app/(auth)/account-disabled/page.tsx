@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import Link from "next/link";
+import { useEffect } from "react";
 import Cookies from "js-cookie";
 import {
   Card,
@@ -13,25 +12,6 @@ import {
 import { Button } from "@/components/ui/button";
 
 export default function AccountDisabledPage() {
-  const [reason, setReason] = useState<string>(
-    "Your account has been disabled"
-  );
-
-  useEffect(() => {
-    try {
-      // Try to get the reason from the user cookie
-      const userCookie = Cookies.get("user");
-      if (userCookie) {
-        const userData = JSON.parse(userCookie);
-        if (userData.inactiveReason) {
-          setReason(userData.inactiveReason);
-        }
-      }
-    } catch (error) {
-      console.error("Error reading cookie:", error);
-    }
-  }, []);
-
   // Handle logout
   const handleLogout = () => {
     Cookies.remove("accessToken");
@@ -39,31 +19,51 @@ export default function AccountDisabledPage() {
     window.location.href = "/login";
   };
 
+  // Open WhatsApp with the finance department number
+  const handleWhatsApp = () => {
+    window.open("https://wa.me/27761912732", "_blank");
+  };
+
+  // Open email client with finance email
+  const handleEmail = () => {
+    window.location.href = "mailto:finance@limpopochefs.co.za";
+  };
+
   return (
     <div className="container flex h-screen w-screen flex-col items-center justify-center">
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl text-center font-bold tracking-tight">
-            Account Disabled
+            Account Blocked
           </CardTitle>
         </CardHeader>
         <CardContent className="grid gap-4">
           <div className="p-6 bg-red-50 text-red-700 rounded-md">
             <p className="font-medium mb-2">
-              Your account access has been suspended
+              Your account has been disabled due to outstanding fees / fees not
+              paid.
             </p>
-            <p className="text-sm text-red-600">Reason: {reason}</p>
           </div>
           <div className="text-sm text-gray-500">
-            <p>Please contact the administration office for assistance:</p>
+            <p>Please contact Finance department for assistance:</p>
             <p className="mt-2">
-              <strong>Phone:</strong> 084 806 8596
+              <strong>Phone:</strong> 076 191 2732
               <br />
-              <strong>Email:</strong> info@limpopochefs.co.za
+              <strong>Email:</strong> finance@limpopochefs.co.za
             </p>
           </div>
         </CardContent>
-        <CardFooter>
+        <CardFooter className="flex flex-col gap-3">
+          <Button
+            variant="default"
+            className="w-full bg-green-600 hover:bg-green-700"
+            onClick={handleWhatsApp}
+          >
+            Click to WhatsApp Finance
+          </Button>
+          <Button variant="default" className="w-full" onClick={handleEmail}>
+            Click to email Finance
+          </Button>
           <Button variant="outline" className="w-full" onClick={handleLogout}>
             Return to Login
           </Button>
