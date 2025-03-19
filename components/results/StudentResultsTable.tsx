@@ -18,7 +18,7 @@ interface Student {
   id: string;
   name: string;
   surname: string;
-  admissionNumber: string; // Added admission number
+  admissionNumber: string;
   existingMark?: number;
   existingTestScore?: number;
   existingTaskScore?: number;
@@ -34,9 +34,9 @@ interface StudentResultsTableProps {
 interface StudentResult {
   studentId: string;
   outcomeId: string;
-  mark: number; // Total mark (test + task)
-  testScore: number; // Test score
-  taskScore: number; // Task score
+  mark: number;
+  testScore: number;
+  taskScore: number;
   competency: "competent" | "not_competent";
 }
 
@@ -46,12 +46,12 @@ export function StudentResultsTable({
   onSave,
 }: StudentResultsTableProps) {
   const [results, setResults] = useState<Record<string, StudentResult>>(() => {
-    // Initialize with existing data if available
     const initialResults: Record<string, StudentResult> = {};
     students.forEach((student) => {
       const testScore = student.existingTestScore ?? 0;
       const taskScore = student.existingTaskScore ?? 0;
-      const totalScore = student.existingMark ?? testScore + taskScore;
+      // Changed to calculate average instead of sum
+      const totalScore = student.existingMark ?? (testScore + taskScore) / 2;
 
       initialResults[student.id] = {
         studentId: student.id,
@@ -67,13 +67,16 @@ export function StudentResultsTable({
 
   const [isSaving, setIsSaving] = useState(false);
 
-  // Update total mark when test or task score changes
+  // Added function to handle display of zero values
+  const displayValue = (value: number) => (value === 0 ? "" : value.toString());
+
+  // Changed to calculate average instead of sum
   const updateTotalMark = (
     studentId: string,
     testScore: number,
     taskScore: number
   ) => {
-    const total = testScore + taskScore;
+    const average = (testScore + taskScore) / 2;
 
     setResults((prev) => ({
       ...prev,
@@ -81,12 +84,18 @@ export function StudentResultsTable({
         ...prev[studentId],
         testScore,
         taskScore,
-        mark: total,
+        mark: average,
       },
     }));
   };
 
   const handleTestScoreChange = (studentId: string, score: string) => {
+    if (score === "") {
+      const taskScore = results[studentId].taskScore;
+      updateTotalMark(studentId, 0, taskScore);
+      return;
+    }
+
     const numericScore = parseFloat(score);
     if (isNaN(numericScore) || numericScore < 0 || numericScore > 100) {
       return;
@@ -97,6 +106,12 @@ export function StudentResultsTable({
   };
 
   const handleTaskScoreChange = (studentId: string, score: string) => {
+    if (score === "") {
+      const testScore = results[studentId].testScore;
+      updateTotalMark(studentId, testScore, 0);
+      return;
+    }
+
     const numericScore = parseFloat(score);
     if (isNaN(numericScore) || numericScore < 0 || numericScore > 100) {
       return;
@@ -166,7 +181,7 @@ export function StudentResultsTable({
                   type="number"
                   min="0"
                   max="100"
-                  value={results[student.id].testScore}
+                  value={displayValue(results[student.id].testScore)}
                   onChange={(e) =>
                     handleTestScoreChange(student.id, e.target.value)
                   }
@@ -178,7 +193,7 @@ export function StudentResultsTable({
                   type="number"
                   min="0"
                   max="100"
-                  value={results[student.id].taskScore}
+                  value={displayValue(results[student.id].taskScore)}
                   onChange={(e) =>
                     handleTaskScoreChange(student.id, e.target.value)
                   }
@@ -186,7 +201,7 @@ export function StudentResultsTable({
                 />
               </TableCell>
               <TableCell className="font-medium">
-                {results[student.id].mark}
+                {results[student.id].mark.toFixed(1)}%
               </TableCell>
               <TableCell>
                 <CompetencyRadio
