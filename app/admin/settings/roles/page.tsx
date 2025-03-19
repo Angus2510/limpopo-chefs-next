@@ -97,7 +97,7 @@ export default function AssignRoles() {
           </p>
         </div>
         <Button
-          onClick={() => router.push("/admin/settings/roles/new")}
+          onClick={() => router.push("/admin/settings/roles/roles-add")}
           className="flex items-center gap-2"
         >
           <PlusCircle className="h-4 w-4" />
