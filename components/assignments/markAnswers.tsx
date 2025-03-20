@@ -41,6 +41,7 @@ interface MarkAnswersProps {
   initialScores: Record<string, number>;
   totalPossible: number;
   staffId: string;
+  studentId: string; // Add this prop
 }
 
 export function MarkAnswers({
@@ -50,6 +51,7 @@ export function MarkAnswers({
   initialScores,
   totalPossible,
   staffId,
+  studentId, // Add this prop
 }: MarkAnswersProps) {
   const [scores, setScores] = useState<Record<string, number>>(
     initialScores || {}
@@ -103,29 +105,68 @@ export function MarkAnswers({
     setIsSubmitting(true);
 
     try {
-      // Pass the scores object directly, no JSON.stringify needed
-      const result = await submitScore(resultId, scores, staffId);
+      const totalScore = calculateTotal();
+      const percentage = Math.round((totalScore * 100) / totalPossible);
+
+      // Debug log
+      console.log("Starting submission:", {
+        resultId,
+        staffId,
+        totalScore,
+        percentage,
+        studentId,
+      });
+
+      // Create an object with all scores and their corresponding answers
+      const scoreData = {};
+      questions.forEach((question) => {
+        scoreData[question.id] = {
+          score: scores[question.id] || 0,
+          answer:
+            parsedAnswers.find((a) => a.question === question.id)?.answer || "",
+        };
+      });
+
+      // Debug log
+      console.log("Score data prepared:", scoreData);
+
+      const result = await submitScore(
+        resultId,
+        scores,
+        staffId,
+        "test",
+        totalScore,
+        percentage,
+        JSON.stringify(scoreData)
+      );
 
       if (!result.success) {
+        console.error("Submission failed:", result.error);
         throw new Error(result.error);
       }
 
+      // Debug log
+      console.log("Submission successful:", result.data);
+
       toast({
         title: "Scores submitted successfully",
-        description: "The assignment has been marked.",
+        description: `Assignment has been marked. Final score: ${totalScore}/${totalPossible} (${percentage}%)`,
+        variant: "success",
       });
 
-      // Navigate to the assignments list page after successful submission
+      // Short delay before redirect
+      await new Promise((resolve) => setTimeout(resolve, 1000));
       router.push("/admin/assignment");
     } catch (error) {
+      console.error("Error in handleSubmit:", error);
+
       toast({
         title: "Error",
         description: `Failed to submit scores: ${
-          error.message || "Unknown error"
+          error instanceof Error ? error.message : "Unknown error"
         }`,
         variant: "destructive",
       });
-      console.error(error);
     } finally {
       setIsSubmitting(false);
     }

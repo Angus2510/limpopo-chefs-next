@@ -426,6 +426,7 @@ export default async function AssignmentMarkingPage({ params }: PageProps) {
                       initialScores={scoresMap}
                       totalPossible={totalPossible}
                       staffId={staffId || ""}
+                      studentId={result.student.id}
                     />
                   </div>
                 </CardContent>

@@ -417,7 +417,7 @@ export default function CalendarDemo({
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle>
-              {modalMode === "create" ? "Add Event for " : "Edit Event on "}
+              {modalMode === "create" ? "Add to Roster for " : "Edit Event on "}
               {selectedDate ? format(selectedDate, "MMMM d, yyyy") : ""}
             </DialogTitle>
           </DialogHeader>
@@ -425,7 +425,7 @@ export default function CalendarDemo({
           <div className="grid gap-4 py-4">
             {/* Event Title */}
             <div className="grid gap-2">
-              <Label htmlFor="title">Event Title</Label>
+              <Label htmlFor="title">Roster Title</Label>
               <Input
                 id="title"
                 value={newEvent.title}
@@ -514,7 +514,7 @@ export default function CalendarDemo({
 
             {/* Event Type */}
             <div className="grid gap-2">
-              <Label>Event Type</Label>
+              <Label>Roster Type</Label>
               <Select
                 value={newEvent.color}
                 onValueChange={(value) =>

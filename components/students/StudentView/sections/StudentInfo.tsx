@@ -58,7 +58,7 @@ export function StudentInfo({ student }: StudentInfoProps) {
             <InfoField label="Email" value={student?.email} />
             <InfoField label="Mobile Number" value={profile?.mobileNumber} />
             <InfoField
-              label="Admission Number"
+              label="Student Number"
               value={student?.admissionNumber}
             />
             <InfoField
