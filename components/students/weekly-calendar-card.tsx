@@ -15,21 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { getEvents } from "@/lib/actions/events/getEvents";
-
-interface Event {
-  id: string;
-  title: string;
-  details: string;
-  startDate: string;
-  endDate: string | null;
-  color: string;
-  location: string[];
-  assignedTo: string[];
-  assignedToModel: string[];
-  createdBy: string;
-  v: number;
-  allDay: boolean;
-}
+import { Event, EventType, EVENT_TYPES } from "@/types/events/Events";
 
 interface WeeklyCalendarProps {
   studentData: {
@@ -84,29 +70,24 @@ const WeeklyCalendarCard: React.FC<WeeklyCalendarProps> = ({ studentData }) => {
   const getEventsForDate = (date: Date) => {
     return events.filter((event) => {
       const eventDate = new Date(event.startDate);
-      return eventDate.toDateString() === date.toDateString();
+      return format(eventDate, "yyyy-MM-dd") === format(date, "yyyy-MM-dd");
     });
   };
 
-  const formatTime = (dateString: string) => {
-    return new Date(dateString).toLocaleTimeString("en-US", {
+  const formatTime = (date: Date, time: string) => {
+    const [hours, minutes] = time.split(":");
+    const dateTime = new Date(date);
+    dateTime.setHours(parseInt(hours), parseInt(minutes));
+
+    return dateTime.toLocaleTimeString("en-US", {
       hour: "numeric",
       minute: "2-digit",
       hour12: true,
     });
   };
 
-  const getEventColorClass = (color: string) => {
-    switch (color.toLowerCase()) {
-      case "class":
-        return "bg-blue-100 text-blue-800";
-      case "meeting":
-        return "bg-green-100 text-green-800";
-      case "assessment":
-        return "bg-yellow-100 text-yellow-800";
-      default:
-        return "bg-gray-100 text-gray-800";
-    }
+  const getEventColorClass = (eventType: EventType) => {
+    return EVENT_TYPES[eventType];
   };
 
   const startOfCurrentWeek = startOfWeek(currentDate, { weekStartsOn: 1 });
@@ -162,7 +143,7 @@ const WeeklyCalendarCard: React.FC<WeeklyCalendarProps> = ({ studentData }) => {
                             <div className="flex flex-col space-y-1">
                               <div className="flex justify-between items-start">
                                 <span className="text-sm font-medium">
-                                  {formatTime(event.startDate)}
+                                  {formatTime(event.startDate, event.startTime)}
                                 </span>
                                 <span
                                   className={`text-xs px-2 py-1 rounded-full ${getEventColorClass(
@@ -177,11 +158,9 @@ const WeeklyCalendarCard: React.FC<WeeklyCalendarProps> = ({ studentData }) => {
                                   {event.details}
                                 </p>
                               )}
-                              {event.location?.length > 0 && (
-                                <p className="text-xs text-muted-foreground">
-                                  📍 {event.location.join(", ")}
-                                </p>
-                              )}
+                              <p className="text-xs text-muted-foreground">
+                                📍 {event.venue}
+                              </p>
                             </div>
                           </li>
                         ))}
@@ -218,7 +197,7 @@ const WeeklyCalendarCard: React.FC<WeeklyCalendarProps> = ({ studentData }) => {
                             <div className="flex flex-col space-y-1">
                               <div className="flex justify-between items-start">
                                 <span className="text-sm font-medium">
-                                  {formatTime(event.startDate)}
+                                  {formatTime(event.startDate, event.startTime)}
                                 </span>
                                 <span
                                   className={`text-xs px-2 py-1 rounded-full ${getEventColorClass(
@@ -233,11 +212,9 @@ const WeeklyCalendarCard: React.FC<WeeklyCalendarProps> = ({ studentData }) => {
                                   {event.details}
                                 </p>
                               )}
-                              {event.location?.length > 0 && (
-                                <p className="text-xs text-muted-foreground">
-                                  📍 {event.location.join(", ")}
-                                </p>
-                              )}
+                              <p className="text-xs text-muted-foreground">
+                                📍 {event.venue}
+                              </p>
                             </div>
                           </li>
                         ))}
