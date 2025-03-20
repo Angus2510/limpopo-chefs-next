@@ -4,19 +4,21 @@ import prisma from "@/lib/db";
 import { revalidatePath } from "next/cache";
 
 export async function getEvents() {
+  console.log("🔍 Getting all events...");
   try {
     const events = await prisma.events.findMany({
-      where: { deleted: false },
       orderBy: { startDate: "asc" },
     });
-    return events; // Return just the events array
+    console.log("✅ Found events:", events.length);
+    return events;
   } catch (error) {
-    console.error("Failed to fetch events:", error);
+    console.error("❌ Failed to fetch events:", error);
     return [];
   }
 }
 
 export async function createEvent(data: any) {
+  console.log("📝 Creating event with data:", data);
   try {
     const event = await prisma.events.create({
       data: {
@@ -34,15 +36,17 @@ export async function createEvent(data: any) {
         deleted: false,
       },
     });
+    console.log("✅ Event created:", event);
     revalidatePath("/admin/dashboard");
     return event;
   } catch (error) {
-    console.error("Failed to create event:", error);
+    console.error("❌ Failed to create event:", error);
     throw error;
   }
 }
 
 export async function updateEvent(id: string, data: any) {
+  console.log("📝 Updating event:", id, "with data:", data);
   try {
     const event = await prisma.events.update({
       where: { id },
@@ -51,24 +55,25 @@ export async function updateEvent(id: string, data: any) {
         startDate: data.startDate ? new Date(data.startDate) : undefined,
       },
     });
+    console.log("✅ Event updated:", event);
     revalidatePath("/admin/dashboard");
     return event;
   } catch (error) {
-    console.error("Failed to update event:", error);
+    console.error("❌ Failed to update event:", error);
     throw error;
   }
 }
-
 export async function deleteEvent(id: string) {
+  console.log("🗑️ Attempting to delete event:", id);
   try {
-    const event = await prisma.events.update({
+    const event = await prisma.events.delete({
       where: { id },
-      data: { deleted: true },
     });
+    console.log("✅ Event deleted:", event);
     revalidatePath("/admin/dashboard");
-    return event;
+    return { success: true, data: event };
   } catch (error) {
-    console.error("Failed to delete event:", error);
-    throw error;
+    console.error("❌ Delete failed:", error);
+    return { success: false, error: "Failed to delete event" };
   }
 }

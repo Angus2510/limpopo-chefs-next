@@ -14,12 +14,14 @@ export function useEvents() {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [modalMode, setModalMode] = useState<"create" | "edit">("create");
+  const [modalMode, setModalMode] = useState<"create" | "edit" | "delete">(
+    "create"
+  );
 
   const fetchEvents = async () => {
     try {
       const data = await getEvents();
-      setEvents(data);
+      setEvents(Array.isArray(data) ? data : []);
     } catch (error) {
       toast({
         variant: "destructive",
@@ -33,30 +35,60 @@ export function useEvents() {
     fetchEvents();
   }, []);
 
+  const handleDelete = async (id: string) => {
+    try {
+      setIsLoading(true);
+      const response = await deleteEvent(id);
+
+      if (response.success) {
+        await fetchEvents();
+        setIsModalOpen(false);
+        setSelectedEvent(null);
+        toast({
+          title: "Success",
+          description: "Event deleted successfully",
+        });
+        return true;
+      }
+      throw new Error(response.error);
+    } catch (error) {
+      console.error("Delete failed:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to delete event",
+      });
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleEventAction = async (data: Partial<Event>) => {
     try {
       setIsLoading(true);
 
-      if (modalMode === "edit" && selectedEvent) {
+      if (modalMode === "edit" && selectedEvent?.id) {
         await updateEvent(selectedEvent.id, data);
       } else {
         await createEvent(data);
       }
 
       await fetchEvents();
-      setIsModalOpen(false);
       toast({
         title: "Success",
         description: `Event ${
           modalMode === "create" ? "created" : "updated"
         } successfully`,
       });
+      return true;
     } catch (error) {
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to save event",
+        description: "Failed to perform action",
       });
+      return false;
     } finally {
       setIsLoading(false);
     }
@@ -75,6 +107,7 @@ export function useEvents() {
     setIsModalOpen,
     setModalMode,
     handleEventAction,
+    handleDelete,
     fetchEvents,
   };
 }

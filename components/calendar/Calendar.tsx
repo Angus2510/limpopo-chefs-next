@@ -26,23 +26,27 @@ export function Calendar({ intakeGroups }: CalendarProps) {
     setIsModalOpen,
     setModalMode,
     handleEventAction,
+    handleDelete,
   } = useEvents();
 
-  useEffect(() => {
-    const fetchEvents = async () => {
-      const response = await getEvents();
-      if (response.success) {
-        setEvents(response.data);
-      } else {
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: "Failed to load events",
-        });
+  const fetchEvents = async () => {
+    try {
+      const events = await getEvents();
+      if (Array.isArray(events)) {
+        setEvents(events);
       }
-    };
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to load events",
+      });
+    }
+  };
+
+  useEffect(() => {
     fetchEvents();
-  }, [setEvents]);
+  }, []);
 
   const handleDayClick = (date: Date) => {
     setSelectedDate(date);
@@ -64,70 +68,37 @@ export function Calendar({ intakeGroups }: CalendarProps) {
         startDate: selectedDate?.toISOString() || new Date().toISOString(),
       };
 
-      const response = await handleEventAction(payload);
+      const success = await handleEventAction(payload);
 
-      if (response.success) {
-        const updatedEvents = await getEvents();
-        if (response.success) {
-          setEvents(response.data);
-          toast({
-            title: modalMode === "create" ? "Event Created" : "Event Updated",
-            description: "Calendar has been updated successfully.",
-          });
-        }
-
+      if (success) {
+        await fetchEvents();
         setIsModalOpen(false);
         setSelectedDate(null);
         setSelectedEvent(null);
-      } else {
+
         toast({
-          variant: "destructive",
-          title: "Error",
-          description: response.error || "Failed to save event",
+          title: "Success",
+          description: `Event ${
+            modalMode === "create" ? "created" : "updated"
+          } successfully`,
         });
       }
     } catch (error) {
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Something went wrong. Please try again.",
+        description: "Failed to save event",
       });
     }
   };
 
   const handleEventDelete = async () => {
-    if (!selectedEvent) return;
+    if (!selectedEvent?.id) return;
 
     try {
-      setModalMode("delete");
-      const response = await handleEventAction({});
-
-      if (response.success) {
-        const updatedEvents = await getEvents();
-        if (response.success) {
-          setEvents(response.data);
-          toast({
-            title: "Event Deleted",
-            description: "The event has been removed from the calendar.",
-          });
-        }
-
-        setIsModalOpen(false);
-        setSelectedDate(null);
-        setSelectedEvent(null);
-      } else {
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: response.error || "Failed to delete event",
-        });
-      }
+      await handleDelete(selectedEvent.id);
     } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Something went wrong. Please try again.",
-      });
+      console.error("Delete failed:", error);
     }
   };
 
