@@ -228,14 +228,15 @@ model assignmentresults {
   assignment      String   @db.ObjectId
   campus          String   @db.ObjectId
   dateTaken       DateTime @db.Date
-  /// Could not determine type: the field only had null or empty values in the sample set.
   feedback        Json?
   intakeGroup     String   @db.ObjectId
   markedBy        String?  @db.ObjectId
   moderatedscores String?
   outcome         String   @db.ObjectId
-  percent         Int?
-  scores          Int?
+  percent         Int?     // Overall percentage
+  testScore      Int?     // Added field for test score
+  taskScore      Int?     // Added field for task score
+  scores          Int?     // Keep this as average of test and task
   status          String
   student         String   @db.ObjectId
 }

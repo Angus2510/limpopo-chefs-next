@@ -79,49 +79,40 @@ export async function getStudentsByIntakeAndCampus(
       try {
         console.log(`Fetching existing results for outcome ${outcomeId}`);
 
-        // Get assignment results
-        const assignmentResults = await prisma.assignmentresults.findMany({
+        // Get results instead of assignment results
+        const existingResults = await prisma.results.findMany({
           where: {
             outcome: outcomeId,
-            student: {
-              in: students.map((s) => s.id),
+            participants: {
+              hasSome: students.map((s) => s.id),
             },
           },
           select: {
-            student: true,
-            scores: true,
-            percent: true,
-            testScore: true,
-            taskScore: true,
-            status: true,
+            results: true,
           },
         });
 
-        console.log(
-          `Found ${assignmentResults.length} existing assignment results`
-        );
+        console.log(`Found ${existingResults.length} existing results`);
 
-        // Create a map of studentId -> results
-        assignmentResults.forEach((result) => {
-          if (result.student) {
-            studentResults[result.student] = {
-              mark: result.percent || result.scores || undefined,
-              testScore: result.testScore || undefined,
-              taskScore: result.taskScore || undefined,
-              competency:
-                result.status === "competent" ||
-                result.status === "not_competent"
-                  ? result.status
-                  : undefined,
-            };
+        // Flatten and process all results
+        existingResults.forEach((result) => {
+          if (result.results) {
+            result.results.forEach((studentResult) => {
+              if (studentResult.student) {
+                studentResults[studentResult.student] = {
+                  mark: studentResult.score,
+                  testScore: studentResult.testScore,
+                  taskScore: studentResult.taskScore,
+                  competency: studentResult.overallOutcome,
+                };
+              }
+            });
           }
         });
       } catch (resultError) {
-        // Handle error fetching results separately
-        console.log(
-          `Error fetching results for outcome ${outcomeId}: ${
-            resultError instanceof Error ? resultError.message : "Unknown error"
-          }`
+        console.error(
+          `Error fetching results for outcome ${outcomeId}:`,
+          resultError
         );
         // Continue with empty results rather than failing the whole request
       }
@@ -142,11 +133,9 @@ export async function getStudentsByIntakeAndCampus(
         | undefined,
     }));
   } catch (error) {
-    // Safely log error
     const errorMessage =
       error instanceof Error ? error.message : "Unknown error";
-    console.log(`Error fetching students: ${errorMessage}`);
-
+    console.error(`Error fetching students: ${errorMessage}`);
     throw new Error(`Failed to fetch students: ${errorMessage}`);
   }
 }

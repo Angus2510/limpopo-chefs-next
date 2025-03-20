@@ -3,6 +3,25 @@
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Check, ChevronsUpDown } from "lucide-react";
+import { getAllIntakeGroups } from "@/lib/actions/intakegroup/intakeGroups";
+import { getAllCampuses } from "@/lib/actions/campus/campuses";
+import { getAllOutcomes } from "@/lib/actions/intakegroup/outcome/outcomeQuery";
+import { toast } from "@/components/ui/use-toast";
+import { cn } from "@/lib/utils";
 import {
   Select,
   SelectContent,
@@ -10,11 +29,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Button } from "@/components/ui/button";
-import { getAllIntakeGroups } from "@/lib/actions/intakegroup/intakeGroups";
-import { getAllCampuses } from "@/lib/actions/campus/campuses";
-import { getAllOutcomes } from "@/lib/actions/intakegroup/outcome/outcomeQuery";
-import { toast } from "@/components/ui/use-toast";
 
 interface SelectionFormProps {
   onSelectionComplete: (selection: {
@@ -40,6 +54,8 @@ export function SelectionForm({ onSelectionComplete }: SelectionFormProps) {
   >([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadingError, setLoadingError] = useState<string | null>(null);
+  const [intakeOpen, setIntakeOpen] = useState(false);
+  const [outcomeOpen, setOutcomeOpen] = useState(false);
 
   const { register, handleSubmit, watch, setValue } = useForm<FormValues>();
   const selectedIntakeGroup = watch("intakeGroupId");
@@ -103,32 +119,58 @@ export function SelectionForm({ onSelectionComplete }: SelectionFormProps) {
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
         <div className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Intake Group Searchable Select */}
             <div className="space-y-2">
               <Label htmlFor="intakeGroupId">Intake Group</Label>
-              <Select
-                disabled={isLoading}
-                value={selectedIntakeGroup}
-                onValueChange={(value) => setValue("intakeGroupId", value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select intake group" />
-                </SelectTrigger>
-                <SelectContent>
-                  {intakeGroups.length > 0 ? (
-                    intakeGroups.map((group) => (
-                      <SelectItem key={group.id} value={group.id}>
-                        {group.title}
-                      </SelectItem>
-                    ))
-                  ) : (
-                    <SelectItem disabled value="none">
-                      No intake groups available
-                    </SelectItem>
-                  )}
-                </SelectContent>
-              </Select>
+              <Popover open={intakeOpen} onOpenChange={setIntakeOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={intakeOpen}
+                    className="w-full justify-between"
+                    disabled={isLoading}
+                  >
+                    {selectedIntakeGroup
+                      ? intakeGroups.find(
+                          (group) => group.id === selectedIntakeGroup
+                        )?.title
+                      : "Select intake group..."}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                  <Command>
+                    <CommandInput placeholder="Search intake groups..." />
+                    <CommandEmpty>No intake group found.</CommandEmpty>
+                    <CommandGroup className="max-h-[200px] overflow-auto">
+                      {intakeGroups.map((group) => (
+                        <CommandItem
+                          key={group.id}
+                          value={group.title}
+                          onSelect={() => {
+                            setValue("intakeGroupId", group.id);
+                            setIntakeOpen(false);
+                          }}
+                        >
+                          <Check
+                            className={cn(
+                              "mr-2 h-4 w-4",
+                              selectedIntakeGroup === group.id
+                                ? "opacity-100"
+                                : "opacity-0"
+                            )}
+                          />
+                          {group.title}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
 
+            {/* Campus Select - Keeping original select for this one */}
             <div className="space-y-2">
               <Label htmlFor="campusId">Campus</Label>
               <Select
@@ -155,30 +197,55 @@ export function SelectionForm({ onSelectionComplete }: SelectionFormProps) {
               </Select>
             </div>
 
+            {/* Outcome Searchable Select */}
             <div className="space-y-2">
               <Label htmlFor="outcomeId">Outcome</Label>
-              <Select
-                disabled={isLoading}
-                value={selectedOutcome}
-                onValueChange={(value) => setValue("outcomeId", value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select outcome" />
-                </SelectTrigger>
-                <SelectContent>
-                  {outcomes.length > 0 ? (
-                    outcomes.map((outcome) => (
-                      <SelectItem key={outcome.id} value={outcome.id}>
-                        {outcome.title}
-                      </SelectItem>
-                    ))
-                  ) : (
-                    <SelectItem disabled value="none">
-                      No outcomes available
-                    </SelectItem>
-                  )}
-                </SelectContent>
-              </Select>
+              <Popover open={outcomeOpen} onOpenChange={setOutcomeOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={outcomeOpen}
+                    className="w-full justify-between"
+                    disabled={isLoading}
+                  >
+                    {selectedOutcome
+                      ? outcomes.find(
+                          (outcome) => outcome.id === selectedOutcome
+                        )?.title
+                      : "Select outcome..."}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                  <Command>
+                    <CommandInput placeholder="Search outcomes..." />
+                    <CommandEmpty>No outcome found.</CommandEmpty>
+                    <CommandGroup className="max-h-[200px] overflow-auto">
+                      {outcomes.map((outcome) => (
+                        <CommandItem
+                          key={outcome.id}
+                          value={outcome.title}
+                          onSelect={() => {
+                            setValue("outcomeId", outcome.id);
+                            setOutcomeOpen(false);
+                          }}
+                        >
+                          <Check
+                            className={cn(
+                              "mr-2 h-4 w-4",
+                              selectedOutcome === outcome.id
+                                ? "opacity-100"
+                                : "opacity-0"
+                            )}
+                          />
+                          {outcome.title}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
           </div>
         </div>

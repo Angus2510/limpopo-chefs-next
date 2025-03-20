@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState } from "react";
 import {
   Table,
   TableBody,
@@ -28,7 +28,13 @@ interface Student {
 interface StudentResultsTableProps {
   students: Student[];
   outcomeId: string;
-  onSave: (results: StudentResult[]) => Promise<void>;
+  campusId: string;
+  intakeGroupId: string;
+  onSave: (results: StudentResult[]) => Promise<{
+    success: boolean;
+    data?: any;
+    error?: string;
+  }>;
 }
 
 interface StudentResult {
@@ -38,11 +44,15 @@ interface StudentResult {
   testScore: number;
   taskScore: number;
   competency: "competent" | "not_competent";
+  campusId: string;
+  intakeGroupId: string;
 }
 
 export function StudentResultsTable({
   students,
   outcomeId,
+  campusId,
+  intakeGroupId,
   onSave,
 }: StudentResultsTableProps) {
   const [results, setResults] = useState<Record<string, StudentResult>>(() => {
@@ -50,12 +60,13 @@ export function StudentResultsTable({
     students.forEach((student) => {
       const testScore = student.existingTestScore ?? 0;
       const taskScore = student.existingTaskScore ?? 0;
-      // Changed to calculate average instead of sum
       const totalScore = student.existingMark ?? (testScore + taskScore) / 2;
 
       initialResults[student.id] = {
         studentId: student.id,
         outcomeId,
+        campusId,
+        intakeGroupId,
         testScore: testScore,
         taskScore: taskScore,
         mark: totalScore,
@@ -67,10 +78,8 @@ export function StudentResultsTable({
 
   const [isSaving, setIsSaving] = useState(false);
 
-  // Added function to handle display of zero values
   const displayValue = (value: number) => (value === 0 ? "" : value.toString());
 
-  // Changed to calculate average instead of sum
   const updateTotalMark = (
     studentId: string,
     testScore: number,
@@ -137,16 +146,35 @@ export function StudentResultsTable({
   const handleSubmit = async () => {
     try {
       setIsSaving(true);
-      await onSave(Object.values(results));
+
+      const resultsToSave = Object.values(results).map((r) => ({
+        studentId: r.studentId,
+        outcomeId: r.outcomeId,
+        mark: r.mark,
+        testScore: r.testScore,
+        taskScore: r.taskScore,
+        competency: r.competency,
+        campusId: r.campusId,
+        intakeGroupId: r.intakeGroupId,
+      }));
+
+      const response = await onSave(resultsToSave);
+
+      if (!response?.success) {
+        throw new Error(response?.error || "Failed to save results");
+      }
+
       toast({
-        title: "Results saved successfully",
+        title: "Success",
+        description: "Results saved successfully",
         variant: "default",
       });
     } catch (error) {
       console.error("Error saving results:", error);
       toast({
-        title: "Failed to save results",
-        description: "Please try again later",
+        title: "Error",
+        description:
+          error instanceof Error ? error.message : "Failed to save results",
         variant: "destructive",
       });
     } finally {

@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Card,
   CardContent,
@@ -12,8 +11,6 @@ import {
 import SelectionForm from "@/components/results/SelectionForm";
 import StudentResultsTable from "@/components/results/StudentResultsTable";
 import { useToast } from "@/components/ui/use-toast";
-
-// Import the server actions
 import { getStudentsByIntakeAndCampus } from "@/lib/actions/student/getStudentsByIntakeAndCampus";
 import { saveStudentResults } from "@/lib/actions/results/saveStudentResults ";
 import { ContentLayout } from "@/components/layout/content-layout";
@@ -22,15 +19,11 @@ interface Student {
   id: string;
   name: string;
   surname: string;
+  admissionNumber: string;
   existingMark?: number;
+  existingTestScore?: number;
+  existingTaskScore?: number;
   existingCompetency?: "competent" | "not_competent";
-}
-
-interface StudentResult {
-  studentId: string;
-  outcomeId: string;
-  mark: number;
-  competency: "competent" | "not_competent";
 }
 
 export default function ResultsCapturePage() {
@@ -66,24 +59,6 @@ export default function ResultsCapturePage() {
       });
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const handleSaveResults = async (results: StudentResult[]) => {
-    try {
-      await saveStudentResults(results);
-      toast({
-        title: "Success",
-        description: "Results saved successfully",
-      });
-    } catch (error) {
-      console.error("Error saving results:", error);
-      toast({
-        title: "Error",
-        description: "Failed to save results. Please try again.",
-        variant: "destructive",
-      });
-      throw error;
     }
   };
 
@@ -123,7 +98,9 @@ export default function ResultsCapturePage() {
               <StudentResultsTable
                 students={students}
                 outcomeId={selection.outcomeId}
-                onSave={handleSaveResults}
+                campusId={selection.campusId}
+                intakeGroupId={selection.intakeGroupId}
+                onSave={saveStudentResults}
               />
             </CardContent>
           </Card>
