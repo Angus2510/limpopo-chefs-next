@@ -6,7 +6,11 @@ interface EventData {
   title: string;
   details?: string;
   startDate: string;
+  startTime?: string;
   endDate?: string | null;
+  endTime?: string;
+  venue?: string;
+  lecturer?: string;
   color?: string;
   assignedToModel?: string[];
 }
@@ -25,7 +29,11 @@ export async function getEvents() {
         title: true,
         details: true,
         startDate: true,
+        startTime: true,
         endDate: true,
+        endTime: true,
+        venue: true,
+        lecturer: true,
         color: true,
         location: true,
         assignedTo: true,
@@ -56,7 +64,11 @@ export async function createEvent(data: EventData) {
         title: data.title,
         details: data.details ?? "",
         startDate: new Date(data.startDate),
+        startTime: data.startTime ?? "09:00",
         endDate: data.endDate ? new Date(data.endDate) : null,
+        endTime: data.endTime ?? "17:00",
+        venue: data.venue ?? "",
+        lecturer: data.lecturer ?? "",
         color: data.color ?? "other",
         location: [],
         assignedTo: [],
@@ -86,7 +98,11 @@ export async function updateEvent(id: string, data: Partial<EventData>) {
         ...(data.title && { title: data.title }),
         ...(data.details && { details: data.details }),
         ...(data.startDate && { startDate: new Date(data.startDate) }),
+        ...(data.startTime && { startTime: data.startTime }),
         ...(data.endDate && { endDate: new Date(data.endDate) }),
+        ...(data.endTime && { endTime: data.endTime }),
+        ...(data.venue && { venue: data.venue }),
+        ...(data.lecturer && { lecturer: data.lecturer }),
         ...(data.color && { color: data.color }),
         ...(data.assignedToModel && { assignedToModel: data.assignedToModel }),
       },
@@ -95,7 +111,11 @@ export async function updateEvent(id: string, data: Partial<EventData>) {
         title: true,
         details: true,
         startDate: true,
+        startTime: true,
         endDate: true,
+        endTime: true,
+        venue: true,
+        lecturer: true,
         color: true,
         location: true,
         assignedTo: true,

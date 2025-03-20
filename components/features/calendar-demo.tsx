@@ -63,6 +63,8 @@ import {
   deleteEvent,
 } from "@/lib/actions/events/getEvents";
 
+import { useState } from "react"; // Add this import
+
 // Interfaces
 interface CalendarDemoProps {
   intakeGroups: {
@@ -83,7 +85,11 @@ interface Event {
   title: string;
   details: string;
   startDate: Date;
+  startTime: string;
   endDate?: Date | null;
+  endTime: string;
+  venue: string;
+  lecturer: string;
   color: string;
   location: string[];
   assignedTo: string[];
@@ -95,9 +101,10 @@ interface Event {
 
 // Constants
 const eventTypes = {
-  practical: "bg-red-100 text-red-800 border-red-300",
-  theory: "bg-blue-100 text-blue-800 border-blue-300",
-  assessment: "bg-green-100 text-green-800 border-green-300",
+  assessment: "bg-red-100 text-red-800 border-red-300",
+  practical: "bg-yellow-100 text-yellow-800 border-yellow-300",
+  video: "bg-blue-100 text-blue-800 border-blue-300",
+  theory: "bg-green-100 text-green-800 border-green-300",
   other: "bg-gray-100 text-gray-800 border-gray-300",
 };
 
@@ -178,9 +185,13 @@ export default function CalendarDemo({
   const [loading, setLoading] = React.useState(true);
   const [isLoading, setIsLoading] = React.useState(false);
   const [openPopover, setOpenPopover] = React.useState<"group" | null>(null);
-  const [newEvent, setNewEvent] = React.useState({
+  const [newEvent, setNewEvent] = useState({
     title: "",
     details: "",
+    startTime: "09:00",
+    endTime: "17:00",
+    venue: "",
+    lecturer: "",
     color: "other",
     intakeGroups: [] as string[],
   });
@@ -256,16 +267,12 @@ export default function CalendarDemo({
       if (modalMode === "delete" && selectedEvent) {
         console.log("🗑️ Attempting to delete:", selectedEvent.id);
         const result = await deleteEvent(selectedEvent.id);
-
         if (result.success) {
-          console.log("✅ Delete successful");
           setEvents((current) =>
             current.filter((e) => e.id !== selectedEvent.id)
           );
           setIsModalOpen(false);
           setSelectedEvent(null);
-        } else {
-          console.error("❌ Delete failed");
         }
         return;
       }
@@ -274,16 +281,18 @@ export default function CalendarDemo({
       const eventData = {
         title: newEvent.title,
         details: newEvent.details || "",
-        startDate: selectedDate,
+        startDate: selectedDate?.toISOString() || new Date().toISOString(),
+        startTime: newEvent.startTime,
+        endTime: newEvent.endTime,
+        venue: newEvent.venue,
+        lecturer: newEvent.lecturer,
         color: newEvent.color || "other",
         assignedToModel: newEvent.intakeGroups,
       };
 
-      // Handle Update
+      // Handle Update or Create
       if (modalMode === "edit" && selectedEvent) {
-        console.log("📝 Attempting to update:", selectedEvent.id);
         const updatedEvent = await updateEvent(selectedEvent.id, eventData);
-
         setEvents((current) =>
           current.map((event) =>
             event.id === selectedEvent.id
@@ -291,10 +300,7 @@ export default function CalendarDemo({
               : event
           )
         );
-      }
-      // Handle Create
-      else {
-        console.log("📝 Creating new event");
+      } else {
         const createdEvent = await createEvent(eventData);
         setEvents((current) => [
           ...current,
@@ -302,10 +308,14 @@ export default function CalendarDemo({
         ]);
       }
 
-      // Reset form and close modal
+      // Reset and close
       setNewEvent({
         title: "",
         details: "",
+        startTime: "09:00",
+        endTime: "17:00",
+        venue: "",
+        lecturer: "",
         color: "other",
         intakeGroups: [],
       });
@@ -414,7 +424,7 @@ export default function CalendarDemo({
 
       {/* Event Dialog */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-[425px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               {modalMode === "create" ? "Add to Roster for " : "Edit Event on "}
@@ -422,116 +432,176 @@ export default function CalendarDemo({
             </DialogTitle>
           </DialogHeader>
 
-          <div className="grid gap-4 py-4">
-            {/* Event Title */}
-            <div className="grid gap-2">
-              <Label htmlFor="title">Roster Title</Label>
-              <Input
-                id="title"
-                value={newEvent.title}
-                onChange={(e) =>
-                  setNewEvent({ ...newEvent, title: e.target.value })
-                }
-              />
-            </div>
-
-            {/* Event Details */}
-            <div className="grid gap-2">
-              <Label htmlFor="details">Details</Label>
-              <Textarea
-                id="details"
-                value={newEvent.details}
-                onChange={(e) =>
-                  setNewEvent({ ...newEvent, details: e.target.value })
-                }
-              />
-            </div>
-
-            {/* Intake Groups */}
-            <div className="grid gap-2">
-              <Label>Intake Groups</Label>
-              <Popover
-                open={openPopover === "group"}
-                onOpenChange={(open) => setOpenPopover(open ? "group" : null)}
-              >
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    role="combobox"
-                    className="w-full justify-between"
-                  >
-                    {newEvent.intakeGroups.length > 0
-                      ? `${newEvent.intakeGroups.length} groups selected`
-                      : "Select intake groups"}
-                    <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-full p-0">
-                  <Command>
-                    <CommandInput placeholder="Search intake groups..." />
-                    <CommandEmpty>No intake group found.</CommandEmpty>
-                    <ScrollArea className="h-[200px] overflow-y-auto">
-                      <CommandGroup>
-                        {intakeGroups.map((group) => (
-                          <CommandItem
-                            key={group.id}
-                            onSelect={() => handleIntakeGroupChange(group.id)}
-                          >
-                            <Check
-                              className={cn(
-                                "mr-2 h-4 w-4",
-                                newEvent.intakeGroups.includes(group.id)
-                                  ? "opacity-100"
-                                  : "opacity-0"
-                              )}
-                            />
-                            {group.title}
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    </ScrollArea>
-                  </Command>
-                </PopoverContent>
-              </Popover>
-
-              {/* Selected Groups Badges */}
-              <div className="flex flex-wrap gap-1 mt-1">
-                {newEvent.intakeGroups.map((groupId) => {
-                  const group = intakeGroups.find((g) => g.id === groupId);
-                  return group ? (
-                    <Badge
-                      key={groupId}
-                      variant="secondary"
-                      className="cursor-pointer"
-                      onClick={() => handleIntakeGroupChange(groupId)}
-                    >
-                      {group.title} <X className="ml-1 h-3 w-3" />
-                    </Badge>
-                  ) : null;
-                })}
+          <div className="grid gap-3 py-3">
+            {/* Event Title & Details in one section */}
+            <div className="space-y-2">
+              <div className="grid gap-1.5">
+                <Label htmlFor="title">Title</Label>
+                <Input
+                  id="title"
+                  placeholder="Enter event title"
+                  value={newEvent.title}
+                  onChange={(e) =>
+                    setNewEvent({ ...newEvent, title: e.target.value })
+                  }
+                />
+              </div>
+              <div className="grid gap-1.5">
+                <Label htmlFor="details">Details</Label>
+                <Textarea
+                  id="details"
+                  placeholder="Enter event details"
+                  className="h-20"
+                  value={newEvent.details}
+                  onChange={(e) =>
+                    setNewEvent({ ...newEvent, details: e.target.value })
+                  }
+                />
               </div>
             </div>
 
-            {/* Event Type */}
-            <div className="grid gap-2">
-              <Label>Roster Type</Label>
-              <Select
-                value={newEvent.color}
-                onValueChange={(value) =>
-                  setNewEvent({ ...newEvent, color: value })
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select event type" />
-                </SelectTrigger>
-                <SelectContent>
-                  {Object.keys(eventTypes).map((type) => (
-                    <SelectItem key={type} value={type}>
-                      {type.charAt(0).toUpperCase() + type.slice(1)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            {/* Time, Venue, Lecturer section */}
+            <div className="space-y-2">
+              <div className="grid grid-cols-2 gap-2">
+                <div className="grid gap-1.5">
+                  <Label htmlFor="startTime">Start</Label>
+                  <Input
+                    id="startTime"
+                    type="time"
+                    value={newEvent.startTime}
+                    onChange={(e) =>
+                      setNewEvent({ ...newEvent, startTime: e.target.value })
+                    }
+                  />
+                </div>
+                <div className="grid gap-1.5">
+                  <Label htmlFor="endTime">End</Label>
+                  <Input
+                    id="endTime"
+                    type="time"
+                    value={newEvent.endTime}
+                    onChange={(e) =>
+                      setNewEvent({ ...newEvent, endTime: e.target.value })
+                    }
+                  />
+                </div>
+              </div>
+              <div className="grid gap-1.5">
+                <Label htmlFor="venue">Venue</Label>
+                <Input
+                  id="venue"
+                  placeholder="Enter venue"
+                  value={newEvent.venue}
+                  onChange={(e) =>
+                    setNewEvent({ ...newEvent, venue: e.target.value })
+                  }
+                />
+              </div>
+              <div className="grid gap-1.5">
+                <Label htmlFor="lecturer">Lecturer</Label>
+                <Input
+                  id="lecturer"
+                  placeholder="Enter lecturer name"
+                  value={newEvent.lecturer}
+                  onChange={(e) =>
+                    setNewEvent({ ...newEvent, lecturer: e.target.value })
+                  }
+                />
+              </div>
+            </div>
+
+            {/* Event Type & Groups section */}
+            <div className="space-y-2">
+              <div className="grid gap-1.5">
+                <Label>Event Type</Label>
+                <Select
+                  value={newEvent.color}
+                  onValueChange={(value) =>
+                    setNewEvent({ ...newEvent, color: value })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.keys(eventTypes).map((type) => (
+                      <SelectItem key={type} value={type}>
+                        <div className="flex items-center gap-2">
+                          <div
+                            className={`w-2 h-2 rounded-full ${
+                              eventTypes[type as keyof typeof eventTypes]
+                            }`}
+                          />
+                          {type.charAt(0).toUpperCase() + type.slice(1)}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="grid gap-1.5">
+                <Label>Groups</Label>
+                <Popover
+                  open={openPopover === "group"}
+                  onOpenChange={(open) => setOpenPopover(open ? "group" : null)}
+                >
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      className="justify-between"
+                    >
+                      {newEvent.intakeGroups.length > 0
+                        ? `${newEvent.intakeGroups.length} selected`
+                        : "Select groups"}
+                      <Search className="h-4 w-4 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="p-0" side="bottom" align="start">
+                    <Command>
+                      <CommandInput placeholder="Search groups..." />
+                      <CommandEmpty>No group found.</CommandEmpty>
+                      <ScrollArea className="h-[125px]">
+                        <CommandGroup>
+                          {intakeGroups.map((group) => (
+                            <CommandItem
+                              key={group.id}
+                              onSelect={() => handleIntakeGroupChange(group.id)}
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 h-3 w-3",
+                                  newEvent.intakeGroups.includes(group.id)
+                                    ? "opacity-100"
+                                    : "opacity-0"
+                                )}
+                              />
+                              {group.title}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </ScrollArea>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+
+                <div className="flex flex-wrap gap-1">
+                  {newEvent.intakeGroups.map((groupId) => {
+                    const group = intakeGroups.find((g) => g.id === groupId);
+                    return group ? (
+                      <Badge
+                        key={groupId}
+                        variant="secondary"
+                        className="cursor-pointer text-xs"
+                        onClick={() => handleIntakeGroupChange(groupId)}
+                      >
+                        {group.title} <X className="ml-1 h-3 w-3" />
+                      </Badge>
+                    ) : null;
+                  })}
+                </div>
+              </div>
             </div>
           </div>
 
@@ -539,50 +609,26 @@ export default function CalendarDemo({
             {modalMode !== "create" && (
               <Button
                 variant="destructive"
-                onClick={async () => {
-                  console.log(
-                    "🗑️ Delete button clicked for event:",
-                    selectedEvent?.id
-                  );
-                  if (!selectedEvent?.id) {
-                    console.error("❌ No event selected for deletion");
-                    return;
-                  }
-                  setIsLoading(true);
-                  try {
-                    const result = await deleteEvent(selectedEvent.id);
-                    console.log("📤 Delete result:", result);
-
-                    if (result.success) {
-                      console.log("✅ Event deleted successfully");
-                      setEvents((current) =>
-                        current.filter((e) => e.id !== selectedEvent.id)
-                      );
-                      setIsModalOpen(false);
-                      setSelectedEvent(null);
-                    } else {
-                      console.error("❌ Failed to delete event");
-                    }
-                  } catch (error) {
-                    console.error("❌ Error during deletion:", error);
-                  } finally {
-                    setIsLoading(false);
-                  }
+                size="sm"
+                onClick={() => {
+                  setModalMode("delete");
+                  handleEventAction();
                 }}
                 disabled={isLoading}
               >
-                {isLoading ? "Deleting..." : "Delete Event"}
+                {isLoading ? "Deleting..." : "Delete"}
               </Button>
             )}
             <Button
+              size="sm"
               onClick={handleEventAction}
               disabled={isLoading || modalMode === "delete"}
             >
               {isLoading
-                ? "Updating..."
+                ? "Saving..."
                 : modalMode === "create"
-                ? "Create Event"
-                : "Update Event"}
+                ? "Create"
+                : "Update"}
             </Button>
           </DialogFooter>
         </DialogContent>
