@@ -3,202 +3,72 @@
 import prisma from "@/lib/db";
 import { revalidatePath } from "next/cache";
 
-interface EventData {
-  title: string;
-  details?: string;
-  startDate: string;
-  startTime?: string;
-  campus?: string;
-  venue?: string;
-  lecturer?: string;
-  color?: string;
-  assignedToModel?: string[];
-}
-
-interface EventResponse {
-  success: boolean;
-  data?: any;
-  error?: string;
-}
-
-export async function getEvents(): Promise<EventResponse> {
-  if (!prisma) {
-    return {
-      success: false,
-      error: "Database connection failed",
-    };
-  }
-
+export async function getEvents() {
   try {
-    const rawEvents = await prisma.events.findMany({
-      where: {
-        deleted: false,
-      },
-      orderBy: {
-        startDate: "asc",
-      },
-      select: {
-        id: true,
-        title: true,
-        details: true,
-        startDate: true,
-        startTime: true,
-        campus: true,
-        venue: true,
-        lecturer: true,
-        color: true,
-        assignedToModel: true,
-        createdBy: true,
-        v: true,
-      },
+    const events = await prisma.events.findMany({
+      where: { deleted: false },
+      orderBy: { startDate: "asc" },
     });
-
-    const events = rawEvents.map((event) => ({
-      ...event,
-      startDate: event.startDate.toISOString(),
-      details: event.details || "",
-      startTime: event.startTime || "09:00",
-      campus: event.campus || "",
-      venue: event.venue || "",
-      lecturer: event.lecturer || "",
-      color: event.color || "other",
-      assignedToModel: event.assignedToModel || [],
-    }));
-
-    return {
-      success: true,
-      data: events,
-    };
+    return events; // Return just the events array
   } catch (error) {
     console.error("Failed to fetch events:", error);
-    return {
-      success: false,
-      error: "Failed to fetch events",
-    };
+    return [];
   }
 }
 
-export async function createEvent(data: EventData): Promise<EventResponse> {
-  if (!data?.title?.trim()) {
-    return {
-      success: false,
-      error: "Title is required",
-    };
-  }
-
-  if (!data?.startDate) {
-    return {
-      success: false,
-      error: "Start date is required",
-    };
-  }
-
+export async function createEvent(data: any) {
   try {
     const event = await prisma.events.create({
       data: {
-        title: data.title.trim(),
-        details: data.details?.trim() ?? "",
-        startDate: new Date(data.startDate),
-        startTime: data.startTime ?? "09:00",
-        campus: data.campus?.trim() ?? "",
-        venue: data.venue?.trim() ?? "",
-        lecturer: data.lecturer?.trim() ?? "",
-        color: data.color ?? "other",
-        assignedToModel: data.assignedToModel ?? [],
+        title: data.title,
+        details: data.details || "",
+        startDate: new Date(data.startDate || new Date()),
+        startTime: data.startTime || "09:00",
+        campus: data.campus || "",
+        venue: data.venue || "",
+        lecturer: data.lecturer || "",
+        color: data.color || "other",
+        assignedToModel: data.assignedToModel || [],
         createdBy: "000000000000000000000000",
         v: 1,
         deleted: false,
       },
     });
-
     revalidatePath("/admin/dashboard");
-
-    return {
-      success: true,
-      data: {
-        ...event,
-        startDate: event.startDate.toISOString(),
-      },
-    };
+    return event;
   } catch (error) {
     console.error("Failed to create event:", error);
-    return {
-      success: false,
-      error: "Failed to create event",
-    };
+    throw error;
   }
 }
 
-export async function updateEvent(
-  id: string,
-  data: Partial<EventData>
-): Promise<EventResponse> {
-  if (!id) {
-    return {
-      success: false,
-      error: "Event ID is required",
-    };
-  }
-
+export async function updateEvent(id: string, data: any) {
   try {
     const event = await prisma.events.update({
       where: { id },
       data: {
-        ...(data.title && { title: data.title.trim() }),
-        ...(data.details && { details: data.details.trim() }),
-        ...(data.startDate && { startDate: new Date(data.startDate) }),
-        ...(data.startTime && { startTime: data.startTime }),
-        ...(data.campus && { campus: data.campus.trim() }),
-        ...(data.venue && { venue: data.venue.trim() }),
-        ...(data.lecturer && { lecturer: data.lecturer.trim() }),
-        ...(data.color && { color: data.color }),
-        ...(data.assignedToModel && { assignedToModel: data.assignedToModel }),
+        ...data,
+        startDate: data.startDate ? new Date(data.startDate) : undefined,
       },
     });
-
     revalidatePath("/admin/dashboard");
-
-    return {
-      success: true,
-      data: {
-        ...event,
-        startDate: event.startDate.toISOString(),
-      },
-    };
+    return event;
   } catch (error) {
     console.error("Failed to update event:", error);
-    return {
-      success: false,
-      error: "Failed to update event",
-    };
+    throw error;
   }
 }
 
-export async function deleteEvent(id: string): Promise<EventResponse> {
-  if (!id) {
-    return {
-      success: false,
-      error: "Event ID is required",
-    };
-  }
-
+export async function deleteEvent(id: string) {
   try {
-    await prisma.events.update({
+    const event = await prisma.events.update({
       where: { id },
       data: { deleted: true },
     });
-
     revalidatePath("/admin/dashboard");
-
-    return {
-      success: true,
-      data: { id },
-    };
+    return event;
   } catch (error) {
     console.error("Failed to delete event:", error);
-    return {
-      success: false,
-      error: "Failed to delete event",
-    };
+    throw error;
   }
 }

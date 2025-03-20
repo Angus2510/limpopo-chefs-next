@@ -9,6 +9,7 @@ import { useEvents } from "@/hooks/useEvents";
 import { CalendarProps, Event } from "@/types/events/Events";
 import { useEffect } from "react";
 import { getEvents } from "@/lib/actions/events/getEvents";
+import { toast } from "@/components/ui/use-toast";
 
 export function Calendar({ intakeGroups }: CalendarProps) {
   const { currentDate, calendarDays, navigateMonth } = useCalendar();
@@ -27,12 +28,17 @@ export function Calendar({ intakeGroups }: CalendarProps) {
     handleEventAction,
   } = useEvents();
 
-  // Fetch events on component mount
   useEffect(() => {
     const fetchEvents = async () => {
-      const data = await getEvents();
-      if (Array.isArray(data)) {
-        setEvents(data);
+      const response = await getEvents();
+      if (response.success) {
+        setEvents(response.data);
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Failed to load events",
+        });
       }
     };
     fetchEvents();
@@ -53,26 +59,39 @@ export function Calendar({ intakeGroups }: CalendarProps) {
 
   const handleEventSubmit = async (eventData: Partial<Event>) => {
     try {
-      // Ensure we have a start date from the selected date
       const payload = {
         ...eventData,
         startDate: selectedDate?.toISOString() || new Date().toISOString(),
       };
 
-      await handleEventAction(payload);
+      const response = await handleEventAction(payload);
 
-      // Refresh events after successful action
-      const updatedEvents = await getEvents();
-      if (Array.isArray(updatedEvents)) {
-        setEvents(updatedEvents);
+      if (response.success) {
+        const updatedEvents = await getEvents();
+        if (response.success) {
+          setEvents(response.data);
+          toast({
+            title: modalMode === "create" ? "Event Created" : "Event Updated",
+            description: "Calendar has been updated successfully.",
+          });
+        }
+
+        setIsModalOpen(false);
+        setSelectedDate(null);
+        setSelectedEvent(null);
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: response.error || "Failed to save event",
+        });
       }
-
-      // Reset state
-      setIsModalOpen(false);
-      setSelectedDate(null);
-      setSelectedEvent(null);
     } catch (error) {
-      console.error("Failed to handle event action:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Something went wrong. Please try again.",
+      });
     }
   };
 
@@ -81,20 +100,34 @@ export function Calendar({ intakeGroups }: CalendarProps) {
 
     try {
       setModalMode("delete");
-      await handleEventAction({});
+      const response = await handleEventAction({});
 
-      // Refresh events after deletion
-      const updatedEvents = await getEvents();
-      if (Array.isArray(updatedEvents)) {
-        setEvents(updatedEvents);
+      if (response.success) {
+        const updatedEvents = await getEvents();
+        if (response.success) {
+          setEvents(response.data);
+          toast({
+            title: "Event Deleted",
+            description: "The event has been removed from the calendar.",
+          });
+        }
+
+        setIsModalOpen(false);
+        setSelectedDate(null);
+        setSelectedEvent(null);
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: response.error || "Failed to delete event",
+        });
       }
-
-      // Reset state
-      setIsModalOpen(false);
-      setSelectedDate(null);
-      setSelectedEvent(null);
     } catch (error) {
-      console.error("Failed to delete event:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Something went wrong. Please try again.",
+      });
     }
   };
 

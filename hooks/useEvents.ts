@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
-import { Event, ModalMode } from "../types";
+import { Event } from "@/types/events/Events";
 import {
   getEvents,
   createEvent,
   updateEvent,
   deleteEvent,
 } from "@/lib/actions/events/getEvents";
+import { toast } from "@/components/ui/use-toast";
 
 export function useEvents() {
   const [events, setEvents] = useState<Event[]>([]);
@@ -13,59 +14,51 @@ export function useEvents() {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [modalMode, setModalMode] = useState<ModalMode>("create");
+  const [modalMode, setModalMode] = useState<"create" | "edit">("create");
+
+  const fetchEvents = async () => {
+    try {
+      const data = await getEvents();
+      setEvents(data);
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to load events",
+      });
+    }
+  };
 
   useEffect(() => {
     fetchEvents();
   }, []);
 
-  const fetchEvents = async () => {
+  const handleEventAction = async (data: Partial<Event>) => {
     try {
       setIsLoading(true);
-      const data = await getEvents();
-      if (Array.isArray(data)) {
-        setEvents(
-          data.map((event) => ({
-            ...event,
-            startDate: new Date(event.startDate),
-          }))
-        );
-      }
-    } catch (error) {
-      console.error("Failed to fetch events:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleEventAction = async (eventData: Partial<Event>) => {
-    try {
-      setIsLoading(true);
-
-      if (modalMode === "delete" && selectedEvent) {
-        await deleteEvent(selectedEvent.id);
-        setEvents((current) =>
-          current.filter((e) => e.id !== selectedEvent.id)
-        );
-        return;
-      }
 
       if (modalMode === "edit" && selectedEvent) {
-        const updated = await updateEvent(selectedEvent.id, eventData);
-        setEvents((current) =>
-          current.map((event) =>
-            event.id === selectedEvent.id ? updated : event
-          )
-        );
+        await updateEvent(selectedEvent.id, data);
       } else {
-        const created = await createEvent(eventData);
-        setEvents((current) => [...current, created]);
+        await createEvent(data);
       }
+
+      await fetchEvents();
+      setIsModalOpen(false);
+      toast({
+        title: "Success",
+        description: `Event ${
+          modalMode === "create" ? "created" : "updated"
+        } successfully`,
+      });
     } catch (error) {
-      console.error("Event action failed:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to save event",
+      });
     } finally {
       setIsLoading(false);
-      setIsModalOpen(false);
     }
   };
 
@@ -76,10 +69,12 @@ export function useEvents() {
     isModalOpen,
     isLoading,
     modalMode,
+    setEvents,
     setSelectedEvent,
     setSelectedDate,
     setIsModalOpen,
     setModalMode,
     handleEventAction,
+    fetchEvents,
   };
 }

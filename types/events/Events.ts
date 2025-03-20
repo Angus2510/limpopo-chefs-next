@@ -4,10 +4,14 @@ export interface Event {
   details: string;
   startDate: Date;
   startTime: string;
+  campus: string; // Added campus field
   venue: string;
   lecturer: string;
   color: EventType;
   assignedToModel: string[];
+  v: number; // Added v field
+  deleted: boolean; // Added deleted field
+  createdBy: string; // Added createdBy field
 }
 
 export type EventType =
