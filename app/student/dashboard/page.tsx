@@ -191,8 +191,9 @@ export default function ProtectedStudentDashboard() {
           </div>
           <div className="w-full max-w-sm">
             <TodaysSchedule
-              studentId={user.id}
               intakeGroup={student.intakeGroup[0]}
+              campus={student.campus}
+              campusTitle={student.campusTitle} // This should be "mokopane" or "polokwane"
             />
           </div>
           <div className="w-full max-w-sm space-y-4">

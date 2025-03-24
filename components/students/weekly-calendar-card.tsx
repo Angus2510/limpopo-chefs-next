@@ -3,14 +3,7 @@
 import type React from "react";
 import { useState, useEffect } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import {
-  format,
-  startOfWeek,
-  addDays,
-  addWeeks,
-  subWeeks,
-  parseISO,
-} from "date-fns";
+import { format, startOfWeek, addDays, addWeeks, subWeeks } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -20,6 +13,8 @@ import { Event, EventType, EVENT_TYPES } from "@/types/events/Events";
 interface WeeklyCalendarProps {
   studentData: {
     intakeGroup: string[];
+    campus: string[];
+    campusTitle: string;
   };
 }
 
@@ -32,25 +27,39 @@ const WeeklyCalendarCard: React.FC<WeeklyCalendarProps> = ({ studentData }) => {
   useEffect(() => {
     const fetchEvents = async () => {
       try {
-        console.log(
-          "🔍 Fetching events for weekly calendar:",
-          studentData.intakeGroup[0]
-        );
+        console.log("🔍 Fetching events for weekly calendar:", {
+          intakeGroup: studentData.intakeGroup[0],
+          campus: studentData.campusTitle,
+        });
+
         const allEvents = await getEvents();
         console.log("📦 Retrieved events:", allEvents.length);
 
         const filtered = allEvents.filter((event) => {
+          if (!event || !event.campus || !event.assignedToModel) return false;
+
+          // Check if assigned to group
           const isAssignedToGroup = event.assignedToModel.includes(
             studentData.intakeGroup[0]
           );
+
+          // Check if event is for this campus
+          const isCampusMatch =
+            event.campus?.toLowerCase() ===
+            studentData.campusTitle.toLowerCase();
+
           console.log("🔎 Checking event:", {
             eventId: event.id,
             eventTitle: event.title,
+            eventCampus: event.campus,
+            studentCampus: studentData.campusTitle,
             assignedTo: event.assignedToModel,
             intakeGroup: studentData.intakeGroup[0],
-            isAssigned: isAssignedToGroup,
+            isCampusMatch,
+            isAssignedToGroup,
           });
-          return isAssignedToGroup;
+
+          return isAssignedToGroup && isCampusMatch;
         });
 
         console.log("✅ Filtered events:", filtered.length);
@@ -65,13 +74,15 @@ const WeeklyCalendarCard: React.FC<WeeklyCalendarProps> = ({ studentData }) => {
     if (studentData.intakeGroup?.length) {
       fetchEvents();
     }
-  }, [studentData.intakeGroup]);
+  }, [studentData.intakeGroup, studentData.campusTitle]);
 
   const getEventsForDate = (date: Date) => {
-    return events.filter((event) => {
-      const eventDate = new Date(event.startDate);
-      return format(eventDate, "yyyy-MM-dd") === format(date, "yyyy-MM-dd");
-    });
+    return events
+      .filter((event) => {
+        const eventDate = new Date(event.startDate);
+        return format(eventDate, "yyyy-MM-dd") === format(date, "yyyy-MM-dd");
+      })
+      .sort((a, b) => (a.startTime || "").localeCompare(b.startTime || ""));
   };
 
   const formatTime = (date: Date, time: string) => {

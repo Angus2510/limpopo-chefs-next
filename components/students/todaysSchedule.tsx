@@ -13,25 +13,25 @@ interface Event {
   id: string;
   title: string;
   details: string;
-  startDate: string; // ISO string
-  endDate: string | null; // ISO string
-  color: string;
-  location: string[];
-  assignedTo: string[];
+  startDate: string;
+  startTime: string;
+  campus: string;
+  venue: string;
   assignedToModel: string[];
-  createdBy: string;
-  v: number;
-  allDay: boolean;
+  color: string;
 }
 
 interface TodaysScheduleProps {
   studentId: string;
-  intakeGroup?: string; // Add intake group
+  intakeGroup?: string;
+  campus: string[]; // Changed to string array since that's what we're getting
+  campusTitle?: string; // Add this for the actual campus name
 }
 
 export function TodaysSchedule({
-  studentId,
   intakeGroup,
+  campus,
+  campusTitle,
 }: TodaysScheduleProps) {
   const [todaysEvents, setTodaysEvents] = React.useState<Event[]>([]);
   const [loading, setLoading] = React.useState(true);
@@ -39,70 +39,59 @@ export function TodaysSchedule({
   React.useEffect(() => {
     const fetchAndFilterEvents = async () => {
       try {
-        console.log("🔍 Fetching events for student:", {
-          studentId,
-          intakeGroup,
-        });
         const allEvents = await getEvents();
-        console.log("📦 Retrieved events:", allEvents.length);
+        console.log("Raw events:", allEvents);
 
-        // Filter for today's events assigned to this student's intake group
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
+        const filteredEvents = allEvents.filter((event) => {
+          if (!event || !campusTitle) return false;
 
-        const filteredEvents = allEvents
-          .filter((event) => {
-            // Check if event is assigned to student's intake group
-            const isAssignedToGroup =
-              intakeGroup && event.assignedToModel.includes(intakeGroup);
-            console.log("🔎 Checking event:", {
-              eventId: event.id,
-              eventTitle: event.title,
-              assignedTo: event.assignedToModel,
-              intakeGroup,
-              isAssigned: isAssignedToGroup,
-            });
+          const eventCampus = event.campus?.toLowerCase();
+          const studentCampus = campusTitle.toLowerCase();
+          const campusMatch = eventCampus === studentCampus;
+          const groupMatch = event.assignedToModel?.includes(intakeGroup || "");
 
-            // Check if event is today
-            const eventDate = new Date(event.startDate);
-            eventDate.setHours(0, 0, 0, 0);
-            const isToday = eventDate.getTime() === today.getTime();
-            console.log("📅 Date check:", {
-              eventDate: eventDate.toISOString(),
-              today: today.toISOString(),
-              isToday,
-            });
+          console.log("Checking event:", {
+            eventTitle: event.title,
+            eventCampus,
+            studentCampus,
+            campusMatch,
+            groupMatch,
+            eventGroups: event.assignedToModel,
+            studentGroup: intakeGroup,
+          });
 
-            return isAssignedToGroup && isToday;
-          })
-          .sort(
-            (a, b) =>
-              new Date(a.startDate).getTime() - new Date(b.startDate).getTime()
-          );
+          return campusMatch && groupMatch;
+        });
 
-        console.log("✅ Filtered events:", filteredEvents.length);
+        console.log("Filtered events:", filteredEvents);
         setTodaysEvents(filteredEvents);
       } catch (error) {
-        console.error("❌ Error fetching events:", error);
+        console.error("Error:", error);
       } finally {
         setLoading(false);
       }
     };
 
-    if (intakeGroup) {
+    if (campusTitle && intakeGroup) {
       fetchAndFilterEvents();
     }
-  }, [studentId, intakeGroup]);
+  }, [intakeGroup, campusTitle]);
 
-  const formatTime = (dateString: string) => {
-    return new Date(dateString).toLocaleTimeString("en-US", {
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true,
-    });
+  const formatTime = (time: string) => {
+    try {
+      const [hours, minutes] = time.split(":");
+      const date = new Date();
+      date.setHours(parseInt(hours, 10), parseInt(minutes, 10));
+      return date.toLocaleTimeString("en-US", {
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true,
+      });
+    } catch (error) {
+      return time;
+    }
   };
 
-  // Get event color class
   const getEventColorClass = (color: string) => {
     switch (color) {
       case "blue":
@@ -120,7 +109,7 @@ export function TodaysSchedule({
     <Card className="w-[350px]">
       <CardHeader>
         <CardTitle>Today&apos;s Schedule</CardTitle>
-        <CardDescription>Your daily agenda at a glance.</CardDescription>
+        <CardDescription>Your daily agenda at a glance</CardDescription>
       </CardHeader>
       <CardContent>
         {loading ? (
@@ -137,7 +126,7 @@ export function TodaysSchedule({
               <li key={event.id} className="space-y-2">
                 <div className="flex justify-between items-start">
                   <span className="font-medium text-sm text-primary">
-                    {formatTime(event.startDate)}
+                    {formatTime(event.startTime)}
                   </span>
                   <span
                     className={`text-xs px-2 py-1 rounded-full ${getEventColorClass(
@@ -153,9 +142,9 @@ export function TodaysSchedule({
                       {event.details}
                     </p>
                   )}
-                  {event.location && event.location.length > 0 && (
+                  {event.venue && (
                     <p className="text-xs text-muted-foreground">
-                      📍 {event.location.join(", ")}
+                      📍 {event.venue}
                     </p>
                   )}
                 </div>
