@@ -370,19 +370,31 @@ function AssignmentsTable({
     <Table>
       <TableHeader>
         <TableRow>
+          <TableHead>Date</TableHead>
           <TableHead>Assessment</TableHead>
           <TableHead>Student</TableHead>
+          <TableHead>Test Mark</TableHead>
+          <TableHead>Task Mark</TableHead>
+          <TableHead>Overall %</TableHead>
+          <TableHead>Competency</TableHead>
           <TableHead>Status</TableHead>
-          <TableHead>Date Taken</TableHead>
-          <TableHead>Score</TableHead>
           <TableHead>Actions</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
         {assignments.map((result) => (
           <TableRow key={result.id}>
+            <TableCell>
+              <div className="flex items-center">
+                <CalendarIcon className="mr-2 h-4 w-4 text-muted-foreground" />
+                <span>{format(new Date(result.dateTaken), "dd MMM yyyy")}</span>
+              </div>
+              <div className="text-xs text-muted-foreground">
+                {format(new Date(result.dateTaken), "h:mm a")}
+              </div>
+            </TableCell>
             <TableCell className="font-medium">
-              {result.assignmentData?.title || "Unknown Assignment"}
+              {result.assignmentData?.title || "Unknown Assessment"}
               <div className="text-xs text-muted-foreground">
                 {result.assignmentData?.type || "Unknown Type"}
               </div>
@@ -401,48 +413,60 @@ function AssignmentsTable({
               )}
             </TableCell>
             <TableCell>
-              {result.status === "pending" && (
-                <Badge
-                  variant="outline"
-                  className="bg-amber-100 text-amber-800 hover:bg-amber-100"
-                >
-                  Pending
-                </Badge>
-              )}
-              {result.status === "marked" && (
-                <Badge
-                  variant="outline"
-                  className="bg-green-100 text-green-800 hover:bg-green-100"
-                >
-                  Marked
-                </Badge>
-              )}
-              {result.status === "submitted" && (
-                <Badge
-                  variant="outline"
-                  className="bg-blue-100 text-blue-800 hover:bg-blue-100"
-                >
-                  Submitted
-                </Badge>
-              )}
+              {result.testScore !== undefined ? result.testScore : "N/A"}
             </TableCell>
             <TableCell>
-              <div className="flex items-center">
-                <CalendarIcon className="mr-2 h-4 w-4 text-muted-foreground" />
-                <span>{format(new Date(result.dateTaken), "dd MMM yyyy")}</span>
-              </div>
-              <div className="text-xs text-muted-foreground">
-                {format(new Date(result.dateTaken), "h:mm a")}
-              </div>
+              {result.taskScore !== undefined ? result.taskScore : "N/A"}
             </TableCell>
             <TableCell>
-              {result.scores !== undefined && result.percent !== undefined ? (
-                <span>
-                  {result.scores} / {result.percent}%
-                </span>
-              ) : (
-                <span className="text-muted-foreground">Not marked</span>
-              )}
+              <span
+                className={`font-bold ${
+                  (result.percent || 0) >= 40
+                    ? "text-green-600"
+                    : "text-red-600"
+                }`}
+              >
+                {result.percent
+                  ? `${result.percent}%`
+                  : result.scores
+                  ? `${result.scores}%`
+                  : "N/A"}
+              </span>
+            </TableCell>
+            <TableCell>
+              <Badge
+                variant="outline"
+                className={`${
+                  (result.percent || 0) >= 40
+                    ? "bg-green-100 text-green-800 hover:bg-green-100"
+                    : "bg-red-100 text-red-800 hover:bg-red-100"
+                }`}
+              >
+                {(result.percent || 0) >= 40 ? "Competent" : "Not Competent"}
+              </Badge>
+            </TableCell>
+            <TableCell>
+              <Badge
+                variant="outline"
+                className={`
+                  ${
+                    result.status === "pending" &&
+                    "bg-amber-100 text-amber-800 hover:bg-amber-100"
+                  }
+                  ${
+                    result.status === "marked" &&
+                    "bg-green-100 text-green-800 hover:bg-green-100"
+                  }
+                  ${
+                    result.status === "submitted" &&
+                    "bg-blue-100 text-blue-800 hover:bg-blue-100"
+                  }
+                `}
+              >
+                {result.status === "pending" && "Pending"}
+                {result.status === "marked" && "Marked"}
+                {result.status === "submitted" && "Submitted"}
+              </Badge>
             </TableCell>
             <TableCell>
               <Button

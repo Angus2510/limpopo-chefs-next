@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { IdCard, Download } from "lucide-react";
@@ -31,6 +32,7 @@ export default function WelHoursCard({
   studentData,
   wellnessRecords,
 }: WelHoursCardProps) {
+  const router = useRouter();
   const [totalHours, setTotalHours] = useState(0);
   const [approvedHours, setApprovedHours] = useState(0);
   const [pendingHours, setPendingHours] = useState(0);
@@ -57,10 +59,9 @@ export default function WelHoursCard({
 
   const handleDownloadSOR = async () => {
     try {
-      // Implement your download logic here
-      console.log("Downloading SOR...");
+      router.push(`/student/sor/${studentData.id}`);
     } catch (error) {
-      console.error("Error downloading SOR:", error);
+      console.error("Error navigating to SOR:", error);
     }
   };
 
@@ -104,7 +105,7 @@ export default function WelHoursCard({
           onClick={handleDownloadSOR}
         >
           <Download className="h-4 w-4" />
-          Download SOR
+          View SOR
         </Button>
       </CardContent>
     </Card>
