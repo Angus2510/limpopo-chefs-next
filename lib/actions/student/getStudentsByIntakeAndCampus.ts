@@ -27,30 +27,20 @@ export async function getStudentsByIntakeAndCampus(
       `Fetching students for intake group ${intakeGroupId} and campus ${campusId}`
     );
 
-    // Updated query to match MongoDB schema
+    // Find students who belong to the specified intake group and campus
     const students = await prisma.students.findMany({
       where: {
-        AND: [
-          {
-            intakeGroup: {
-              has: intakeGroupId,
-            },
-          },
-          {
-            campus: {
-              has: campusId,
-            },
-          },
-          {
-            active: true,
-            userType: "Student",
-          },
-        ],
+        intakeGroup: {
+          hasSome: [intakeGroupId],
+        },
+        campus: {
+          hasSome: [campusId],
+        },
+        active: true,
       },
       select: {
         id: true,
         admissionNumber: true,
-        username: true,
         profile: {
           select: {
             firstName: true,
@@ -89,6 +79,7 @@ export async function getStudentsByIntakeAndCampus(
       try {
         console.log(`Fetching existing results for outcome ${outcomeId}`);
 
+        // Get results instead of assignment results
         const existingResults = await prisma.results.findMany({
           where: {
             outcome: outcomeId,
@@ -103,6 +94,7 @@ export async function getStudentsByIntakeAndCampus(
 
         console.log(`Found ${existingResults.length} existing results`);
 
+        // Flatten and process all results
         existingResults.forEach((result) => {
           if (result.results) {
             result.results.forEach((studentResult) => {
@@ -122,15 +114,16 @@ export async function getStudentsByIntakeAndCampus(
           `Error fetching results for outcome ${outcomeId}:`,
           resultError
         );
+        // Continue with empty results rather than failing the whole request
       }
     }
 
-    // Updated mapping to use username as fallback
+    // Map the database results to the expected interface
     return students.map((student) => ({
       id: student.id,
-      name: student.profile?.firstName || student.username || "",
+      name: student.profile?.firstName || "",
       surname: student.profile?.lastName || "",
-      admissionNumber: student.admissionNumber || student.username || "",
+      admissionNumber: student.admissionNumber || "",
       existingMark: studentResults[student.id]?.mark,
       existingTestScore: studentResults[student.id]?.testScore,
       existingTaskScore: studentResults[student.id]?.taskScore,
