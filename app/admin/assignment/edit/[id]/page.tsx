@@ -5,6 +5,7 @@ import { getAllOutcomes } from "@/lib/actions/intakegroup/outcome/outcomeQuery";
 import { ContentLayout } from "@/components/layout/content-layout";
 import EditAssignmentForm from "@/components/assignments/EditAssignmentForm";
 import { notFound } from "next/navigation";
+import BackButton from "@/components/common/BackButton";
 
 interface PageProps {
   params: { id: string };
@@ -55,6 +56,7 @@ export default async function EditAssignmentPage(props: PageProps) {
     return (
       <ContentLayout title={`Edit ${assignment.title}`}>
         <div className="container mx-auto py-6">
+          <BackButton />
           <div className="mb-4 p-4 bg-gray-50 rounded-lg">
             <h2 className="text-lg font-medium text-gray-900">
               Total Marks: {assignment.totalMarks}

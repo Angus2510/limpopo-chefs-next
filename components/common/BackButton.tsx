@@ -1,4 +1,4 @@
-// Add this import at the top of the file with other imports
+"use client";
 import { ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
