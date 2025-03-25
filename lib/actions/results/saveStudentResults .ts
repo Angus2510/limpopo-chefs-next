@@ -42,6 +42,7 @@ export async function saveStudentResults(results: StudentResultInput[]) {
 
     for (const result of results) {
       try {
+        // Create assignment result according to Prisma schema
         await prisma.assignmentresults.create({
           data: {
             v: 1,
@@ -49,21 +50,26 @@ export async function saveStudentResults(results: StudentResultInput[]) {
             outcome: result.outcomeId,
             campus: result.campusId,
             intakeGroup: result.intakeGroupId,
-            percent: Math.round(result.mark),
-            testScore: Math.round(result.testScore),
-            taskScore: Math.round(result.taskScore),
-            scores: Math.round((result.testScore + result.taskScore) / 2),
+            percent: Math.round(result.mark), // Store as Int per schema
+            testScore: Math.round(result.testScore), // Store as Int per schema
+            taskScore: Math.round(result.taskScore), // Store as Int per schema
+            scores: Math.round((result.testScore + result.taskScore) / 2), // Average as Int
             status: result.competency,
             dateTaken: new Date(),
-            answers: [],
-            assignment: result.outcomeId, // Using outcomeId instead of title
+            answers: [], // Empty array as per schema
+            assignment: result.outcomeId, // This should be ObjectId as per schema
             markedBy: null,
             moderatedscores: null,
             feedback: null,
           },
         });
         savedCount++;
+        console.log(`✅ Saved result for student ${result.studentId}`);
       } catch (err) {
+        console.error(
+          `❌ Error saving result for student ${result.studentId}:`,
+          err
+        );
         errors.push({
           studentId: result.studentId,
           error: err instanceof Error ? err.message : "Unknown error",
@@ -72,9 +78,9 @@ export async function saveStudentResults(results: StudentResultInput[]) {
     }
 
     // Log results
-    console.log(`Saved ${savedCount} of ${results.length} results`);
+    console.log(`📊 Saved ${savedCount} of ${results.length} results`);
     if (errors.length > 0) {
-      console.log("Errors:", errors);
+      console.log("⚠️ Errors:", errors);
     }
 
     // Return appropriate response
@@ -94,7 +100,9 @@ export async function saveStudentResults(results: StudentResultInput[]) {
       };
     }
 
+    // Revalidate the results page
     revalidatePath("/admin/results");
+
     return {
       success: true,
       message: `Successfully saved all ${savedCount} results`,

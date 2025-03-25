@@ -1,10 +1,12 @@
 "use server";
 import prisma from "@/lib/db";
-import { getAssignments } from "../assignments/getAssignments";
 
 export async function fetchStudentResults(studentId: string) {
   try {
-    if (!studentId) return [];
+    if (!studentId) {
+      console.log("No student ID provided");
+      return [];
+    }
 
     // Get all results for the student
     const results = await prisma.assignmentresults.findMany({
@@ -15,26 +17,53 @@ export async function fetchStudentResults(studentId: string) {
         id: true,
         dateTaken: true,
         scores: true,
-        moderatedscores: true,
         percent: true,
+        testScore: true,
+        taskScore: true,
         status: true,
         assignment: true,
+        outcome: true,
+      },
+      orderBy: {
+        dateTaken: "desc",
       },
     });
 
-    // Get all assignments to create a title lookup map
-    const assignments = await getAssignments();
-    const assignmentTitleMap = assignments.reduce((map, assignment) => {
-      map[assignment.id] = assignment.title;
-      return map;
-    }, {} as { [key: string]: string });
+    console.log("Raw results from DB:", results);
 
-    // Map the results and include the assignment title
-    const finalResults = results.map((result) => ({
-      ...result,
-      assignments: {
-        title: assignmentTitleMap[result.assignment] || "Unknown Assignment",
+    // Get outcomes for titles
+    const outcomes = await prisma.outcomes.findMany({
+      where: {
+        id: {
+          in: results.map((r) => r.outcome),
+        },
       },
+      select: {
+        id: true,
+        title: true,
+      },
+    });
+
+    const outcomeTitles = Object.fromEntries(
+      outcomes.map((o) => [o.id, o.title])
+    );
+
+    // Map the results to match the interface
+    const finalResults = results.map((result) => ({
+      id: result.id,
+      dateTaken: result.dateTaken,
+      assignments: {
+        title: outcomeTitles[result.outcome] || "Unknown Assessment",
+        type: "assessment",
+      },
+      outcome: {
+        title: outcomeTitles[result.outcome] || "Unknown Outcome",
+      },
+      scores: result.scores || 0,
+      percent: result.percent || 0,
+      testScore: result.testScore || 0,
+      taskScore: result.taskScore || 0,
+      status: result.status || "pending",
     }));
 
     console.log("Processed results:", finalResults);

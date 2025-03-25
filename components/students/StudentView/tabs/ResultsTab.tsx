@@ -8,13 +8,15 @@ interface Result {
   dateTaken: Date;
   assignments?: {
     title: string;
-    type: string; // 'test' or 'task'
+    type: string;
+  };
+  outcome?: {
+    title: string;
   };
   scores: number;
   percent: number;
-  taskScore: number;
-  testScore: number;
-  overallOutcome: string;
+  taskScore: number | null;
+  testScore: number | null;
   status: string;
 }
 
@@ -23,8 +25,8 @@ interface ResultsTabProps {
 }
 
 export function ResultsTab({ results }: ResultsTabProps) {
-  const calculatePercentage = (score: number, total: number = 100) => {
-    return ((score / total) * 100).toFixed(1);
+  const getCompetencyStatus = (percent: number) => {
+    return percent >= 40 ? "Competent" : "Not Competent";
   };
 
   return (
@@ -45,10 +47,10 @@ export function ResultsTab({ results }: ResultsTabProps) {
                     Assessment
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Test Score
+                    Test Mark
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Task Score
+                    Task Mark
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Overall %
@@ -68,17 +70,15 @@ export function ResultsTab({ results }: ResultsTabProps) {
                       {formatDate(result.dateTaken)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      {result.assignments?.title || "Unknown Assignment"}
+                      {result.assignments?.title ||
+                        result.outcome?.title ||
+                        "Unknown Assessment"}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      {result.testScore
-                        ? `${calculatePercentage(result.testScore)}%`
-                        : "N/A"}
+                      {result.testScore !== null ? result.testScore : "N/A"}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      {result.taskScore
-                        ? `${calculatePercentage(result.taskScore)}%`
-                        : "N/A"}
+                      {result.taskScore !== null ? result.taskScore : "N/A"}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
                       <span
@@ -91,19 +91,20 @@ export function ResultsTab({ results }: ResultsTabProps) {
                         {result.percent
                           ? `${result.percent}%`
                           : result.scores
-                          ? `${calculatePercentage(result.scores)}%`
+                          ? `${result.scores}%`
                           : "N/A"}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
                       <span
                         className={`px-2 py-1 rounded-full text-xs ${
-                          result.overallOutcome === "Competent"
+                          getCompetencyStatus(result.percent || 0) ===
+                          "Competent"
                             ? "bg-green-100 text-green-800"
                             : "bg-red-100 text-red-800"
                         }`}
                       >
-                        {result.overallOutcome || "Pending"}
+                        {getCompetencyStatus(result.percent || 0)}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
