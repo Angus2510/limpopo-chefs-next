@@ -68,15 +68,24 @@ export async function getAssignmentById(id: string) {
       } Correct answers found: ${hasCorrectAnswers}`
     );
 
+    // Calculate total marks with proper string to number conversion
+    const totalMarks = questions.reduce((sum, question) => {
+      const markValue = parseInt((question.mark as string) || "0", 10);
+      return sum + (isNaN(markValue) ? 0 : markValue);
+    }, 0);
+
+    console.log(`📊 Total marks for assignment: ${totalMarks}`);
+
     // Map the questions into the same order as the assignment.questions array
     const orderedQuestions = assignment.questions
       .map((qId) => questions.find((q) => q.id === qId))
       .filter(Boolean); // Remove any null values
 
-    // Return assignment with full question details
+    // Return assignment with full question details and total marks
     return {
       ...assignment,
       questions: orderedQuestions,
+      totalMarks,
     };
   } catch (error) {
     console.error("Failed to fetch assignment:", error);
