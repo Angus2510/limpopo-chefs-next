@@ -19,17 +19,7 @@ import { Assignment } from "@/types/assignments/assignments";
 import { updateAssignment } from "@/lib/actions/assignments/updateAssignment";
 import { getAllCampuses, type Campus } from "@/lib/actions/campus/campuses";
 import { getAllIntakeGroups } from "@/lib/actions/intakegroup/intakeGroups";
-
-const generateRandomPassword = () => {
-  const length = 6;
-  const charset = "0123456789";
-  let password = "";
-  for (let i = 0; i < length; i++) {
-    const randomIndex = Math.floor(Math.random() * charset.length);
-    password += charset[randomIndex];
-  }
-  return password;
-};
+import { generateRandomPassword } from "@/utils/password";
 
 interface FormValues {
   duration: number;

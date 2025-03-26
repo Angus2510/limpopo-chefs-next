@@ -255,6 +255,7 @@ model assignments {
   lecturer           String   @db.ObjectId
   outcome            String[]
   password           String
+  passwordGeneratedAt DateTime? @db.Date
   questions          String[]
   title              String
   type               String

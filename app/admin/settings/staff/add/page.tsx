@@ -37,7 +37,6 @@ export default function AddStaffPage() {
   return (
     <ContentLayout
       title="Add Staff Member"
-      description="Create a new staff member account"
       backButton={{
         href: "/admin/settings/staff",
         label: "Back to Staff List",
