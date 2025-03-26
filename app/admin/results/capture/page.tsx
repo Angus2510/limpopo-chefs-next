@@ -14,6 +14,8 @@ import { useToast } from "@/components/ui/use-toast";
 import { getStudentsByIntakeAndCampus } from "@/lib/actions/student/getStudentsByIntakeAndCampus";
 import { saveStudentResults } from "@/lib/actions/results/saveStudentResults ";
 import { ContentLayout } from "@/components/layout/content-layout";
+import { getOutcomeById } from "@/lib/actions/intakegroup/outcome/getOutcomeById";
+import { isMenuOutcome } from "@/utils/menuOutcomes";
 
 interface Student {
   id: string;
@@ -35,6 +37,8 @@ export default function ResultsCapturePage() {
   } | null>(null);
   const [students, setStudents] = useState<Student[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [outcomeTitle, setOutcomeTitle] = useState<string>("");
+  const [isMenuAssessment, setIsMenuAssessment] = useState(false);
 
   const handleSelectionComplete = async (newSelection: {
     intakeGroupId: string;
@@ -43,6 +47,12 @@ export default function ResultsCapturePage() {
   }) => {
     setIsLoading(true);
     try {
+      // Fetch outcome details first
+      const outcome = await getOutcomeById(newSelection.outcomeId);
+      const title = outcome?.title || "";
+      setOutcomeTitle(title);
+      setIsMenuAssessment(isMenuOutcome(title));
+
       const studentData = await getStudentsByIntakeAndCampus(
         newSelection.intakeGroupId,
         newSelection.campusId,
@@ -91,7 +101,9 @@ export default function ResultsCapturePage() {
             <CardHeader>
               <CardTitle>Student Assessment</CardTitle>
               <CardDescription>
-                Enter marks and set competency status for each student.
+                {isMenuAssessment
+                  ? "Enter total mark for menu assessment."
+                  : "Enter marks and set competency status for each student."}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -100,6 +112,8 @@ export default function ResultsCapturePage() {
                 outcomeId={selection.outcomeId}
                 campusId={selection.campusId}
                 intakeGroupId={selection.intakeGroupId}
+                outcomeTitle={outcomeTitle}
+                isMenuAssessment={isMenuAssessment}
                 onSave={saveStudentResults}
               />
             </CardContent>

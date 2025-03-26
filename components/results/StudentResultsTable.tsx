@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import CompetencyRadio from "./CompentencyRadio";
 import { toast } from "@/components/ui/use-toast";
+import { MENU_OUTCOMES } from "@/utils/menuOutcomes";
 
 interface Student {
   id: string;
@@ -30,6 +31,7 @@ interface StudentResultsTableProps {
   outcomeId: string;
   campusId: string;
   intakeGroupId: string;
+  outcomeTitle: string;
   onSave: (results: StudentResult[]) => Promise<{
     success: boolean;
     data?: any;
@@ -53,23 +55,24 @@ export function StudentResultsTable({
   outcomeId,
   campusId,
   intakeGroupId,
+  outcomeTitle,
   onSave,
 }: StudentResultsTableProps) {
+  const isMenuOutcome = MENU_OUTCOMES.includes(outcomeTitle);
+
   const [results, setResults] = useState<Record<string, StudentResult>>(() => {
     const initialResults: Record<string, StudentResult> = {};
     students.forEach((student) => {
-      const testScore = student.existingTestScore ?? 0;
-      const taskScore = student.existingTaskScore ?? 0;
-      const totalScore = student.existingMark ?? (testScore + taskScore) / 2;
+      const mark = student.existingMark ?? 0;
 
       initialResults[student.id] = {
         studentId: student.id,
         outcomeId,
         campusId,
         intakeGroupId,
-        testScore: testScore,
-        taskScore: taskScore,
-        mark: totalScore,
+        testScore: isMenuOutcome ? mark : student.existingTestScore ?? 0,
+        taskScore: isMenuOutcome ? mark : student.existingTaskScore ?? 0,
+        mark: mark,
         competency: student.existingCompetency || "not_competent",
       };
     });
@@ -94,6 +97,36 @@ export function StudentResultsTable({
         testScore,
         taskScore,
         mark: average,
+      },
+    }));
+  };
+
+  const handleTotalMarkChange = (studentId: string, mark: string) => {
+    if (mark === "") {
+      setResults((prev) => ({
+        ...prev,
+        [studentId]: {
+          ...prev[studentId],
+          mark: 0,
+          testScore: 0,
+          taskScore: 0,
+        },
+      }));
+      return;
+    }
+
+    const numericMark = parseFloat(mark);
+    if (isNaN(numericMark) || numericMark < 0 || numericMark > 100) {
+      return;
+    }
+
+    setResults((prev) => ({
+      ...prev,
+      [studentId]: {
+        ...prev[studentId],
+        mark: numericMark,
+        testScore: numericMark,
+        taskScore: numericMark,
       },
     }));
   };
@@ -189,9 +222,15 @@ export function StudentResultsTable({
           <TableRow>
             <TableHead>Student Number</TableHead>
             <TableHead>Student Name</TableHead>
-            <TableHead>Test Score</TableHead>
-            <TableHead>Task Score</TableHead>
-            <TableHead>Total Score</TableHead>
+            {!isMenuOutcome && (
+              <>
+                <TableHead>Test Score</TableHead>
+                <TableHead>Task Score</TableHead>
+              </>
+            )}
+            <TableHead>
+              {isMenuOutcome ? "Total Mark" : "Total Score"}
+            </TableHead>
             <TableHead>Competency</TableHead>
           </TableRow>
         </TableHeader>
@@ -204,32 +243,51 @@ export function StudentResultsTable({
               <TableCell>
                 {student.name} {student.surname}
               </TableCell>
+              {!isMenuOutcome && (
+                <>
+                  <TableCell>
+                    <Input
+                      type="number"
+                      min="0"
+                      max="100"
+                      value={displayValue(results[student.id].testScore)}
+                      onChange={(e) =>
+                        handleTestScoreChange(student.id, e.target.value)
+                      }
+                      className="w-20"
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Input
+                      type="number"
+                      min="0"
+                      max="100"
+                      value={displayValue(results[student.id].taskScore)}
+                      onChange={(e) =>
+                        handleTaskScoreChange(student.id, e.target.value)
+                      }
+                      className="w-20"
+                    />
+                  </TableCell>
+                </>
+              )}
               <TableCell>
-                <Input
-                  type="number"
-                  min="0"
-                  max="100"
-                  value={displayValue(results[student.id].testScore)}
-                  onChange={(e) =>
-                    handleTestScoreChange(student.id, e.target.value)
-                  }
-                  className="w-20"
-                />
-              </TableCell>
-              <TableCell>
-                <Input
-                  type="number"
-                  min="0"
-                  max="100"
-                  value={displayValue(results[student.id].taskScore)}
-                  onChange={(e) =>
-                    handleTaskScoreChange(student.id, e.target.value)
-                  }
-                  className="w-20"
-                />
-              </TableCell>
-              <TableCell className="font-medium">
-                {results[student.id].mark.toFixed(1)}%
+                {isMenuOutcome ? (
+                  <Input
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={displayValue(results[student.id].mark)}
+                    onChange={(e) =>
+                      handleTotalMarkChange(student.id, e.target.value)
+                    }
+                    className="w-20"
+                  />
+                ) : (
+                  <span className="font-medium">
+                    {results[student.id].mark.toFixed(1)}%
+                  </span>
+                )}
               </TableCell>
               <TableCell>
                 <CompetencyRadio
