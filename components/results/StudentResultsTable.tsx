@@ -179,29 +179,28 @@ export function StudentResultsTable({
   const handleSubmit = async () => {
     try {
       setIsSaving(true);
-
-      const resultsToSave = Object.values(results).map((r) => ({
-        studentId: r.studentId,
-        outcomeId: r.outcomeId,
-        mark: r.mark,
-        testScore: r.testScore,
-        taskScore: r.taskScore,
-        competency: r.competency,
-        campusId: r.campusId,
-        intakeGroupId: r.intakeGroupId,
-      }));
+      const resultsToSave = Object.values(results);
 
       const response = await onSave(resultsToSave);
 
-      if (!response?.success) {
-        throw new Error(response?.error || "Failed to save results");
-      }
+      if (response.success) {
+        toast({
+          title: "Success",
+          description: response.message || "Results saved successfully",
+          variant: "default",
+        });
 
-      toast({
-        title: "Success",
-        description: "Results saved successfully",
-        variant: "default",
-      });
+        if (response.errors) {
+          console.warn("Some results failed to save:", response.errors);
+          toast({
+            title: "Warning",
+            description: "Some results may need to be re-submitted",
+            variant: "warning",
+          });
+        }
+      } else {
+        throw new Error(response.error || "Failed to save results");
+      }
     } catch (error) {
       console.error("Error saving results:", error);
       toast({
