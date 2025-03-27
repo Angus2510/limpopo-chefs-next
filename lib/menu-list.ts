@@ -274,13 +274,6 @@ export function getMenuList(pathname: string): Group[] {
         groupLabel: "Student Contents",
         menus: [
           {
-            href: "/student/courses",
-            label: "Courses",
-            active: pathname.includes("/student/courses"),
-            icon: Bookmark,
-            submenus: [],
-          },
-          {
             href: "/student/assignments",
             label: "Assessments",
             active: pathname.includes("/student/assignments"),
