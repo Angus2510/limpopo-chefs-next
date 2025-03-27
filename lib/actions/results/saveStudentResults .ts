@@ -34,7 +34,7 @@ export async function saveStudentResults(results: StudentResultInput[]) {
     }
 
     const decoded = jwtDecode<DecodedToken>(token);
-    if (decoded.userType !== "staff") {
+    if (decoded.userType !== "Staff") {
       return { success: false, error: "Only staff members can save results" };
     }
 
