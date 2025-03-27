@@ -126,5 +126,6 @@ export const config = {
     "/guardian/:path*",
     "/admin/assignment/mark/:path*",
     "/student/assignments/:id*",
+    "/admin/results/capture/:path*",
   ],
 };
