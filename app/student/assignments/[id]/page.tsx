@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/button";
@@ -11,11 +11,12 @@ import { getAssignmentById } from "@/lib/actions/assignments/getAssignmentById";
 import { submitAssignment } from "@/lib/actions/assignments/assignmentSubmission";
 import { RulesDialog } from "@/components/dialogs/assignments/RulesDialog";
 import { usePasswordValidation } from "@/hooks/usePasswordValidation";
+import { use } from "react";
 
 interface Question {
   id: string;
   text: string;
-  type: "short-answer" | "long-answer" | "multiple-choice" | "true-false"; // Update these types to match
+  type: "short-answer" | "long-answer" | "multiple-choice" | "true-false";
   mark: string;
   options: {
     id: string;
@@ -42,8 +43,9 @@ interface Answer {
 export default function AssignmentTestPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
+  const resolvedParams = use(params);
   const router = useRouter();
   const { toast } = useToast();
 
@@ -58,19 +60,159 @@ export default function AssignmentTestPage({
   const [blurStartTime, setBlurStartTime] = useState<number | null>(null);
   const TAB_HIDDEN_LIMIT = 10000;
   const BLUR_TIME_LIMIT = 10000;
-  let autoSubmitTimeout: NodeJS.Timeout;
-  const isPasswordValid = usePasswordValidation(params.id);
+  const isPasswordValid = usePasswordValidation(resolvedParams.id);
+
+  const handleSubmitTest = useCallback(async () => {
+    if (!assignment) return;
+
+    try {
+      console.log("Submitting test with data:", {
+        assignmentId: assignment.id,
+        answers: answers,
+        timeSpent: assignment.duration * 60 - timeRemaining,
+      });
+
+      await submitAssignment(assignment.id, answers);
+
+      toast({
+        title: "Success",
+        description: "Test submitted successfully!",
+      });
+
+      router.push("/student/dashboard");
+    } catch (error) {
+      console.error("Error submitting test:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to submit test. Please try again.",
+      });
+    }
+  }, [assignment, answers, timeRemaining, router, toast]);
+
+  const handleAnswerChange = useCallback(
+    (questionId: string, value: string | { [key: string]: string }) => {
+      setAnswers((prev) =>
+        prev.map((a) =>
+          a.questionId === questionId ? { ...a, answer: value } : a
+        )
+      );
+    },
+    []
+  );
+
+  const loadAssignment = useCallback(async () => {
+    try {
+      console.log("📚 Fetching assignment details...");
+      const data = await getAssignmentById(resolvedParams.id);
+      setAssignment(data);
+      setTimeRemaining(data.duration * 60);
+
+      const initialAnswers = data.questions.map((q) => ({
+        questionId: q.id,
+        answer: q.type === "multiple-choice" ? "" : "",
+      }));
+      setAnswers(initialAnswers);
+      setLoading(false);
+    } catch (error) {
+      console.error("❌ Failed to load assignment:", error);
+      toast({
+        title: "Error",
+        description: "Could not load assignment",
+        variant: "destructive",
+      });
+      router.push("/student/assignments");
+    }
+  }, [resolvedParams.id, router, toast]);
+
+  const renderQuestion = useCallback(
+    (question: Question) => {
+      const currentAnswer = answers.find(
+        (a) => a.questionId === question.id
+      )?.answer;
+
+      switch (question.type) {
+        case "multiple-choice":
+          return (
+            <div className="space-y-2">
+              {question.options.map((option) => (
+                <label key={option.id} className="flex items-center space-x-2">
+                  <input
+                    type="radio"
+                    name={question.id}
+                    value={option.value}
+                    checked={currentAnswer === option.value}
+                    onChange={(e) =>
+                      handleAnswerChange(question.id, e.target.value)
+                    }
+                    className="h-4 w-4 border-gray-300 text-primary focus:ring-primary"
+                  />
+                  <span>{option.value}</span>
+                </label>
+              ))}
+            </div>
+          );
+
+        case "true-false":
+          return (
+            <div className="space-x-4">
+              <label className="inline-flex items-center">
+                <input
+                  type="radio"
+                  name={question.id}
+                  value="true"
+                  checked={currentAnswer === "true"}
+                  onChange={(e) =>
+                    handleAnswerChange(question.id, e.target.value)
+                  }
+                  className="h-4 w-4 border-gray-300 text-primary focus:ring-primary"
+                />
+                <span className="ml-2">True</span>
+              </label>
+              <label className="inline-flex items-center">
+                <input
+                  type="radio"
+                  name={question.id}
+                  value="false"
+                  checked={currentAnswer === "false"}
+                  onChange={(e) =>
+                    handleAnswerChange(question.id, e.target.value)
+                  }
+                  className="h-4 w-4 border-gray-300 text-primary focus:ring-primary"
+                />
+                <span className="ml-2">False</span>
+              </label>
+            </div>
+          );
+
+        case "short-answer":
+        case "long-answer":
+          return (
+            <textarea
+              value={currentAnswer as string}
+              onChange={(e) => handleAnswerChange(question.id, e.target.value)}
+              className="w-full p-2 border rounded"
+              placeholder="Enter your answer here..."
+              rows={question.type === "long-answer" ? 6 : 2}
+            />
+          );
+
+        default:
+          return null;
+      }
+    },
+    [answers, handleAnswerChange]
+  );
 
   useEffect(() => {
-    console.log("🚀 Loading assignment test page...");
     loadAssignment();
-  }, []);
+  }, [loadAssignment]);
 
   useEffect(() => {
     if (!isPasswordValid) {
       handleSubmitTest();
     }
-  }, [isPasswordValid]);
+  }, [isPasswordValid, handleSubmitTest]);
 
   useEffect(() => {
     if (!loading && timeRemaining > 0) {
@@ -87,7 +229,7 @@ export default function AssignmentTestPage({
 
       return () => clearInterval(timer);
     }
-  }, [loading, timeRemaining]);
+  }, [loading, timeRemaining, handleSubmitTest]);
 
   useEffect(() => {
     const handleVisibilityChange = () => {
@@ -105,7 +247,7 @@ export default function AssignmentTestPage({
         if (tabHiddenTime) {
           const timeHidden = Date.now() - tabHiddenTime;
           if (timeHidden > TAB_HIDDEN_LIMIT) {
-            handleSubmitTest(); // This will now use the corrected submission function
+            handleSubmitTest();
           }
         }
         setTabHiddenTime(null);
@@ -116,7 +258,7 @@ export default function AssignmentTestPage({
     return () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [tabHiddenTime, assignment?.id]);
+  }, [tabHiddenTime, handleSubmitTest, toast]);
 
   useEffect(() => {
     const handleBlur = () => {
@@ -148,158 +290,26 @@ export default function AssignmentTestPage({
       window.removeEventListener("blur", handleBlur);
       window.removeEventListener("focus", handleFocus);
     };
-  }, [blurStartTime]);
+  }, [blurStartTime, handleSubmitTest, toast]);
 
-  const loadAssignment = async () => {
-    try {
-      console.log("📚 Fetching assignment details...");
-      const data = await getAssignmentById(params.id);
-      console.log(
-        "Loaded question types:",
-        data.questions.map((q) => q.type)
-      ); // Add this
-      setAssignment(data);
-      setTimeRemaining(data.duration * 60);
-
-      const initialAnswers = data.questions.map((q) => ({
-        questionId: q.id,
-        answer: q.type === "multiple-choice" ? "" : "", // Changed from matching
-      }));
-      console.log("Initial answers:", initialAnswers); // Add this
-      setAnswers(initialAnswers);
-      setLoading(false);
-    } catch (error) {
-      console.error("❌ Failed to load assignment:", error);
-      toast({
-        title: "Error",
-        description: "Could not load assignment",
-        variant: "destructive",
-      });
-      router.push("/student/assignments");
-    }
-  };
-
-  const handleSubmitTest = async () => {
-    if (!assignment) return;
-
-    try {
-      console.log("Submitting test with data:", {
-        assignmentId: assignment.id,
-        answers: answers,
-        timeSpent: assignment.duration * 60 - timeRemaining,
-      });
-
-      // Call submitAssignment with correct parameter structure
-      await submitAssignment(
-        assignment.id, // Pass assignmentId directly
-        answers // Pass answers array directly
-      );
-
-      toast({
-        title: "Success",
-        description: "Test submitted successfully!",
-      });
-
-      router.push("/student/dashboard");
-    } catch (error) {
-      console.error("Error submitting test:", error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to submit test. Please try again.",
-      });
-    }
-  };
-
-  const handleAnswerChange = (
-    questionId: string,
-    value: string | { [key: string]: string }
-  ) => {
-    setAnswers((prev) =>
-      prev.map((a) =>
-        a.questionId === questionId ? { ...a, answer: value } : a
-      )
-    );
-  };
-
-  const renderQuestion = (question: Question) => {
-    console.log("Rendering question:", question); // Add this debug log
-    const currentAnswer = answers.find(
-      (a) => a.questionId === question.id
-    )?.answer;
-
-    switch (question.type) {
-      case "multiple-choice":
-        console.log("Rendering multiple choice options:", question.options); // Add this
-        return (
-          <div className="space-y-2">
-            {question.options.map((option) => (
-              <label key={option.id} className="flex items-center space-x-2">
-                <input
-                  type="radio"
-                  name={question.id}
-                  value={option.value}
-                  checked={currentAnswer === option.value}
-                  onChange={(e) =>
-                    handleAnswerChange(question.id, e.target.value)
-                  }
-                  className="h-4 w-4 border-gray-300 text-primary focus:ring-primary"
-                />
-                <span>{option.value}</span>
-              </label>
-            ))}
-          </div>
-        );
-
-      case "true-false":
-        return (
-          <div className="space-x-4">
-            <label className="inline-flex items-center">
-              <input
-                type="radio"
-                name={question.id}
-                value="true"
-                checked={currentAnswer === "true"}
-                onChange={(e) =>
-                  handleAnswerChange(question.id, e.target.value)
-                }
-                className="h-4 w-4 border-gray-300 text-primary focus:ring-primary"
-              />
-              <span className="ml-2">True</span>
-            </label>
-            <label className="inline-flex items-center">
-              <input
-                type="radio"
-                name={question.id}
-                value="false"
-                checked={currentAnswer === "false"}
-                onChange={(e) =>
-                  handleAnswerChange(question.id, e.target.value)
-                }
-                className="h-4 w-4 border-gray-300 text-primary focus:ring-primary"
-              />
-              <span className="ml-2">False</span>
-            </label>
-          </div>
-        );
-
-      case "short-answer":
-      case "long-answer":
-        return (
-          <textarea
-            value={currentAnswer as string}
-            onChange={(e) => handleAnswerChange(question.id, e.target.value)}
-            className="w-full p-2 border rounded"
-            placeholder="Enter your answer here..."
-            rows={question.type === "long-answer" ? 6 : 2}
-          />
-        );
-
-      default:
-        console.log("Question type not handled:", question.type); // Add this
-        return null;
-    }
-  };
+  const renderedQuestions = useMemo(() => {
+    return assignment?.questions.map((question, index) => (
+      <Card key={question.id}>
+        <CardHeader>
+          <CardTitle className="flex justify-between">
+            <span>Question {index + 1}</span>
+            <span className="text-sm text-muted-foreground">
+              {question.mark} marks
+            </span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-lg">{question.text}</p>
+          {renderQuestion(question)}
+        </CardContent>
+      </Card>
+    ));
+  }, [assignment?.questions, renderQuestion]);
 
   if (loading) {
     return (
@@ -357,22 +367,7 @@ export default function AssignmentTestPage({
           </CardContent>
         </Card>
 
-        {assignment.questions.map((question, index) => (
-          <Card key={question.id}>
-            <CardHeader>
-              <CardTitle className="flex justify-between">
-                <span>Question {index + 1}</span>
-                <span className="text-sm text-muted-foreground">
-                  {question.mark} marks
-                </span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <p className="text-lg">{question.text}</p>
-              {renderQuestion(question)}
-            </CardContent>
-          </Card>
-        ))}
+        {renderedQuestions}
 
         <div className="flex flex-col items-center justify-center py-8">
           <Button
