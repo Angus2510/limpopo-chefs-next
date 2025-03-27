@@ -22,7 +22,7 @@ import { Button } from "@/components/ui/button";
 import { format, isSameDay } from "date-fns";
 import { fetchStudentAssignments } from "@/lib/actions/assignments/fetchStudentAssignments";
 import { ContentLayout } from "@/components/layout/content-layout";
-import { validatePassword } from "@/lib/actions/assignments/passwordValidation";
+import { validateAssignmentPassword } from "@/lib/actions/assignments/validateAssignmentPassword";
 
 interface Assignment {
   id: string;
@@ -89,17 +89,25 @@ export default function StudentAssignmentsPage() {
     }
 
     try {
-      console.log(
-        "🔐 Submitting password for assignment:",
-        selectedAssignment.id
+      console.log("🔐 Validating password...");
+      const validation = await validateAssignmentPassword(
+        selectedAssignment.id,
+        password.trim()
       );
 
-      // Call the server action directly
-      await validatePassword(selectedAssignment.id, password.trim());
+      if (validation.valid) {
+        console.log("✅ Password validated successfully");
 
-      console.log("✅ Password validated successfully");
-      setPasswordDialog(false);
-      router.push(`/student/assignments/${selectedAssignment.id}`);
+        // Set the cookie
+        document.cookie = `assignment_password=${password.trim()}; path=/; max-age=3600; secure; samesite=lax`;
+
+        setPasswordDialog(false);
+
+        // Use router.push instead of window.location.href
+        router.push(`/student/assignments/${selectedAssignment.id}`);
+      } else {
+        throw new Error(validation.message || "Invalid password");
+      }
     } catch (error) {
       console.error("❌ Password validation failed:", error);
       toast({

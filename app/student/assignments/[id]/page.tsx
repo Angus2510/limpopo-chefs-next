@@ -10,6 +10,7 @@ import { format } from "date-fns";
 import { getAssignmentById } from "@/lib/actions/assignments/getAssignmentById";
 import { submitAssignment } from "@/lib/actions/assignments/assignmentSubmission";
 import { RulesDialog } from "@/components/dialogs/assignments/RulesDialog";
+import { usePasswordValidation } from "@/hooks/usePasswordValidation";
 
 interface Question {
   id: string;
@@ -58,11 +59,18 @@ export default function AssignmentTestPage({
   const TAB_HIDDEN_LIMIT = 10000;
   const BLUR_TIME_LIMIT = 10000;
   let autoSubmitTimeout: NodeJS.Timeout;
+  const isPasswordValid = usePasswordValidation(params.id);
 
   useEffect(() => {
     console.log("🚀 Loading assignment test page...");
     loadAssignment();
   }, []);
+
+  useEffect(() => {
+    if (!isPasswordValid) {
+      handleSubmitTest();
+    }
+  }, [isPasswordValid]);
 
   useEffect(() => {
     if (!loading && timeRemaining > 0) {

@@ -79,36 +79,40 @@ export default function EditAssignmentForm({
     setIsSubmitting(true);
 
     try {
-      // Create a new date object at noon UTC
       const formattedDate = new Date(values.availableFrom);
       formattedDate.setUTCHours(12, 0, 0, 0);
 
       const formattedData = {
-        id: assignment.id,
         duration: Number(values.duration),
-        availableFrom: formattedDate.toISOString(),
-        campus: values.campus,
-        intakeGroups: values.intakeGroups,
+        availableFrom: formattedDate,
+        campus: values.campus || [],
+        intakeGroups: values.intakeGroups || [],
         password: values.password,
       };
 
-      console.log("Submitting data:", formattedData); // Add logging
+      console.log("Submitting data:", formattedData);
 
-      await updateAssignment(assignment.id, formattedData);
+      const result = await updateAssignment(assignment.id, formattedData);
 
-      // Force a cache revalidation
-      router.refresh();
+      if (!result) {
+        throw new Error("Failed to update assignment");
+      }
 
       toast({
         title: "Success",
         description: "Assessment updated successfully",
       });
+
+      router.refresh();
       router.push("/admin/assignment");
     } catch (error) {
       console.error("Update error:", error);
       toast({
         title: "Error",
-        description: "Failed to update assignment",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Failed to update assignment",
         variant: "destructive",
       });
     } finally {

@@ -1,20 +1,44 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { jwtDecode } from "jwt-decode";
+import { validateAssignmentPassword } from "@/lib/actions/assignments/validateAssignmentPassword";
 
 interface DecodedToken {
   id: string | number;
   userType: string;
   exp: number;
-  active?: boolean; // Added to handle student active status
+  active?: boolean;
 }
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const token = request.cookies.get("accessToken")?.value;
   const currentPath = request.nextUrl.pathname;
 
-  // Skip middleware for API routes and the account-disabled page
+  // Skip middleware for API routes and the account-disabled page first
   if (currentPath.startsWith("/api/") || currentPath === "/account-disabled") {
+    return NextResponse.next();
+  }
+
+  // Handle assignment password validation for specific assignment routes
+  if (
+    currentPath.startsWith("/student/assignments/") &&
+    !currentPath.endsWith("/assignments")
+  ) {
+    const assignmentId = currentPath.split("/").pop();
+    const assignmentPassword = request.cookies.get(
+      "assignment_password"
+    )?.value;
+
+    if (!assignmentPassword) {
+      console.log(
+        "No assignment password found, redirecting to assignments page"
+      );
+      return NextResponse.redirect(
+        new URL("/student/assignments", request.url)
+      );
+    }
+
+    // Let the page component handle password validation
     return NextResponse.next();
   }
 
@@ -94,7 +118,6 @@ export function middleware(request: NextRequest) {
   return NextResponse.next();
 }
 
-// Update config to include the account-disabled route
 export const config = {
   matcher: [
     "/dashboard/:path*",
@@ -102,5 +125,6 @@ export const config = {
     "/staff/:path*",
     "/guardian/:path*",
     "/admin/assignment/mark/:path*",
+    "/student/assignments/:id*",
   ],
 };
