@@ -188,6 +188,8 @@ export default function ProtectedStudentDashboard() {
           {/* First row */}
           <div className="w-full max-w-sm">
             <StudentCard studentData={student} />
+          </div>
+          <div className="">
             <FeesCard studentData={student} finances={finances} />
           </div>
 
