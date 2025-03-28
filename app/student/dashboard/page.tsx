@@ -188,20 +188,14 @@ export default function ProtectedStudentDashboard() {
           {/* First row */}
           <div className="w-full max-w-sm">
             <StudentCard studentData={student} />
+            <FeesCard studentData={student} finances={finances} />
           </div>
-          <div className="w-full max-w-sm">
-            <TodaysSchedule
-              intakeGroup={student.intakeGroup[0]}
-              campus={student.campus}
-              campusTitle={student.campusTitle} // This should be "mokopane" or "polokwane"
-            />
-          </div>
+
           <div className="w-full max-w-sm space-y-4">
             <WelHoursCard
               studentData={student}
               wellnessRecords={wellnessRecords}
             />
-            <FeesCard studentData={student} finances={finances} />
           </div>
 
           {/* Second row - Full width calendar and materials */}

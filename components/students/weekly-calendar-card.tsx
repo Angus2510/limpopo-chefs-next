@@ -3,7 +3,14 @@
 import type React from "react";
 import { useState, useEffect } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { format, startOfWeek, addDays, addWeeks, subWeeks } from "date-fns";
+import {
+  format,
+  startOfWeek,
+  addDays,
+  addWeeks,
+  subWeeks,
+  getWeek,
+} from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -27,42 +34,17 @@ const WeeklyCalendarCard: React.FC<WeeklyCalendarProps> = ({ studentData }) => {
   useEffect(() => {
     const fetchEvents = async () => {
       try {
-        console.log("🔍 Fetching events for weekly calendar:", {
-          intakeGroup: studentData.intakeGroup[0],
-          campus: studentData.campusTitle,
-        });
-
         const allEvents = await getEvents();
-        console.log("📦 Retrieved events:", allEvents.length);
-
         const filtered = allEvents.filter((event) => {
           if (!event || !event.campus || !event.assignedToModel) return false;
-
-          // Check if assigned to group
           const isAssignedToGroup = event.assignedToModel.includes(
             studentData.intakeGroup[0]
           );
-
-          // Check if event is for this campus
           const isCampusMatch =
             event.campus?.toLowerCase() ===
             studentData.campusTitle.toLowerCase();
-
-          console.log("🔎 Checking event:", {
-            eventId: event.id,
-            eventTitle: event.title,
-            eventCampus: event.campus,
-            studentCampus: studentData.campusTitle,
-            assignedTo: event.assignedToModel,
-            intakeGroup: studentData.intakeGroup[0],
-            isCampusMatch,
-            isAssignedToGroup,
-          });
-
           return isAssignedToGroup && isCampusMatch;
         });
-
-        console.log("✅ Filtered events:", filtered.length);
         setEvents(filtered);
       } catch (error) {
         console.error("❌ Error fetching events:", error);
@@ -85,16 +67,8 @@ const WeeklyCalendarCard: React.FC<WeeklyCalendarProps> = ({ studentData }) => {
       .sort((a, b) => (a.startTime || "").localeCompare(b.startTime || ""));
   };
 
-  const formatTime = (date: Date, time: string) => {
-    const [hours, minutes] = time.split(":");
-    const dateTime = new Date(date);
-    dateTime.setHours(parseInt(hours), parseInt(minutes));
-
-    return dateTime.toLocaleTimeString("en-US", {
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true,
-    });
+  const formatTime = (time: string) => {
+    return time || "00:00"; // Returns time in 24-hour format
   };
 
   const getEventColorClass = (eventType: EventType) => {
@@ -103,9 +77,40 @@ const WeeklyCalendarCard: React.FC<WeeklyCalendarProps> = ({ studentData }) => {
 
   const startOfCurrentWeek = startOfWeek(currentDate, { weekStartsOn: 1 });
   const weekDays = ["Mon", "Tue", "Wed", "Thu", "Fri"];
+  const currentWeekNumber = getWeek(currentDate);
 
   const goToPreviousWeek = () => setCurrentDate(subWeeks(currentDate, 1));
   const goToNextWeek = () => setCurrentDate(addWeeks(currentDate, 1));
+
+  const EventCard = ({ event }: { event: Event }) => (
+    <li key={event.id} className="p-2 border rounded-md bg-secondary/20">
+      <div className="flex flex-col space-y-1.5">
+        <div className="flex justify-between items-start">
+          <div className="flex flex-col">
+            <span className="text-sm font-semibold">{event.title}</span>
+            <span className="text-xs font-medium">
+              {formatTime(event.startTime)} - {formatTime(event.endTime || "")}
+            </span>
+          </div>
+          <span
+            className={`text-xs px-2 py-1 rounded-full ${getEventColorClass(
+              event.color
+            )}`}
+          >
+            {event.color}
+          </span>
+        </div>
+        {event.details && (
+          <p className="text-xs text-muted-foreground">{event.details}</p>
+        )}
+        <div className="text-xs space-y-1 text-muted-foreground">
+          <p>👨‍🏫 {event.lecturer || "No lecturer assigned"}</p>
+          <p>📍 {event.venue || "No venue specified"}</p>
+          <p>🏢 {event.campus || "No campus specified"}</p>
+        </div>
+      </div>
+    </li>
+  );
 
   if (loading) {
     return (
@@ -119,17 +124,24 @@ const WeeklyCalendarCard: React.FC<WeeklyCalendarProps> = ({ studentData }) => {
 
   return (
     <Card className="w-full max-w-4xl mx-auto">
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-xl font-medium">
-          Week of {format(startOfCurrentWeek, "MMMM d, yyyy")}
-        </CardTitle>
-        <div className="space-x-2">
-          <Button variant="outline" size="icon" onClick={goToPreviousWeek}>
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <Button variant="outline" size="icon" onClick={goToNextWeek}>
-            <ChevronRight className="h-4 w-4" />
-          </Button>
+      <CardHeader className="flex flex-col space-y-2 pb-2">
+        <div className="flex justify-between items-center">
+          <div className="flex flex-col">
+            <CardTitle className="text-xl font-medium">
+              {format(startOfCurrentWeek, "MMMM d, yyyy")}
+            </CardTitle>
+            <span className="text-sm text-muted-foreground">
+              Week {currentWeekNumber} of {format(currentDate, "yyyy")}
+            </span>
+          </div>
+          <div className="space-x-2">
+            <Button variant="outline" size="icon" onClick={goToPreviousWeek}>
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <Button variant="outline" size="icon" onClick={goToNextWeek}>
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       </CardHeader>
       <CardContent>
@@ -150,30 +162,7 @@ const WeeklyCalendarCard: React.FC<WeeklyCalendarProps> = ({ studentData }) => {
                     {dateEvents.length > 0 ? (
                       <ul className="space-y-2 p-2">
                         {dateEvents.map((event) => (
-                          <li key={event.id}>
-                            <div className="flex flex-col space-y-1">
-                              <div className="flex justify-between items-start">
-                                <span className="text-sm font-medium">
-                                  {formatTime(event.startDate, event.startTime)}
-                                </span>
-                                <span
-                                  className={`text-xs px-2 py-1 rounded-full ${getEventColorClass(
-                                    event.color
-                                  )}`}
-                                >
-                                  {event.title}
-                                </span>
-                              </div>
-                              {event.details && (
-                                <p className="text-xs text-muted-foreground">
-                                  {event.details}
-                                </p>
-                              )}
-                              <p className="text-xs text-muted-foreground">
-                                📍 {event.venue}
-                              </p>
-                            </div>
-                          </li>
+                          <EventCard key={event.id} event={event} />
                         ))}
                       </ul>
                     ) : (
@@ -204,30 +193,7 @@ const WeeklyCalendarCard: React.FC<WeeklyCalendarProps> = ({ studentData }) => {
                     {dateEvents.length > 0 ? (
                       <ul className="space-y-2 p-2">
                         {dateEvents.map((event) => (
-                          <li key={event.id}>
-                            <div className="flex flex-col space-y-1">
-                              <div className="flex justify-between items-start">
-                                <span className="text-sm font-medium">
-                                  {formatTime(event.startDate, event.startTime)}
-                                </span>
-                                <span
-                                  className={`text-xs px-2 py-1 rounded-full ${getEventColorClass(
-                                    event.color
-                                  )}`}
-                                >
-                                  {event.title}
-                                </span>
-                              </div>
-                              {event.details && (
-                                <p className="text-xs text-muted-foreground">
-                                  {event.details}
-                                </p>
-                              )}
-                              <p className="text-xs text-muted-foreground">
-                                📍 {event.venue}
-                              </p>
-                            </div>
-                          </li>
+                          <EventCard key={event.id} event={event} />
                         ))}
                       </ul>
                     ) : (
