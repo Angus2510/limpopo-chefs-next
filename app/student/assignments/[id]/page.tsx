@@ -107,8 +107,9 @@ export default function AssignmentTestPage({
       console.log("📚 Fetching assignment details...");
       const data = await getAssignmentById(resolvedParams.id);
       setAssignment(data);
-      setTimeRemaining(data.duration * 60);
-      setTestStarted(true); // Added test started state
+      // Remove this line
+      // setTimeRemaining(data.duration * 60);
+      setTestStarted(true);
 
       const initialAnswers = data.questions.map((q) => ({
         questionId: q.id,
@@ -212,14 +213,18 @@ export default function AssignmentTestPage({
 
   // Modified password validation useEffect
   useEffect(() => {
-    if (!testStarted && !isPasswordValid) {
+    if (!isPasswordValid && !testStarted) {
       router.push(`/student/assignments/${resolvedParams.id}/password`);
     }
   }, [isPasswordValid, testStarted, router, resolvedParams.id]);
 
   // Modified timer useEffect
   useEffect(() => {
-    if (!loading && timeRemaining > 0 && testStarted) {
+    if (assignment && !loading && testStarted) {
+      if (timeRemaining === 0) {
+        setTimeRemaining(assignment.duration * 60);
+      }
+
       const timer = setInterval(() => {
         setTimeRemaining((prev) => {
           if (prev <= 1) {
@@ -233,7 +238,7 @@ export default function AssignmentTestPage({
 
       return () => clearInterval(timer);
     }
-  }, [loading, timeRemaining, handleSubmitTest, testStarted]);
+  }, [assignment, loading, testStarted, handleSubmitTest, timeRemaining]);
 
   useEffect(() => {
     const handleVisibilityChange = () => {
@@ -244,7 +249,7 @@ export default function AssignmentTestPage({
           title: "Warning",
           description:
             "Leaving the test page will result in automatic submission after 10 seconds",
-          variant: "warning",
+          variant: "destructive",
         });
       } else {
         setIsTabVisible(true);
