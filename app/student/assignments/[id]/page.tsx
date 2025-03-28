@@ -107,9 +107,6 @@ export default function AssignmentTestPage({
       console.log("📚 Fetching assignment details...");
       const data = await getAssignmentById(resolvedParams.id);
       setAssignment(data);
-      // Remove this line
-      // setTimeRemaining(data.duration * 60);
-      setTestStarted(true);
 
       const initialAnswers = data.questions.map((q) => ({
         questionId: q.id,
@@ -117,6 +114,7 @@ export default function AssignmentTestPage({
       }));
       setAnswers(initialAnswers);
       setLoading(false);
+      // Remove setTestStarted from here since it's now handled in the password validation effect
     } catch (error) {
       console.error("❌ Failed to load assignment:", error);
       toast({
@@ -213,32 +211,37 @@ export default function AssignmentTestPage({
 
   // Modified password validation useEffect
   useEffect(() => {
-    if (!isPasswordValid && !testStarted) {
-      router.push(`/student/assignments/${resolvedParams.id}/password`);
+    if (isPasswordValid && !testStarted) {
+      setTestStarted(true);
     }
-  }, [isPasswordValid, testStarted, router, resolvedParams.id]);
+  }, [isPasswordValid, testStarted]);
 
   // Modified timer useEffect
+  // Replace the existing timer useEffect with this version
   useEffect(() => {
-    if (assignment && !loading && testStarted) {
+    // Only start timer if test has started and we have an assignment
+    if (testStarted && assignment) {
+      // Initialize timer only once when starting
       if (timeRemaining === 0) {
         setTimeRemaining(assignment.duration * 60);
       }
 
+      // Create timer that runs independently of other state changes
       const timer = setInterval(() => {
-        setTimeRemaining((prev) => {
-          if (prev <= 1) {
+        setTimeRemaining((time) => {
+          if (time <= 1) {
             clearInterval(timer);
             handleSubmitTest();
             return 0;
           }
-          return prev - 1;
+          return time - 1;
         });
       }, 1000);
 
+      // Cleanup timer
       return () => clearInterval(timer);
     }
-  }, [assignment, loading, testStarted, handleSubmitTest, timeRemaining]);
+  }, [testStarted, assignment, handleSubmitTest]); // Removed timeRemaining and loading from dependencies
 
   useEffect(() => {
     const handleVisibilityChange = () => {
