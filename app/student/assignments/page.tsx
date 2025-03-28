@@ -71,7 +71,7 @@ export default function StudentAssignmentsPage() {
       toast({
         title: "Already Completed",
         description: "You have already completed this assessment",
-        variant: "warning",
+        variant: "destructive",
       });
       return;
     }
