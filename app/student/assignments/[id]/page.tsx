@@ -58,6 +58,7 @@ export default function AssignmentTestPage({
   const [tabHiddenTime, setTabHiddenTime] = useState<number | null>(null);
   const [windowFocused, setWindowFocused] = useState(true);
   const [blurStartTime, setBlurStartTime] = useState<number | null>(null);
+  const [testStarted, setTestStarted] = useState(false); // Added new state
   const TAB_HIDDEN_LIMIT = 10000;
   const BLUR_TIME_LIMIT = 10000;
   const isPasswordValid = usePasswordValidation(resolvedParams.id);
@@ -107,6 +108,7 @@ export default function AssignmentTestPage({
       const data = await getAssignmentById(resolvedParams.id);
       setAssignment(data);
       setTimeRemaining(data.duration * 60);
+      setTestStarted(true); // Added test started state
 
       const initialAnswers = data.questions.map((q) => ({
         questionId: q.id,
@@ -208,14 +210,16 @@ export default function AssignmentTestPage({
     loadAssignment();
   }, [loadAssignment]);
 
+  // Modified password validation useEffect
   useEffect(() => {
-    if (!isPasswordValid) {
-      handleSubmitTest();
+    if (!testStarted && !isPasswordValid) {
+      router.push(`/student/assignments/${resolvedParams.id}/password`);
     }
-  }, [isPasswordValid, handleSubmitTest]);
+  }, [isPasswordValid, testStarted, router, resolvedParams.id]);
 
+  // Modified timer useEffect
   useEffect(() => {
-    if (!loading && timeRemaining > 0) {
+    if (!loading && timeRemaining > 0 && testStarted) {
       const timer = setInterval(() => {
         setTimeRemaining((prev) => {
           if (prev <= 1) {
@@ -229,7 +233,7 @@ export default function AssignmentTestPage({
 
       return () => clearInterval(timer);
     }
-  }, [loading, timeRemaining, handleSubmitTest]);
+  }, [loading, timeRemaining, handleSubmitTest, testStarted]);
 
   useEffect(() => {
     const handleVisibilityChange = () => {

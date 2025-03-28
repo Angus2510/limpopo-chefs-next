@@ -36,21 +36,22 @@ export function usePasswordValidation(assignmentId: string) {
     const handleInvalidPassword = () => {
       setIsValid(false);
       toast({
-        title: "Session Expired",
-        description: "Your test session has expired. You will be redirected.",
+        title: "Password Session Expired",
+        description:
+          "Your password session has expired. Please re-enter the password.",
         variant: "destructive",
       });
-      router.push("/student/assignments");
+      router.push(`/student/assignments/${assignmentId}/password`); // Redirect to password page instead
     };
 
-    // Check initially
+    // Initial check
     checkPassword();
 
-    // Check every minute
-    const interval = setInterval(checkPassword, 60000);
+    // Check every 20 minutes (1200000 ms)
+    const interval = setInterval(checkPassword, 1200000);
 
     return () => clearInterval(interval);
-  }, [assignmentId, router]);
+  }, [assignmentId, router, toast]);
 
   return isValid;
 }
