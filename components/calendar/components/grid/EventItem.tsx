@@ -7,6 +7,10 @@ interface EventItemProps {
 }
 
 export function EventItem({ event, onClick }: EventItemProps) {
+  const capitalizedCampus = event.campus
+    ? event.campus.charAt(0).toUpperCase() + event.campus.slice(1)
+    : "";
+
   return (
     <div
       role="button"
@@ -23,7 +27,7 @@ export function EventItem({ event, onClick }: EventItemProps) {
       <div className="font-medium truncate">{event.title}</div>
       <div className="text-[10px] truncate">{event.startTime}</div>
       {event.campus && (
-        <div className="text-[10px] truncate">📍 {event.campus}</div>
+        <div className="text-[10px] truncate">📍 {capitalizedCampus}</div>
       )}
       {event.venue && (
         <div className="text-[10px] truncate">🏛️ {event.venue}</div>
