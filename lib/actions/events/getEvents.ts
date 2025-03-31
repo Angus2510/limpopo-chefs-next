@@ -7,7 +7,7 @@ export async function getEvents() {
   console.log("🔍 Getting all events...");
   try {
     const events = await prisma.events.findMany({
-      orderBy: { startDate: "asc" },
+      orderBy: [{ startDate: "asc" }, { startTime: "asc" }],
     });
     console.log("✅ Found events:", events.length);
     return events;

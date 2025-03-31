@@ -108,6 +108,20 @@ export function Calendar({ intakeGroups }: CalendarProps) {
     }
   };
 
+  const sortEventsByTime = (events: Event[]) => {
+    return [...events].sort((a, b) => {
+      // First compare by date
+      const dateA = new Date(a.startDate);
+      const dateB = new Date(b.startDate);
+      const dateCompare = dateA.getTime() - dateB.getTime();
+
+      if (dateCompare !== 0) return dateCompare;
+
+      // If same date, compare by time
+      return a.startTime.localeCompare(b.startTime);
+    });
+  };
+
   return (
     <div className="flex flex-col h-full space-y-4">
       <div className="space-y-4">
@@ -121,7 +135,7 @@ export function Calendar({ intakeGroups }: CalendarProps) {
 
       <CalendarGrid
         currentDate={currentDate}
-        events={events}
+        events={sortEventsByTime(events)}
         onDayClick={handleDayClick}
         onEventClick={handleEventClick}
       />

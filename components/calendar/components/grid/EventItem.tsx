@@ -25,15 +25,15 @@ export function EventItem({ event, onClick }: EventItemProps) {
       )}
     >
       <div className="font-medium truncate">{event.title}</div>
-      <div className="text-[10px] truncate">{event.startTime}</div>
+      <div className="text-[10px] truncate">⏰ {event.startTime}</div>
+      {event.lecturer && (
+        <div className="text-[10px] truncate">👨‍🏫 {event.lecturer}</div>
+      )}
       {event.campus && (
         <div className="text-[10px] truncate">📍 {capitalizedCampus}</div>
       )}
       {event.venue && (
         <div className="text-[10px] truncate">🏛️ {event.venue}</div>
-      )}
-      {event.lecturer && (
-        <div className="text-[10px] truncate">👨‍🏫 {event.lecturer}</div>
       )}
     </div>
   );
