@@ -1,16 +1,16 @@
+"use client";
 import * as React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
+import { fetchStudentFinances } from "@/lib/actions/student/fetchStudentFinances";
 
-interface Finance {
-  id: string;
-  student: string;
-  dueDate: string;
-  amount: number;
-  currency: string;
-  status: "PAID" | "PENDING" | "OVERDUE";
-  description?: string;
-}
+const formatCurrency = (amount: number | string) => {
+  const numberAmount = typeof amount === "string" ? parseFloat(amount) : amount;
+  return new Intl.NumberFormat("en-ZA", {
+    style: "currency",
+    currency: "ZAR",
+  }).format(numberAmount);
+};
 
 interface Student {
   id: string;
@@ -22,94 +22,145 @@ interface Student {
 
 interface FeesCardProps {
   studentData: Student;
-  finances: Finance | null;
 }
 
-export function FeesCard({ studentData, finances }: FeesCardProps) {
-  // Format currency with proper locale and currency symbol
-  const formatCurrency = (amount: number, currency: string = "USD") => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: currency,
-    }).format(amount);
-  };
+export function FeesCard({ studentData }: FeesCardProps) {
+  const [finances, setFinances] = React.useState<
+    Awaited<ReturnType<typeof fetchStudentFinances>>
+  >({
+    collectedFees: [],
+    payableFees: [],
+  });
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState<string | null>(null);
 
-  // Format date to be more readable
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    });
-  };
-
-  // Get status color based on payment status
-  const getStatusColor = (status: Finance["status"]) => {
-    switch (status) {
-      case "PAID":
-        return "text-green-600";
-      case "OVERDUE":
-        return "text-red-600";
-      default:
-        return "text-yellow-600";
+  const fetchData = React.useCallback(async () => {
+    if (!studentData?.id) {
+      setLoading(false);
+      return;
     }
-  };
 
-  if (!finances) {
-    return (
-      <Card className="w-[250px] h-fit">
-        <CardHeader>
-          <CardTitle>Fees</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-sm text-muted-foreground">
-            No fee information available
-          </div>
-        </CardContent>
-      </Card>
+    setLoading(true);
+    setError(null);
+
+    try {
+      const data = await fetchStudentFinances(studentData.id);
+      console.log("Fetched finances for student:", studentData.id, data);
+      setFinances(data);
+    } catch (err) {
+      console.error("Error fetching finances:", err);
+      setError(err instanceof Error ? err.message : "Failed to load finances");
+    } finally {
+      setLoading(false);
+    }
+  }, [studentData?.id]);
+
+  React.useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  const renderCard = (children: React.ReactNode) => (
+    <Card className="w-[300px] h-fit">
+      {" "}
+      {/* Increased width for better layout */}
+      <CardHeader>
+        <CardTitle>Student Fees</CardTitle>
+      </CardHeader>
+      <CardContent>{children}</CardContent>
+    </Card>
+  );
+
+  if (loading) {
+    return renderCard(
+      <div className="text-sm text-muted-foreground">Loading fees...</div>
     );
   }
 
-  return (
-    <Card className="w-[250px] h-fit">
-      <CardHeader>
-        <CardTitle>Fees</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="grid w-full items-center gap-4">
-          <div className="flex flex-col space-y-1.5">
-            <Label htmlFor="dueDate">Due Date</Label>
-            <div id="dueDate" className="text-sm font-medium">
-              {formatDate(finances.dueDate)}
-            </div>
-          </div>
-          <div className="flex flex-col space-y-1.5">
-            <Label htmlFor="amount">Amount</Label>
-            <div id="amount" className="text-sm font-medium">
-              {formatCurrency(finances.amount, finances.currency)}
-            </div>
-          </div>
-          <div className="flex flex-col space-y-1.5">
-            <Label htmlFor="status">Status</Label>
-            <div
-              id="status"
-              className={`text-sm font-medium ${getStatusColor(
-                finances.status
-              )}`}
-            >
-              {finances.status}
-            </div>
-          </div>
-          {finances.description && (
-            <div className="flex flex-col space-y-1.5">
-              <Label htmlFor="description">Description</Label>
-              <div id="description" className="text-sm text-muted-foreground">
-                {finances.description}
+  if (error) {
+    return renderCard(
+      <div className="text-sm text-red-500">Error: {error}</div>
+    );
+  }
+
+  if (!finances?.collectedFees?.length && !finances?.payableFees?.length) {
+    return renderCard(
+      <div className="text-sm text-muted-foreground">
+        No fee information available
+      </div>
+    );
+  }
+
+  return renderCard(
+    <div className="grid w-full items-center gap-6">
+      {finances.collectedFees && finances.collectedFees.length > 0 && (
+        <div className="space-y-4">
+          <h3 className="font-semibold text-sm">Recent Transactions</h3>
+          {finances.collectedFees.map((fee) => (
+            <div key={fee.id} className="border-b pb-4 last:border-b-0">
+              <div className="flex flex-col space-y-1.5">
+                <Label>Description</Label>
+                <div className="text-sm font-medium">{fee.description}</div>
+              </div>
+              {fee.transactionDate && (
+                <div className="flex flex-col space-y-1.5">
+                  <Label>Date</Label>
+                  <div className="text-sm">
+                    {new Date(fee.transactionDate).toLocaleDateString("en-ZA")}
+                  </div>
+                </div>
+              )}
+              <div className="flex flex-col space-y-1.5">
+                <Label>Amount</Label>
+                <div className="text-sm font-medium">
+                  {fee.debit ? (
+                    <span className="text-red-600">
+                      -{formatCurrency(fee.debit)}
+                    </span>
+                  ) : fee.credit ? (
+                    <span className="text-green-600">
+                      +{formatCurrency(fee.credit)}
+                    </span>
+                  ) : (
+                    formatCurrency(fee.balance)
+                  )}
+                </div>
               </div>
             </div>
-          )}
+          ))}
         </div>
-      </CardContent>
-    </Card>
+      )}
+
+      {finances.payableFees && finances.payableFees.length > 0 && (
+        <div className="space-y-4">
+          <h3 className="font-semibold text-sm">Outstanding Fees</h3>
+          {finances.payableFees.map((fee) => (
+            <div key={fee.id} className="border-b pb-4 last:border-b-0">
+              {fee.dueDate && (
+                <div className="flex flex-col space-y-1.5">
+                  <Label>Due Date</Label>
+                  <div className="text-sm">
+                    {new Date(fee.dueDate).toLocaleDateString("en-ZA")}
+                  </div>
+                </div>
+              )}
+              <div className="flex flex-col space-y-1.5">
+                <Label>Amount Due</Label>
+                <div className="text-sm font-medium">
+                  {formatCurrency(fee.amount)}
+                </div>
+              </div>
+              {fee.arrears > 0 && (
+                <div className="flex flex-col space-y-1.5">
+                  <Label>Arrears</Label>
+                  <div className="text-sm font-medium text-red-600">
+                    {formatCurrency(fee.arrears)}
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
