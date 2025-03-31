@@ -59,6 +59,7 @@ const LECTURERS = [
 interface EventFormProps {
   mode: ModalMode;
   selectedEvent: Event | null;
+  selectedDate: Date | null; // Add this line
   intakeGroups: IntakeGroup[];
   isLoading: boolean;
   onSubmit: (data: Partial<Event>) => Promise<void>;
@@ -68,6 +69,7 @@ interface EventFormProps {
 export function EventForm({
   mode,
   selectedEvent,
+  selectedDate,
   intakeGroups,
   isLoading,
   onSubmit,
@@ -82,11 +84,21 @@ export function EventForm({
     lecturer: selectedEvent?.lecturer || "",
     color: selectedEvent?.color || "other",
     assignedToModel: selectedEvent?.assignedToModel || [],
+    // For updates, use the existing event's date, for new events use selectedDate
+    startDate: mode === "update" ? selectedEvent?.startDate : selectedDate,
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await onSubmit(formData);
+
+    // When updating, ensure we use the original date from the selected event
+    const submissionData = {
+      ...formData,
+      startDate:
+        mode === "update" ? selectedEvent?.startDate : formData.startDate,
+    };
+
+    await onSubmit(submissionData);
   };
 
   return (

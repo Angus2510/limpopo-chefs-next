@@ -30,26 +30,26 @@ export function DayCell({
   return (
     <div
       className={cn(
-        "min-h-[120px] p-2 border border-gray-200",
+        "min-h-[200px] p-4 border border-gray-200",
         isCurrentMonth ? "bg-white" : "bg-gray-50",
         "hover:bg-gray-50 transition-colors"
       )}
       onClick={onClick}
     >
-      <div className="flex justify-between items-center mb-1">
+      <div className="flex justify-between items-center mb-3">
         <span
           className={cn(
-            "text-sm font-semibold",
+            "text-lg font-semibold",
             !isCurrentMonth && "text-gray-400"
           )}
         >
           {format(date, "d")}
         </span>
-        <span className="text-xs text-gray-500">{format(date, "EEE")}</span>
+        <span className="text-sm text-gray-500">{format(date, "EEE")}</span>
       </div>
 
-      <ScrollArea className="h-[80px]">
-        <div className="space-y-1">
+      <ScrollArea className="h-[calc(100%-2rem)]">
+        <div className="space-y-2">
           {dayEvents.map((event) => (
             <EventItem
               key={event.id}

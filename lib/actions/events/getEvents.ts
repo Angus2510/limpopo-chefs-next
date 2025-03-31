@@ -24,7 +24,7 @@ export async function createEvent(data: any) {
       data: {
         title: data.title,
         details: data.details || "",
-        startDate: new Date(data.startDate || new Date()),
+        startDate: new Date(data.startDate), // Use the provided date
         startTime: data.startTime || "09:00",
         campus: data.campus || "",
         venue: data.venue || "",
@@ -48,13 +48,14 @@ export async function createEvent(data: any) {
 export async function updateEvent(id: string, data: any) {
   console.log("📝 Updating event:", id, "with data:", data);
   try {
+    // Remove startDate from the update if it's the same as the existing event
+    const { startDate, ...updateData } = data;
+
     const event = await prisma.events.update({
       where: { id },
-      data: {
-        ...data,
-        startDate: data.startDate ? new Date(data.startDate) : undefined,
-      },
+      data: updateData, // Only update the non-date fields
     });
+
     console.log("✅ Event updated:", event);
     revalidatePath("/admin/dashboard");
     return event;

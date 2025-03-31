@@ -48,6 +48,7 @@ export function EventDialog({
         <EventForm
           mode={mode}
           selectedEvent={selectedEvent}
+          selectedDate={selectedDate} // Add this line
           intakeGroups={intakeGroups}
           isLoading={isLoading}
           onSubmit={onSubmit}

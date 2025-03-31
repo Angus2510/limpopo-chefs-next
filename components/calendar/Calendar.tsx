@@ -4,15 +4,15 @@ import { CalendarHeader } from "./components/header/CalendarHeader";
 import { CalendarLegend } from "./components/header/CalendarLedgend";
 import { CalendarGrid } from "./components/grid/CalendarGrid";
 import { EventDialog } from "./components/dialog/EventDialog";
-import { useCalendar } from "@/hooks/useCalendar";
 import { useEvents } from "@/hooks/useEvents";
 import { CalendarProps, Event } from "@/types/events/Events";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { getEvents } from "@/lib/actions/events/getEvents";
 import { toast } from "@/components/ui/use-toast";
+import { addWeeks, subWeeks } from "date-fns";
 
 export function Calendar({ intakeGroups }: CalendarProps) {
-  const { currentDate, calendarDays, navigateMonth } = useCalendar();
+  const [currentDate, setCurrentDate] = useState(new Date());
   const {
     events,
     selectedEvent,
@@ -28,6 +28,12 @@ export function Calendar({ intakeGroups }: CalendarProps) {
     handleEventAction,
     handleDelete,
   } = useEvents();
+
+  const navigateWeek = (direction: "prev" | "next") => {
+    setCurrentDate((prevDate) =>
+      direction === "prev" ? subWeeks(prevDate, 1) : addWeeks(prevDate, 1)
+    );
+  };
 
   const fetchEvents = async () => {
     try {
@@ -107,15 +113,14 @@ export function Calendar({ intakeGroups }: CalendarProps) {
       <div className="space-y-4">
         <CalendarHeader
           currentDate={currentDate}
-          onPrevMonth={() => navigateMonth("prev")}
-          onNextMonth={() => navigateMonth("next")}
+          onPrevWeek={() => navigateWeek("prev")}
+          onNextWeek={() => navigateWeek("next")}
         />
         <CalendarLegend />
       </div>
 
       <CalendarGrid
         currentDate={currentDate}
-        calendarDays={calendarDays}
         events={events}
         onDayClick={handleDayClick}
         onEventClick={handleEventClick}
