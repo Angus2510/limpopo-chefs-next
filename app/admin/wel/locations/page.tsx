@@ -20,6 +20,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/use-toast";
+import { ImageUpload } from "@/components/wels/ImageUpload";
 
 interface WEL {
   id: string;
@@ -242,6 +243,21 @@ export default function WELPage() {
                 value={formData.note}
                 onChange={handleInputChange}
                 rows={2}
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Images</label>
+              <ImageUpload
+                value={formData.photoPath}
+                onChange={(urls) =>
+                  setFormData((prev) => ({ ...prev, photoPath: urls }))
+                }
+                onRemove={(url) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    photoPath: prev.photoPath.filter((item) => item !== url),
+                  }))
+                }
               />
             </div>
 

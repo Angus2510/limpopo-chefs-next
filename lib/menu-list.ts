@@ -164,7 +164,18 @@ export function getMenuList(pathname: string): Group[] {
             label: "WEL",
             active: pathname.includes("/admin/wel"),
             icon: File,
-            submenus: [],
+            submenus: [
+              {
+                href: "/admin/wel/locations",
+                label: "WEL Locations",
+                active: pathname === "/admin/wel/locations",
+              },
+              {
+                href: "/admin/wel/students",
+                label: "Student WEL",
+                active: pathname === "/admin/wel/students",
+              },
+            ],
           },
           {
             href: "/admin/notifications",
