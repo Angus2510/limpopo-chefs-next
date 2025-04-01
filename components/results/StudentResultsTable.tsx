@@ -38,7 +38,7 @@ interface StudentResultsTableProps {
   students: Student[];
   outcomeId: string;
   campusId: string;
-  intakeGroupId: string;
+  intakeGroupId: string[]; // Changed from string to string[]
   outcomeTitle: string;
   isMenuAssessment: boolean;
   onSave: (results: StudentResult[]) => Promise<{
@@ -57,7 +57,7 @@ interface StudentResult {
   taskScore: number;
   competency: "competent" | "not_competent";
   campusId: string;
-  intakeGroupId: string;
+  intakeGroupId: string[]; // Changed from string to string[]
 }
 
 export function StudentResultsTable({
@@ -75,6 +75,7 @@ export function StudentResultsTable({
   const [errors, setErrors] = useState<string[]>([]);
 
   // Initialize results when students prop changes
+  // In the StudentResultsTable component
   useEffect(() => {
     const initialResults: Record<string, StudentResult> = {};
     students.forEach((student) => {
@@ -82,7 +83,7 @@ export function StudentResultsTable({
         studentId: student.id,
         outcomeId,
         campusId,
-        intakeGroupId,
+        intakeGroupId, // This now receives an array of intake group IDs
         mark: student.existingMark ?? 0,
         testScore: isMenuAssessment
           ? student.existingMark ?? 0

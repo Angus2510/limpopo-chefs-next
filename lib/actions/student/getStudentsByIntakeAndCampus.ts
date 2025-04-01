@@ -14,24 +14,25 @@ export interface StudentWithResults {
 }
 
 export async function getStudentsByIntakeAndCampus(
-  intakeGroupId: string,
+  intakeGroupId: string[], // Changed to string[]
   campusId: string,
   outcomeId?: string
 ): Promise<StudentWithResults[]> {
-  if (!intakeGroupId || !campusId) {
-    throw new Error("Intake group ID and campus ID are required");
+  if (!intakeGroupId?.length || !campusId) {
+    throw new Error("At least one intake group ID and campus ID are required");
   }
 
   try {
     console.log(
-      `Fetching students for intake group ${intakeGroupId} and campus ${campusId}`
+      `Fetching students for intake groups ${intakeGroupId.join(
+        ", "
+      )} and campus ${campusId}`
     );
 
-    // Find students who belong to the specified intake group and campus
     const students = await prisma.students.findMany({
       where: {
         intakeGroup: {
-          hasSome: [intakeGroupId],
+          hasSome: intakeGroupId, // Pass the array directly
         },
         campus: {
           hasSome: [campusId],
@@ -64,7 +65,6 @@ export async function getStudentsByIntakeAndCampus(
 
     console.log(`Found ${students.length} students`);
 
-    // If we need to get existing results for these students
     let studentResults: Record<
       string,
       {
@@ -79,7 +79,6 @@ export async function getStudentsByIntakeAndCampus(
       try {
         console.log(`Fetching existing results for outcome ${outcomeId}`);
 
-        // Get results instead of assignment results
         const existingResults = await prisma.results.findMany({
           where: {
             outcome: outcomeId,
@@ -94,7 +93,6 @@ export async function getStudentsByIntakeAndCampus(
 
         console.log(`Found ${existingResults.length} existing results`);
 
-        // Flatten and process all results
         existingResults.forEach((result) => {
           if (result.results) {
             result.results.forEach((studentResult) => {
@@ -114,11 +112,9 @@ export async function getStudentsByIntakeAndCampus(
           `Error fetching results for outcome ${outcomeId}:`,
           resultError
         );
-        // Continue with empty results rather than failing the whole request
       }
     }
 
-    // Map the database results to the expected interface
     return students.map((student) => ({
       id: student.id,
       name: student.profile?.firstName || "",

@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { MultiSelect } from "@/components/common/multiselect";
 import {
   Command,
   CommandEmpty,
@@ -32,14 +33,14 @@ import {
 
 interface SelectionFormProps {
   onSelectionComplete: (selection: {
-    intakeGroupId: string;
+    intakeGroupId: string[];
     campusId: string;
     outcomeId: string;
   }) => void;
 }
 
 interface FormValues {
-  intakeGroupId: string;
+  intakeGroupId: string[];
   campusId: string;
   outcomeId: string;
 }
@@ -54,11 +55,17 @@ export function SelectionForm({ onSelectionComplete }: SelectionFormProps) {
   >([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadingError, setLoadingError] = useState<string | null>(null);
-  const [intakeOpen, setIntakeOpen] = useState(false);
   const [outcomeOpen, setOutcomeOpen] = useState(false);
 
-  const { register, handleSubmit, watch, setValue } = useForm<FormValues>();
-  const selectedIntakeGroup = watch("intakeGroupId");
+  const { register, handleSubmit, watch, setValue } = useForm<FormValues>({
+    defaultValues: {
+      intakeGroupId: [],
+      campusId: "",
+      outcomeId: "",
+    },
+  });
+
+  const selectedIntakeGroups = watch("intakeGroupId");
   const selectedCampus = watch("campusId");
   const selectedOutcome = watch("outcomeId");
 
@@ -119,58 +126,23 @@ export function SelectionForm({ onSelectionComplete }: SelectionFormProps) {
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
         <div className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* Intake Group Searchable Select */}
+            {/* Intake Group MultiSelect */}
             <div className="space-y-2">
-              <Label htmlFor="intakeGroupId">Intake Group</Label>
-              <Popover open={intakeOpen} onOpenChange={setIntakeOpen}>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    role="combobox"
-                    aria-expanded={intakeOpen}
-                    className="w-full justify-between"
-                    disabled={isLoading}
-                  >
-                    {selectedIntakeGroup
-                      ? intakeGroups.find(
-                          (group) => group.id === selectedIntakeGroup
-                        )?.title
-                      : "Select intake group..."}
-                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                  <Command>
-                    <CommandInput placeholder="Search intake groups..." />
-                    <CommandEmpty>No intake group found.</CommandEmpty>
-                    <CommandGroup className="max-h-[200px] overflow-auto">
-                      {intakeGroups.map((group) => (
-                        <CommandItem
-                          key={group.id}
-                          value={group.title}
-                          onSelect={() => {
-                            setValue("intakeGroupId", group.id);
-                            setIntakeOpen(false);
-                          }}
-                        >
-                          <Check
-                            className={cn(
-                              "mr-2 h-4 w-4",
-                              selectedIntakeGroup === group.id
-                                ? "opacity-100"
-                                : "opacity-0"
-                            )}
-                          />
-                          {group.title}
-                        </CommandItem>
-                      ))}
-                    </CommandGroup>
-                  </Command>
-                </PopoverContent>
-              </Popover>
+              <Label htmlFor="intakeGroupId">Intake Groups</Label>
+              <MultiSelect
+                options={intakeGroups.map((group) => ({
+                  label: group.title,
+                  value: group.id,
+                }))}
+                defaultValue={[]}
+                onValueChange={(values) => setValue("intakeGroupId", values)}
+                placeholder="Select intake groups..."
+                disabled={isLoading}
+                maxCount={5}
+              />
             </div>
 
-            {/* Campus Select - Keeping original select for this one */}
+            {/* Campus Select */}
             <div className="space-y-2">
               <Label htmlFor="campusId">Campus</Label>
               <Select
@@ -253,7 +225,7 @@ export function SelectionForm({ onSelectionComplete }: SelectionFormProps) {
         <Button
           type="submit"
           disabled={
-            !selectedIntakeGroup ||
+            !selectedIntakeGroups.length ||
             !selectedCampus ||
             !selectedOutcome ||
             isLoading
