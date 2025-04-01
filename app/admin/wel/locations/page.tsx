@@ -21,8 +21,9 @@ import {
 } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/use-toast";
 import { ImageUpload } from "@/components/wels/ImageUpload";
+import { WELDetailDialog } from "@/components/wels/WELDetailDialog";
 
-interface WEL {
+export interface WEL {
   id: string;
   title: string;
   location: string;
@@ -41,6 +42,8 @@ export default function WELPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [welToDelete, setWelToDelete] = useState<string | null>(null);
+  const [selectedWel, setSelectedWel] = useState<WEL | null>(null);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [formData, setFormData] = useState({
     title: "",
     location: "",
@@ -117,7 +120,6 @@ export default function WELPage() {
       });
       fetchWels();
     } catch (error) {
-      console.error("Error saving WEL:", error);
       toast({
         variant: "destructive",
         title: "Error",
@@ -140,25 +142,15 @@ export default function WELPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!id) return;
-
     try {
-      const result = await deleteWel(id);
-      if (result && result.success) {
-        toast({
-          title: "Success",
-          description: "WEL location deleted successfully",
-        });
-        setIsDeleteDialogOpen(false);
-        setWelToDelete(null);
-        fetchWels();
-      } else {
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: "Failed to delete WEL location",
-        });
-      }
+      await deleteWel(id);
+      setIsDeleteDialogOpen(false);
+      setWelToDelete(null);
+      fetchWels();
+      toast({
+        title: "Success",
+        description: "WEL location deleted successfully",
+      });
     } catch (error) {
       toast({
         variant: "destructive",
@@ -166,6 +158,11 @@ export default function WELPage() {
         description: "Failed to delete WEL location",
       });
     }
+  };
+
+  const handleCardClick = (wel: WEL) => {
+    setSelectedWel(wel);
+    setIsDetailOpen(true);
   };
 
   return (
@@ -245,8 +242,9 @@ export default function WELPage() {
                 rows={2}
               />
             </div>
+
             <div className="space-y-2">
-              <label className="text-sm font-medium">Images</label>
+              <label className="text-sm font-medium">Photos</label>
               <ImageUpload
                 value={formData.photoPath}
                 onChange={(urls) =>
@@ -258,6 +256,7 @@ export default function WELPage() {
                     photoPath: prev.photoPath.filter((item) => item !== url),
                   }))
                 }
+                welId={editingId || undefined}
               />
             </div>
 
@@ -275,8 +274,18 @@ export default function WELPage() {
         <CardContent>
           <div className="grid gap-4">
             {wels.map((wel) => (
-              <Card key={wel.id}>
-                <CardContent className="pt-6">
+              <Card
+                key={wel.id}
+                className="cursor-pointer hover:shadow-md transition"
+              >
+                <CardContent
+                  className="pt-6"
+                  onClick={(e) => {
+                    if (!(e.target as HTMLElement).closest("button")) {
+                      handleCardClick(wel);
+                    }
+                  }}
+                >
                   <div className="flex justify-between items-start">
                     <div>
                       <h3 className="font-semibold text-lg">{wel.title}</h3>
@@ -291,7 +300,10 @@ export default function WELPage() {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => handleEdit(wel)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleEdit(wel);
+                        }}
                       >
                         Edit
                       </Button>
@@ -306,7 +318,10 @@ export default function WELPage() {
                           <Button
                             variant="destructive"
                             size="sm"
-                            onClick={() => setWelToDelete(wel.id)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setWelToDelete(wel.id);
+                            }}
                           >
                             Delete
                           </Button>
@@ -364,6 +379,15 @@ export default function WELPage() {
           </div>
         </CardContent>
       </Card>
+
+      <WELDetailDialog
+        wel={selectedWel}
+        isOpen={isDetailOpen}
+        onClose={() => {
+          setIsDetailOpen(false);
+          setSelectedWel(null);
+        }}
+      />
     </div>
   );
 }
