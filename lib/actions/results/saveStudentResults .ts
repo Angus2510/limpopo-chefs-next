@@ -28,7 +28,7 @@ export async function saveStudentResults(results: StudentResultInput[]) {
 
   try {
     // Get the current user from the token
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const token = cookieStore.get("accessToken")?.value;
 
     if (!token) {
