@@ -151,44 +151,60 @@ export function StudentResultsTable({
   };
 
   const handleSubmit = async () => {
-    try {
-      setIsSaving(true);
-      setErrors([]);
+    const maxRetries = 3;
+    let attempt = 0;
 
-      if (!hasChanges) {
-        toast({
-          title: "No Changes",
-          description: "No changes to save",
-          variant: "default",
-        });
-        return;
+    while (attempt < maxRetries) {
+      try {
+        setIsSaving(true);
+        setErrors([]);
+
+        if (!hasChanges) {
+          toast({
+            title: "No Changes",
+            description: "No changes to save",
+            variant: "default",
+          });
+          return;
+        }
+
+        const resultsToSave = Object.values(results);
+        const response = await onSave(resultsToSave);
+
+        if (response.success) {
+          toast({
+            title: "Success",
+            description: response.message || "Results saved successfully",
+            variant: "default",
+          });
+          setHasChanges(false);
+          break; // Success, exit retry loop
+        } else {
+          throw new Error(response.error || "Failed to save results");
+        }
+      } catch (error) {
+        attempt++;
+        if (attempt === maxRetries) {
+          const message =
+            error instanceof Error ? error.message : "Failed to save results";
+          setErrors([message]);
+          toast({
+            title: "Error",
+            description: `${message} (Final attempt)`,
+            variant: "destructive",
+          });
+        } else {
+          // Wait before retrying
+          await new Promise((resolve) => setTimeout(resolve, 1000 * attempt));
+          toast({
+            title: "Retrying",
+            description: `Attempt ${attempt + 1} of ${maxRetries}`,
+            variant: "default",
+          });
+        }
       }
-
-      const resultsToSave = Object.values(results);
-      const response = await onSave(resultsToSave);
-
-      if (response.success) {
-        toast({
-          title: "Success",
-          description: response.message || "Results saved successfully",
-          variant: "default",
-        });
-        setHasChanges(false);
-      } else {
-        throw new Error(response.error || "Failed to save results");
-      }
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Failed to save results";
-      setErrors([message]);
-      toast({
-        title: "Error",
-        description: message,
-        variant: "destructive",
-      });
-    } finally {
-      setIsSaving(false);
     }
+    setIsSaving(false);
   };
 
   return (

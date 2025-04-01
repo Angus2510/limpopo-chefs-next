@@ -27,10 +27,9 @@ export async function saveStudentResults(results: StudentResultInput[]) {
   }
 
   try {
-    // Get the current user from the token
-    const cookieStore = await cookies();
+    // Auth checks
+    const cookieStore = cookies();
     const token = cookieStore.get("accessToken")?.value;
-
     if (!token) {
       return { success: false, error: "Not authenticated" };
     }
@@ -39,16 +38,14 @@ export async function saveStudentResults(results: StudentResultInput[]) {
     try {
       decoded = jwtDecode(token);
     } catch (error) {
-      console.error("Token decode error:", error);
       return { success: false, error: "Invalid authentication token" };
     }
 
-    // Allow any staff member to save results
     if (!decoded.userType || !decoded.userType.includes("Staff")) {
       return { success: false, error: "Only staff members can save results" };
     }
 
-    // Verify the outcome exists
+    // Get outcome info
     const outcome = await prisma.outcomes.findUnique({
       where: { id: results[0].outcomeId },
       select: { id: true, title: true },
@@ -60,99 +57,67 @@ export async function saveStudentResults(results: StudentResultInput[]) {
 
     console.log("📝 Saving results for outcome:", outcome.title);
 
-    let savedCount = 0;
-    const errors = [];
+    // Prepare batch operations
+    const assignmentResults = results.map((result) => ({
+      v: 1,
+      student: result.studentId,
+      outcome: result.outcomeId,
+      campus: result.campusId,
+      intakeGroup: result.intakeGroupId[0],
+      percent: Math.round(result.mark),
+      testScore: Math.round(result.testScore),
+      taskScore: Math.round(result.taskScore),
+      scores: Math.round((result.testScore + result.taskScore) / 2),
+      status: result.competency,
+      dateTaken: new Date(),
+      answers: [],
+      assignment: result.outcomeId,
+      markedBy: decoded.id,
+      moderatedscores: null,
+      feedback: null,
+    }));
 
-    // Process in smaller batches
-    const batchSize = 5;
-    for (let i = 0; i < results.length; i += batchSize) {
-      const batch = results.slice(i, i + batchSize);
+    const resultRecords = results.map((result) => ({
+      v: 1,
+      title: `${outcome.title} Result`,
+      campus: result.campusId,
+      intakeGroups: result.intakeGroupId[0],
+      outcome: result.outcomeId,
+      conductedOn: new Date(),
+      details: "Individual Assessment Result",
+      observer: decoded.id,
+      participants: [result.studentId],
+      resultType: "assessment",
+      results: [
+        {
+          id: result.studentId,
+          student: result.studentId,
+          score: result.mark,
+          testScore: result.testScore,
+          taskScore: result.taskScore,
+          average: (result.testScore + result.taskScore) / 2,
+          overallOutcome: result.competency,
+        },
+      ],
+    }));
 
-      for (const result of batch) {
-        try {
-          // Create the assignment result
-          await prisma.assignmentresults.create({
-            data: {
-              v: 1,
-              student: result.studentId,
-              outcome: result.outcomeId,
-              campus: result.campusId,
-              intakeGroup: result.intakeGroupId[0], // Take first intake group for now
-              percent: Math.round(result.mark),
-              testScore: Math.round(result.testScore),
-              taskScore: Math.round(result.taskScore),
-              scores: Math.round((result.testScore + result.taskScore) / 2),
-              status: result.competency,
-              dateTaken: new Date(),
-              answers: [],
-              assignment: result.outcomeId,
-              markedBy: decoded.id,
-              moderatedscores: null,
-              feedback: null,
-            },
-          });
+    // Execute all operations in a transaction
+    const [assignmentSaves, resultSaves] = await prisma.$transaction([
+      prisma.assignmentresults.createMany({
+        data: assignmentResults,
+      }),
+      prisma.results.createMany({
+        data: resultRecords,
+      }),
+    ]);
 
-          // Also create a result record
-          await prisma.results.create({
-            data: {
-              v: 1,
-              title: `${outcome.title} Result`,
-              campus: result.campusId,
-              intakeGroups: result.intakeGroupId[0],
-              outcome: result.outcomeId,
-              conductedOn: new Date(),
-              details: "Individual Assessment Result",
-              observer: decoded.id,
-              participants: [result.studentId],
-              resultType: "assessment",
-              results: [
-                {
-                  id: result.studentId,
-                  student: result.studentId,
-                  score: result.mark,
-                  testScore: result.testScore,
-                  taskScore: result.taskScore,
-                  average: (result.testScore + result.taskScore) / 2,
-                  overallOutcome: result.competency,
-                },
-              ],
-            },
-          });
-
-          savedCount++;
-          console.log(`✅ Saved result ${savedCount} of ${results.length}`);
-        } catch (err) {
-          console.error(
-            `❌ Error saving result for student ${result.studentId}:`,
-            err
-          );
-          errors.push({
-            studentId: result.studentId,
-            error: err instanceof Error ? err.message : "Unknown error",
-          });
-        }
-
-        // Small delay between saves to prevent timeouts
-        await new Promise((resolve) => setTimeout(resolve, 200));
-      }
-    }
-
-    // Revalidate the results pages
+    // Revalidate paths
     revalidatePath("/admin/results");
     revalidatePath("/admin/results/capture");
 
-    if (savedCount === 0) {
-      return {
-        success: false,
-        error: "Failed to save any results",
-        details: errors,
-      };
-    }
-
     return {
       success: true,
-      message: `Successfully saved ${savedCount} of ${results.length} results`,
-      details: errors.length ? errors : undefined,
+      message: `Successfully saved ${results.length} results`,
     };
   } catch (error) {
     console.error("❌ Save error:", error);
