@@ -520,14 +520,17 @@ model welattendances {
 }
 
 model wels {
-  id            String   @id @default(auto()) @map("_id") @db.ObjectId
-  v             Int      @map("__v")
-  accommodation Boolean
-  available     Boolean
-  dateUploaded  DateTime @db.Date
-  description   String?
-  location      String
-  note          String?
-  photoPath     String[]
-  title         String
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  title        String
+  location     String
+  description  String?
+  accommodation Boolean @default(false)
+  available    Boolean @default(true)
+  note         String?
+  photoPath    String[]
+  dateUploaded DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  v            Int      @default(0) @map("__v")
+
+  @@map("wels")
 }
