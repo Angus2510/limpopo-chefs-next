@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Table,
   TableBody,
@@ -11,9 +11,17 @@ import {
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import CompetencyRadio from "./CompentencyRadio";
 import { toast } from "@/components/ui/use-toast";
-import { MENU_OUTCOMES } from "@/utils/menuOutcomes";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Card, CardContent } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Loader2 } from "lucide-react";
 
 interface Student {
   id: string;
@@ -32,10 +40,12 @@ interface StudentResultsTableProps {
   campusId: string;
   intakeGroupId: string;
   outcomeTitle: string;
+  isMenuAssessment: boolean;
   onSave: (results: StudentResult[]) => Promise<{
     success: boolean;
-    data?: any;
+    message?: string;
     error?: string;
+    details?: any[];
   }>;
 }
 
@@ -56,131 +66,104 @@ export function StudentResultsTable({
   campusId,
   intakeGroupId,
   outcomeTitle,
+  isMenuAssessment,
   onSave,
 }: StudentResultsTableProps) {
-  const isMenuOutcome = MENU_OUTCOMES.includes(outcomeTitle);
+  const [results, setResults] = useState<Record<string, StudentResult>>({});
+  const [isSaving, setIsSaving] = useState(false);
+  const [hasChanges, setHasChanges] = useState(false);
+  const [errors, setErrors] = useState<string[]>([]);
 
-  const [results, setResults] = useState<Record<string, StudentResult>>(() => {
+  // Initialize results when students prop changes
+  useEffect(() => {
     const initialResults: Record<string, StudentResult> = {};
     students.forEach((student) => {
-      const mark = student.existingMark ?? 0;
-
       initialResults[student.id] = {
         studentId: student.id,
         outcomeId,
         campusId,
         intakeGroupId,
-        testScore: isMenuOutcome ? mark : student.existingTestScore ?? 0,
-        taskScore: isMenuOutcome ? mark : student.existingTaskScore ?? 0,
-        mark: mark,
+        mark: student.existingMark ?? 0,
+        testScore: isMenuAssessment
+          ? student.existingMark ?? 0
+          : student.existingTestScore ?? 0,
+        taskScore: isMenuAssessment
+          ? student.existingMark ?? 0
+          : student.existingTaskScore ?? 0,
         competency: student.existingCompetency || "not_competent",
       };
     });
-    return initialResults;
-  });
+    setResults(initialResults);
+    setHasChanges(false);
+    setErrors([]);
+  }, [students, outcomeId, campusId, intakeGroupId, isMenuAssessment]);
 
-  const [isSaving, setIsSaving] = useState(false);
+  const validateScore = (score: string): number | null => {
+    const num = parseFloat(score);
+    if (isNaN(num) || num < 0 || num > 100) {
+      return null;
+    }
+    return num;
+  };
 
-  const displayValue = (value: number) => (value === 0 ? "" : value.toString());
-
-  const updateTotalMark = (
+  const handleScoreChange = (
     studentId: string,
-    testScore: number,
-    taskScore: number
+    type: "test" | "task" | "total",
+    value: string
   ) => {
-    const average = (testScore + taskScore) / 2;
+    const score = value === "" ? 0 : validateScore(value);
+    if (score === null) return;
 
-    setResults((prev) => ({
-      ...prev,
-      [studentId]: {
-        ...prev[studentId],
-        testScore,
-        taskScore,
-        mark: average,
-      },
-    }));
-  };
+    setResults((prev) => {
+      const current = prev[studentId];
+      if (!current) return prev;
 
-  const handleTotalMarkChange = (studentId: string, mark: string) => {
-    if (mark === "") {
-      setResults((prev) => ({
-        ...prev,
-        [studentId]: {
-          ...prev[studentId],
-          mark: 0,
-          testScore: 0,
-          taskScore: 0,
-        },
-      }));
-      return;
-    }
+      const updated = { ...current };
 
-    const numericMark = parseFloat(mark);
-    if (isNaN(numericMark) || numericMark < 0 || numericMark > 100) {
-      return;
-    }
+      if (isMenuAssessment || type === "total") {
+        updated.mark = score;
+        updated.testScore = score;
+        updated.taskScore = score;
+      } else {
+        if (type === "test") updated.testScore = score;
+        if (type === "task") updated.taskScore = score;
+        updated.mark = (updated.testScore + updated.taskScore) / 2;
+      }
 
-    setResults((prev) => ({
-      ...prev,
-      [studentId]: {
-        ...prev[studentId],
-        mark: numericMark,
-        testScore: numericMark,
-        taskScore: numericMark,
-      },
-    }));
-  };
+      // Auto-set competency based on mark
+      updated.competency = updated.mark >= 50 ? "competent" : "not_competent";
 
-  const handleTestScoreChange = (studentId: string, score: string) => {
-    if (score === "") {
-      const taskScore = results[studentId].taskScore;
-      updateTotalMark(studentId, 0, taskScore);
-      return;
-    }
-
-    const numericScore = parseFloat(score);
-    if (isNaN(numericScore) || numericScore < 0 || numericScore > 100) {
-      return;
-    }
-
-    const taskScore = results[studentId].taskScore;
-    updateTotalMark(studentId, numericScore, taskScore);
-  };
-
-  const handleTaskScoreChange = (studentId: string, score: string) => {
-    if (score === "") {
-      const testScore = results[studentId].testScore;
-      updateTotalMark(studentId, testScore, 0);
-      return;
-    }
-
-    const numericScore = parseFloat(score);
-    if (isNaN(numericScore) || numericScore < 0 || numericScore > 100) {
-      return;
-    }
-
-    const testScore = results[studentId].testScore;
-    updateTotalMark(studentId, testScore, numericScore);
+      return { ...prev, [studentId]: updated };
+    });
+    setHasChanges(true);
   };
 
   const handleCompetencyChange = (
     studentId: string,
-    competency: "competent" | "not_competent"
+    value: "competent" | "not_competent"
   ) => {
     setResults((prev) => ({
       ...prev,
-      [studentId]: {
-        ...prev[studentId],
-        competency,
-      },
+      [studentId]: { ...prev[studentId], competency: value },
     }));
+    setHasChanges(true);
   };
 
   const handleSubmit = async () => {
     try {
       setIsSaving(true);
-      const resultsToSave = Object.values(results);
+      setErrors([]);
 
+      if (!hasChanges) {
+        toast({
+          title: "No Changes",
+          description: "No changes to save",
+          variant: "default",
+        });
+        return;
+      }
+
+      const resultsToSave = Object.values(results);
       const response = await onSave(resultsToSave);
 
       if (response.success) {
@@ -189,24 +172,17 @@ export function StudentResultsTable({
           description: response.message || "Results saved successfully",
           variant: "default",
         });
-
-        if (response.errors) {
-          console.warn("Some results failed to save:", response.errors);
-          toast({
-            title: "Warning",
-            description: "Some results may need to be re-submitted",
-            variant: "warning",
-          });
-        }
+        setHasChanges(false);
       } else {
         throw new Error(response.error || "Failed to save results");
       }
     } catch (error) {
-      console.error("Error saving results:", error);
+      const message =
+        error instanceof Error ? error.message : "Failed to save results";
+      setErrors([message]);
       toast({
         title: "Error",
-        description:
-          error instanceof Error ? error.message : "Failed to save results",
+        description: message,
         variant: "destructive",
       });
     } finally {
@@ -215,98 +191,124 @@ export function StudentResultsTable({
   };
 
   return (
-    <div className="space-y-4">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Student Number</TableHead>
-            <TableHead>Student Name</TableHead>
-            {!isMenuOutcome && (
-              <>
-                <TableHead>Test Score</TableHead>
-                <TableHead>Task Score</TableHead>
-              </>
-            )}
-            <TableHead>
-              {isMenuOutcome ? "Total Mark" : "Total Score"}
-            </TableHead>
-            <TableHead>Competency</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {students.map((student) => (
-            <TableRow key={student.id}>
-              <TableCell className="font-medium">
-                {student.admissionNumber}
-              </TableCell>
-              <TableCell>
-                {student.name} {student.surname}
-              </TableCell>
-              {!isMenuOutcome && (
+    <Card>
+      <CardContent className="p-6">
+        {errors.length > 0 && (
+          <Alert variant="destructive" className="mb-6">
+            <AlertDescription>
+              {errors.map((error, index) => (
+                <div key={index}>{error}</div>
+              ))}
+            </AlertDescription>
+          </Alert>
+        )}
+
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Student Number</TableHead>
+              <TableHead>Student Name</TableHead>
+              {!isMenuAssessment && (
                 <>
-                  <TableCell>
-                    <Input
-                      type="number"
-                      min="0"
-                      max="100"
-                      value={displayValue(results[student.id].testScore)}
-                      onChange={(e) =>
-                        handleTestScoreChange(student.id, e.target.value)
-                      }
-                      className="w-20"
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <Input
-                      type="number"
-                      min="0"
-                      max="100"
-                      value={displayValue(results[student.id].taskScore)}
-                      onChange={(e) =>
-                        handleTaskScoreChange(student.id, e.target.value)
-                      }
-                      className="w-20"
-                    />
-                  </TableCell>
+                  <TableHead>Test Score</TableHead>
+                  <TableHead>Task Score</TableHead>
                 </>
               )}
-              <TableCell>
-                {isMenuOutcome ? (
-                  <Input
-                    type="number"
-                    min="0"
-                    max="100"
-                    value={displayValue(results[student.id].mark)}
-                    onChange={(e) =>
-                      handleTotalMarkChange(student.id, e.target.value)
-                    }
-                    className="w-20"
-                  />
-                ) : (
-                  <span className="font-medium">
-                    {results[student.id].mark.toFixed(1)}%
-                  </span>
-                )}
-              </TableCell>
-              <TableCell>
-                <CompetencyRadio
-                  value={results[student.id].competency}
-                  onChange={(value) =>
-                    handleCompetencyChange(student.id, value)
-                  }
-                />
-              </TableCell>
+              <TableHead>
+                {isMenuAssessment ? "Total Mark" : "Overall %"}
+              </TableHead>
+              <TableHead>Competency</TableHead>
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+          </TableHeader>
+          <TableBody>
+            {students.map((student) => (
+              <TableRow key={student.id}>
+                <TableCell className="font-medium">
+                  {student.admissionNumber}
+                </TableCell>
+                <TableCell>
+                  {student.name} {student.surname}
+                </TableCell>
+                {!isMenuAssessment && (
+                  <>
+                    <TableCell>
+                      <Input
+                        type="number"
+                        min="0"
+                        max="100"
+                        value={results[student.id]?.testScore || ""}
+                        onChange={(e) =>
+                          handleScoreChange(student.id, "test", e.target.value)
+                        }
+                        className="w-24"
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Input
+                        type="number"
+                        min="0"
+                        max="100"
+                        value={results[student.id]?.taskScore || ""}
+                        onChange={(e) =>
+                          handleScoreChange(student.id, "task", e.target.value)
+                        }
+                        className="w-24"
+                      />
+                    </TableCell>
+                  </>
+                )}
+                <TableCell>
+                  {isMenuAssessment ? (
+                    <Input
+                      type="number"
+                      min="0"
+                      max="100"
+                      value={results[student.id]?.mark || ""}
+                      onChange={(e) =>
+                        handleScoreChange(student.id, "total", e.target.value)
+                      }
+                      className="w-24"
+                    />
+                  ) : (
+                    <span className="font-medium">
+                      {results[student.id]?.mark.toFixed(1)}%
+                    </span>
+                  )}
+                </TableCell>
+                <TableCell>
+                  <Select
+                    value={results[student.id]?.competency || "not_competent"}
+                    onValueChange={(value: "competent" | "not_competent") =>
+                      handleCompetencyChange(student.id, value)
+                    }
+                  >
+                    <SelectTrigger className="w-32">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="competent">Competent</SelectItem>
+                      <SelectItem value="not_competent">
+                        Not Competent
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
 
-      <div className="flex justify-end">
-        <Button onClick={handleSubmit} disabled={isSaving}>
-          {isSaving ? "Saving..." : "Save Results"}
-        </Button>
-      </div>
-    </div>
+        <div className="flex justify-between mt-6">
+          <div className="text-sm text-muted-foreground">
+            {hasChanges ? "You have unsaved changes" : "All changes saved"}
+          </div>
+          <Button onClick={handleSubmit} disabled={isSaving || !hasChanges}>
+            {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {isSaving ? "Saving..." : "Save Results"}
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
