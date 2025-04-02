@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { studentFormSchema } from "@/schemas/student/studentFormSchema";
@@ -49,6 +49,37 @@ interface Accommodation {
 interface Qualification {
   id: string;
   title: string;
+}
+
+interface StudentFormData {
+  admissionDate: Date | undefined; // Make dates optional
+  dateOfBirth: Date | undefined;
+  intakeGroup: string;
+  campus: string;
+  qualification: string;
+  accommodation: string;
+  firstName: string;
+  lastName: string;
+  middleName?: string;
+  email: string;
+  mobileNumber: string;
+  gender: string;
+  homeLanguage: string;
+  idNumber: string;
+  street1: string;
+  street2?: string;
+  city: string;
+  province: string;
+  country: string;
+  postalCode: string;
+  guardians: {
+    firstName: string;
+    lastName: string;
+    email: string;
+    phoneNumber: string;
+    relation: string;
+  }[];
+  [key: string]: any;
 }
 
 interface NewStudentFormProps {
@@ -103,6 +134,9 @@ const NewStudentForm: React.FC<NewStudentFormProps> = ({
 
   const { toast } = useToast();
   const [currentIntakeGroups, setCurrentIntakeGroups] = useState(intakeGroups);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
 
   const refreshIntakeGroups = async () => {
     const freshIntakeGroups = await getAllIntakeGroups();
@@ -134,13 +168,10 @@ const NewStudentForm: React.FC<NewStudentFormProps> = ({
     form.setValue("accommodation", value);
   };
 
-  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
-
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       if (file.size > 5 * 1024 * 1024) {
-        // 5MB limit
         toast({
           title: "Error",
           description: "Image size should be less than 5MB",
@@ -148,54 +179,43 @@ const NewStudentForm: React.FC<NewStudentFormProps> = ({
         });
         return;
       }
-
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setAvatarPreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-      form.setValue("avatar", file);
+      setAvatarFile(file);
+      const imageUrl = URL.createObjectURL(file);
+      setAvatarPreview(imageUrl);
     }
   };
 
   const onSubmit = async (data: any) => {
-    // Convert dates to ISO strings
-    if (data.admissionDate) {
-      data.admissionDate = data.admissionDate.toISOString();
-    }
-    if (data.dateOfBirth) {
-      data.dateOfBirth = data.dateOfBirth.toISOString();
-    }
-
     try {
       const formData = new FormData();
 
-      // Append avatar if it exists
-      if (data.avatar) {
-        formData.append("avatar", data.avatar);
-      }
+      // Just append the dates as strings
+      formData.append("admissionDate", data.admissionDate?.toString() || "");
+      formData.append("dateOfBirth", data.dateOfBirth?.toString() || "");
 
-      // Append other form data
+      // Handle all other fields
       Object.keys(data).forEach((key) => {
-        if (key !== "avatar") {
-          // Skip avatar as it's already handled
-          if (data[key] instanceof File) {
-            formData.append(key, data[key]);
-          } else if (Array.isArray(data[key])) {
-            data[key].forEach((item, index) => {
+        if (
+          key !== "avatar" &&
+          key !== "admissionDate" &&
+          key !== "dateOfBirth"
+        ) {
+          if (Array.isArray(data[key])) {
+            data[key].forEach((item: any, index: number) => {
               Object.keys(item).forEach((subKey) => {
                 formData.append(`${key}[${index}].${subKey}`, item[subKey]);
               });
             });
-          } else if (typeof data[key] === "object" && data[key] !== null) {
-            Object.keys(data[key]).forEach((subKey) => {
-              formData.append(`${key}.${subKey}`, data[key][subKey]);
-            });
-          } else {
-            formData.append(key, data[key]);
+          } else if (data[key] !== null && data[key] !== undefined) {
+            formData.append(key, data[key].toString());
           }
         }
       });
+
+      // Handle avatar last
+      if (avatarFile) {
+        formData.append("avatar", avatarFile);
+      }
 
       await createStudent(formData);
       toast({
@@ -203,8 +223,10 @@ const NewStudentForm: React.FC<NewStudentFormProps> = ({
         description: "Student data has been successfully submitted.",
       });
       form.reset();
+      setAvatarPreview(null);
+      setAvatarFile(null);
     } catch (error) {
-      console.error("Error during form submission:", error);
+      console.error("Error:", error);
       toast({
         title: "Failed to create student",
         description: "There was an error submitting the form.",
@@ -542,6 +564,7 @@ const NewStudentForm: React.FC<NewStudentFormProps> = ({
                 <div className="flex flex-col gap-2">
                   <Input
                     id="avatar"
+                    ref={fileInputRef}
                     type="file"
                     accept="image/*"
                     onChange={handleImageChange}

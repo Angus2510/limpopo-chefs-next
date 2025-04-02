@@ -33,7 +33,14 @@ const safeFormDataGet = (
   defaultValue: string = ""
 ): string => {
   const value = formData.get(key);
-  return value ? String(value) : defaultValue;
+  if (!value) return defaultValue;
+
+  // Handle ISO date strings
+  if (typeof value === "string" && value.includes("T")) {
+    return new Date(value).toISOString();
+  }
+
+  return String(value);
 };
 
 export async function createStudent(input: FormData | Record<string, any>) {

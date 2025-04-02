@@ -16,7 +16,7 @@ export const studentFormSchema = z.object({
   campus: z.string().nonempty("Campus is required"),
   qualification: z.string().nonempty("Qualification is required"),
   accommodation: z.string().optional(),
-  admissionDate: z.date().optional(),
+  admissionDate: z.coerce.date().optional(),
   firstName: z.string().nonempty("First Name is required"),
   middleName: z.string().optional(),
   lastName: z.string().nonempty("Last Name is required"),
@@ -28,7 +28,7 @@ export const studentFormSchema = z.object({
       "Only .jpg, .jpeg, .png and .webp formats are supported."
     )
     .optional(),
-  dateOfBirth: z.date().optional(),
+  dateOfBirth: z.coerce.date().optional(),
   idNumber: z.string().nonempty("ID Number is required"),
   email: z
     .string()
