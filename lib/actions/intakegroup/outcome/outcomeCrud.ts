@@ -18,14 +18,21 @@ export const createOutcome = async (data: {
   type: string;
   hidden: boolean;
 }) => {
-  const outcome = await prisma.outcomes.create({
-    data: {
-      title: data.title,
-      type: data.type,
-      hidden: data.hidden,
-    },
-  });
-  return outcome;
+  try {
+    const outcome = await prisma.outcomes.create({
+      data: {
+        title: data.title,
+        type: data.type,
+        hidden: data.hidden,
+        v: 0, // Required by schema
+        campus: [], // Required by schema
+      },
+    });
+    return outcome;
+  } catch (error) {
+    console.error("Create outcome error:", error);
+    throw error;
+  }
 };
 
 export const updateOutcome = async (
