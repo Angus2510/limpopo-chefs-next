@@ -163,12 +163,14 @@ type StudentsProfilePostalAddress {
 
 type StudentwelrecordsWelRecords {
   id                   String   @map("_id") @db.ObjectId
+  welId                String   @db.ObjectId
+  startDate            DateTime @db.Date
   endDate              DateTime @db.Date
   establishmentContact String
   establishmentName    String
   evaluated            Boolean
-  startDate            DateTime @db.Date
-  totalHours           Int
+  totalHours          Int
+  dateAdded           DateTime @db.Date
 }
 
 type SubscriptionsSubscription {
