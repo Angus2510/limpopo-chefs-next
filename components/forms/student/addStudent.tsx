@@ -29,6 +29,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { getAllIntakeGroups } from "@/lib/actions/intakegroup/intakeGroups";
 
 interface IntakeGroup {
   id: string;
@@ -101,6 +102,12 @@ const NewStudentForm: React.FC<NewStudentFormProps> = ({
   });
 
   const { toast } = useToast();
+  const [currentIntakeGroups, setCurrentIntakeGroups] = useState(intakeGroups);
+
+  const refreshIntakeGroups = async () => {
+    const freshIntakeGroups = await getAllIntakeGroups();
+    setCurrentIntakeGroups(freshIntakeGroups);
+  };
 
   const {
     fields: guardianFields,
@@ -252,12 +259,13 @@ const NewStudentForm: React.FC<NewStudentFormProps> = ({
                       <Select
                         value={field.value}
                         onValueChange={onChangeIntakeGroup}
+                        onOpenChange={() => refreshIntakeGroups()} // This will fetch fresh data when dropdown opens
                       >
                         <SelectTrigger>
                           <SelectValue placeholder="Select Intake Group" />
                         </SelectTrigger>
                         <SelectContent>
-                          {intakeGroups.map((group) => (
+                          {currentIntakeGroups.map((group) => (
                             <SelectItem key={group.id} value={group.id}>
                               {group.title}
                             </SelectItem>
