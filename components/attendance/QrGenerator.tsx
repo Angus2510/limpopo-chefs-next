@@ -219,18 +219,20 @@ const QRGenerator: React.FC<QRGeneratorProps> = ({ initialData }) => {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Outcome</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select outcome" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {outcomes.map((outcome) => (
-                          <SelectItem key={outcome.id} value={outcome.id}>
-                            {outcome.title}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <FormControl>
+                      <MultiSelect
+                        options={outcomes.map((outcome) => ({
+                          label: outcome.title,
+                          value: outcome.id,
+                        }))}
+                        value={field.value ? [field.value] : []}
+                        onValueChange={(values) =>
+                          field.onChange(values[0] || "")
+                        }
+                        placeholder="Select outcome"
+                        maxSelected={1}
+                      />
+                    </FormControl>
                   </FormItem>
                 )}
               />
