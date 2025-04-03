@@ -21,6 +21,12 @@ type AssignmentmoderationsModerationEntries {
   question      String   @db.ObjectId
 }
 
+type AttendanceRecord {
+  date DateTime
+  status String // "full", "half", "lesson", "sick", or "absent"
+  timeCheckedIn DateTime?
+}
+
 type AttendancesAttendees {
   id            String @map("_id") @db.ObjectId
   status        String
@@ -265,13 +271,16 @@ model assignments {
 }
 
 model attendances {
-  id             String                 @id @default(auto()) @map("_id") @db.ObjectId
-  v              Int                    @map("__v")
-  attendanceDate DateTime               @db.Date
-  attendees      AttendancesAttendees[]
-  campus         String                 @db.ObjectId
-  intakeGroup    String                 @db.ObjectId
-  type           String?
+  id             String   @id @default(auto()) @map("_id") @db.ObjectId
+  v              Int      @map("__v")
+  studentId      String   @db.ObjectId
+  date          DateTime @db.Date
+  status        String   // "full", "half", "lesson", "sick", or "absent"
+  timeCheckedIn DateTime? @db.Date
+  campus        String   @db.ObjectId
+  intakeGroup   String   @db.ObjectId
+
+  @@index([studentId, date])
 }
 
 model campus {

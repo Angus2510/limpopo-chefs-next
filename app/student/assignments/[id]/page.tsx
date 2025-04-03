@@ -40,6 +40,31 @@ interface Answer {
   answer: string | { [key: string]: string };
 }
 
+const requestFullScreen = () => {
+  const element = document.documentElement;
+  if (element.requestFullscreen) {
+    element.requestFullscreen();
+  } else if ((element as any).webkitRequestFullscreen) {
+    (element as any).webkitRequestFullscreen();
+  } else if ((element as any).mozRequestFullScreen) {
+    (element as any).mozRequestFullScreen();
+  } else if ((element as any).msRequestFullscreen) {
+    (element as any).msRequestFullscreen();
+  }
+};
+
+const exitFullScreen = () => {
+  if (document.exitFullscreen) {
+    document.exitFullscreen();
+  } else if ((document as any).webkitExitFullscreen) {
+    (document as any).webkitExitFullscreen();
+  } else if ((document as any).mozCancelFullScreen) {
+    (document as any).mozCancelFullScreen();
+  } else if ((document as any).msExitFullscreen) {
+    (document as any).msExitFullscreen();
+  }
+};
+
 export default function AssignmentTestPage({
   params,
 }: {
@@ -201,6 +226,71 @@ export default function AssignmentTestPage({
       return () => clearInterval(timer);
     }
   }, [testStarted, assignment]);
+
+  useEffect(() => {
+    if (testStarted && assignment) {
+      // Request full screen when test starts
+      requestFullScreen();
+
+      // Attempt to prevent screenshots
+      const style = document.createElement("style");
+      style.innerHTML = `
+        .test-content {
+          -webkit-user-select: none;
+          -moz-user-select: none;
+          -ms-user-select: none;
+          user-select: none;
+          -webkit-touch-callout: none;
+        }
+        video::-webkit-media-controls-enclosure,
+        video::-webkit-media-controls {
+          display: none !important;
+        }
+      `;
+      document.head.appendChild(style);
+
+      // Handle full screen change
+      const handleFullScreenChange = () => {
+        if (!document.fullscreenElement) {
+          requestFullScreen();
+          toast({
+            title: "Warning",
+            description: "Full screen mode is required for this test",
+            variant: "destructive",
+          });
+        }
+      };
+
+      document.addEventListener("fullscreenchange", handleFullScreenChange);
+      document.addEventListener(
+        "webkitfullscreenchange",
+        handleFullScreenChange
+      );
+      document.addEventListener("mozfullscreenchange", handleFullScreenChange);
+      document.addEventListener("MSFullscreenChange", handleFullScreenChange);
+
+      return () => {
+        document.removeEventListener(
+          "fullscreenchange",
+          handleFullScreenChange
+        );
+        document.removeEventListener(
+          "webkitfullscreenchange",
+          handleFullScreenChange
+        );
+        document.removeEventListener(
+          "mozfullscreenchange",
+          handleFullScreenChange
+        );
+        document.removeEventListener(
+          "MSFullscreenChange",
+          handleFullScreenChange
+        );
+        exitFullScreen();
+        document.head.removeChild(style);
+      };
+    }
+  }, [testStarted, assignment, toast]);
 
   // Add this effect near your other useEffect hooks
   useEffect(() => {
