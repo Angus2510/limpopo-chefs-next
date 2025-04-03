@@ -11,6 +11,7 @@ export const MENU_OUTCOMES = [
   "Function task part 3",
   "Function task part 4",
   "Function task part 5",
+  "Mid Year Assessment - 1st Year",
   "1st Year Mid Year Theory Exam",
   "1st Year- Final Theory Exam",
   "2nd Year- Final Exam Theory",
