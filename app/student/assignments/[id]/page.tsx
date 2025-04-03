@@ -58,10 +58,24 @@ export default function AssignmentTestPage({
   const [tabHiddenTime, setTabHiddenTime] = useState<number | null>(null);
   const [windowFocused, setWindowFocused] = useState(true);
   const [blurStartTime, setBlurStartTime] = useState<number | null>(null);
-  const [testStarted, setTestStarted] = useState(false); // Added new state
+  const [testStarted, setTestStarted] = useState(false);
   const TAB_HIDDEN_LIMIT = 10000;
   const BLUR_TIME_LIMIT = 10000;
   const isPasswordValid = usePasswordValidation(resolvedParams.id);
+
+  // Timer and refs
+  const [timeDisplay, setTimeDisplay] = useState(0);
+  const timeRef = useRef(0);
+  const startTimeRef = useRef<number | null>(null);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const handleSubmitRef = useRef<() => Promise<void>>();
+  const hasStartedRef = useRef(false);
+  const isTestActiveRef = useRef(false);
+
+  const preventCopyPaste = (e: React.ClipboardEvent) => {
+    e.preventDefault();
+    return false;
+  };
 
   const handleSubmitTest = useCallback(async () => {
     if (!assignment) return;
@@ -114,7 +128,6 @@ export default function AssignmentTestPage({
       }));
       setAnswers(initialAnswers);
       setLoading(false);
-      // Remove setTestStarted from here since it's now handled in the password validation effect
     } catch (error) {
       console.error("❌ Failed to load assignment:", error);
       toast({
@@ -125,6 +138,201 @@ export default function AssignmentTestPage({
       router.push("/student/assignments");
     }
   }, [resolvedParams.id, router, toast]);
+
+  // Load assignment effect
+  useEffect(() => {
+    loadAssignment();
+  }, [loadAssignment]);
+
+  // Password validation effect with localStorage
+  useEffect(() => {
+    if (isPasswordValid && !testStarted) {
+      const testStatus = localStorage.getItem(
+        `test_started_${resolvedParams.id}`
+      );
+      if (testStatus === "true" || hasStartedRef.current) {
+        router.push("/student/dashboard");
+        toast({
+          title: "Access Denied",
+          description:
+            "You cannot rejoin a test that has already been started.",
+          variant: "destructive",
+        });
+        return;
+      }
+      hasStartedRef.current = true;
+      localStorage.setItem(`test_started_${resolvedParams.id}`, "true");
+      setTestStarted(true);
+      isTestActiveRef.current = true;
+    }
+  }, [isPasswordValid, testStarted, router, toast, resolvedParams.id]);
+
+  // Timer effect
+  useEffect(() => {
+    handleSubmitRef.current = handleSubmitTest;
+
+    if (testStarted && assignment) {
+      // Initialize timer only once when test starts
+      if (!startTimeRef.current) {
+        startTimeRef.current = Date.now();
+        timeRef.current = assignment.duration * 60;
+        setTimeDisplay(timeRef.current);
+      }
+
+      // Use performance.now() for more accurate timing
+      const timer = setInterval(() => {
+        const currentTime = Date.now();
+        const elapsedTime = Math.floor(
+          (currentTime - startTimeRef.current!) / 1000
+        );
+        const remainingTime = Math.max(
+          0,
+          assignment.duration * 60 - elapsedTime
+        );
+
+        setTimeDisplay(remainingTime);
+
+        if (remainingTime <= 0) {
+          clearInterval(timer);
+          handleSubmitRef.current?.();
+        }
+      }, 1000);
+
+      return () => clearInterval(timer);
+    }
+  }, [testStarted, assignment]);
+
+  // Add this effect near your other useEffect hooks
+  useEffect(() => {
+    const preventContextMenu = (e: MouseEvent) => {
+      if (isTestActiveRef.current) {
+        e.preventDefault();
+        return false;
+      }
+    };
+
+    const preventKeyboardShortcuts = (e: KeyboardEvent) => {
+      if (isTestActiveRef.current) {
+        if (
+          (e.ctrlKey || e.metaKey) &&
+          (e.key === "c" || e.key === "v" || e.key === "x")
+        ) {
+          e.preventDefault();
+          return false;
+        }
+      }
+    };
+
+    window.addEventListener("contextmenu", preventContextMenu);
+    window.addEventListener("keydown", preventKeyboardShortcuts);
+
+    return () => {
+      window.removeEventListener("contextmenu", preventContextMenu);
+      window.removeEventListener("keydown", preventKeyboardShortcuts);
+    };
+  }, []);
+
+  // Tab visibility effect
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!isTestActiveRef.current) return;
+
+      if (document.hidden) {
+        setIsTabVisible(false);
+        setTabHiddenTime(Date.now());
+        toast({
+          title: "Warning",
+          description:
+            "Leaving the test page will result in automatic submission after 10 seconds",
+          variant: "destructive",
+        });
+      } else {
+        setIsTabVisible(true);
+        if (tabHiddenTime) {
+          const timeHidden = Date.now() - tabHiddenTime;
+          if (timeHidden > TAB_HIDDEN_LIMIT) {
+            handleSubmitRef.current?.();
+          }
+        }
+        setTabHiddenTime(null);
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [tabHiddenTime, toast]);
+
+  // Window blur/focus effect
+  useEffect(() => {
+    const handleBlur = () => {
+      if (!isTestActiveRef.current) return;
+
+      setWindowFocused(false);
+      setBlurStartTime(Date.now());
+      toast({
+        title: "Warning",
+        description:
+          "Test will auto-submit if you don't return within 10 seconds",
+        variant: "destructive",
+      });
+    };
+
+    const handleFocus = () => {
+      if (!isTestActiveRef.current) return;
+
+      setWindowFocused(true);
+      if (blurStartTime) {
+        const timeUnfocused = Date.now() - blurStartTime;
+        if (timeUnfocused > BLUR_TIME_LIMIT) {
+          handleSubmitRef.current?.();
+        }
+      }
+      setBlurStartTime(null);
+    };
+
+    window.addEventListener("blur", handleBlur);
+    window.addEventListener("focus", handleFocus);
+
+    return () => {
+      window.removeEventListener("blur", handleBlur);
+      window.removeEventListener("focus", handleFocus);
+    };
+  }, [blurStartTime, toast]);
+
+  // Navigation prevention effect
+  useEffect(() => {
+    const preventNavigation = (e: PopStateEvent) => {
+      if (isTestActiveRef.current) {
+        e.preventDefault();
+        history.pushState(null, "", location.href);
+        toast({
+          title: "Warning",
+          description: "Navigation is disabled during the test",
+          variant: "destructive",
+        });
+      }
+    };
+
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isTestActiveRef.current) {
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    };
+
+    if (testStarted) {
+      window.history.pushState(null, "", location.href);
+      window.addEventListener("popstate", preventNavigation);
+      window.addEventListener("beforeunload", handleBeforeUnload);
+    }
+
+    return () => {
+      window.removeEventListener("popstate", preventNavigation);
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, [testStarted, toast]);
 
   const renderQuestion = useCallback(
     (question: Question) => {
@@ -195,6 +403,12 @@ export default function AssignmentTestPage({
               className="w-full p-2 border rounded"
               placeholder="Enter your answer here..."
               rows={question.type === "long-answer" ? 6 : 2}
+              onCopy={preventCopyPaste}
+              onPaste={preventCopyPaste}
+              onCut={preventCopyPaste}
+              autoComplete="off"
+              spellCheck="false"
+              data-form-type="other"
             />
           );
 
@@ -204,105 +418,6 @@ export default function AssignmentTestPage({
     },
     [answers, handleAnswerChange]
   );
-
-  useEffect(() => {
-    loadAssignment();
-  }, [loadAssignment]);
-
-  // Modified password validation useEffect
-  useEffect(() => {
-    if (isPasswordValid && !testStarted) {
-      setTestStarted(true);
-    }
-  }, [isPasswordValid, testStarted]);
-
-  // Modified timer useEffect
-  // Replace the existing timer useEffect with this version
-  useEffect(() => {
-    // Only start timer if test has started and we have an assignment
-    if (testStarted && assignment) {
-      // Initialize timer only once when starting
-      if (timeRemaining === 0) {
-        setTimeRemaining(assignment.duration * 60);
-      }
-
-      // Create timer that runs independently of other state changes
-      const timer = setInterval(() => {
-        setTimeRemaining((time) => {
-          if (time <= 1) {
-            clearInterval(timer);
-            handleSubmitTest();
-            return 0;
-          }
-          return time - 1;
-        });
-      }, 1000);
-
-      // Cleanup timer
-      return () => clearInterval(timer);
-    }
-  }, [testStarted, assignment, handleSubmitTest]); // Removed timeRemaining and loading from dependencies
-
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.hidden) {
-        setIsTabVisible(false);
-        setTabHiddenTime(Date.now());
-        toast({
-          title: "Warning",
-          description:
-            "Leaving the test page will result in automatic submission after 10 seconds",
-          variant: "destructive",
-        });
-      } else {
-        setIsTabVisible(true);
-        if (tabHiddenTime) {
-          const timeHidden = Date.now() - tabHiddenTime;
-          if (timeHidden > TAB_HIDDEN_LIMIT) {
-            handleSubmitTest();
-          }
-        }
-        setTabHiddenTime(null);
-      }
-    };
-
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    return () => {
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-    };
-  }, [tabHiddenTime, handleSubmitTest, toast]);
-
-  useEffect(() => {
-    const handleBlur = () => {
-      setWindowFocused(false);
-      setBlurStartTime(Date.now());
-      toast({
-        title: "Warning",
-        description:
-          "Test will auto-submit if you don't return within 10 seconds",
-        variant: "destructive",
-      });
-    };
-
-    const handleFocus = () => {
-      setWindowFocused(true);
-      if (blurStartTime) {
-        const timeUnfocused = Date.now() - blurStartTime;
-        if (timeUnfocused > BLUR_TIME_LIMIT) {
-          handleSubmitTest();
-        }
-      }
-      setBlurStartTime(null);
-    };
-
-    window.addEventListener("blur", handleBlur);
-    window.addEventListener("focus", handleFocus);
-
-    return () => {
-      window.removeEventListener("blur", handleBlur);
-      window.removeEventListener("focus", handleFocus);
-    };
-  }, [blurStartTime, handleSubmitTest, toast]);
 
   const renderedQuestions = useMemo(() => {
     return assignment?.questions.map((question, index) => (
@@ -368,8 +483,8 @@ export default function AssignmentTestPage({
               <div>
                 <p className="text-sm font-medium">Time Remaining:</p>
                 <p className="text-2xl font-bold">
-                  {Math.floor(timeRemaining / 60)}:
-                  {(timeRemaining % 60).toString().padStart(2, "0")}
+                  {Math.floor(timeDisplay / 60)}:
+                  {(timeDisplay % 60).toString().padStart(2, "0")}
                 </p>
               </div>
               <Button onClick={handleSubmitTest} variant="destructive">
