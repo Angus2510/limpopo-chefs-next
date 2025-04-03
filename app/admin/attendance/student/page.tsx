@@ -198,7 +198,7 @@ const StudentAttendanceTracker = () => {
       <div className="flex flex-col space-y-4">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold">
-            Student's Attendance and Success
+            Student&apos;s Attendance and Success
           </h1>
 
           <div className="flex items-center gap-4">
