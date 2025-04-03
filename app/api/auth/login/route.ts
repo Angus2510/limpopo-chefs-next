@@ -42,7 +42,7 @@ export async function POST(request: Request) {
             ...(type === "Student" && { active: user.active }),
           },
           process.env["JWT_SECRET"]!,
-          { expiresIn: "1h" }
+          { expiresIn: "2h" }
         );
 
         // Create user data object
@@ -71,7 +71,7 @@ export async function POST(request: Request) {
           httpOnly: true,
           secure: process.env.NODE_ENV === "production",
           sameSite: "lax",
-          maxAge: 60 * 60, // 1 hour
+          maxAge: 60 * 60 * 2, // 1 hour
         });
 
         response.cookies.set({
@@ -80,7 +80,7 @@ export async function POST(request: Request) {
           httpOnly: true,
           secure: process.env.NODE_ENV === "production",
           sameSite: "lax",
-          maxAge: 60 * 60, // 1 hour
+          maxAge: 60 * 60 * 2, // 1 hour
         });
 
         return response;
