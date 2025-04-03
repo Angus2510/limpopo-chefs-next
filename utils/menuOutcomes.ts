@@ -15,6 +15,7 @@ export const MENU_OUTCOMES = [
   "1st Year Mid Year Theory Exam",
   "1st Year- Final Theory Exam",
   "2nd Year- Final Exam Theory",
+  "Menu A18- Final Summative Practical Exam",
 ];
 
 export const isMenuOutcome = (outcomeTitle: string): boolean => {

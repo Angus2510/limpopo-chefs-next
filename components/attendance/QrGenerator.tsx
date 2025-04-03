@@ -26,6 +26,7 @@ import {
 import { getAllIntakeGroups } from "@/lib/actions/intakegroup/intakeGroups";
 import { getAllCampuses } from "@/lib/actions/campus/campuses";
 import { useForm, FormProvider } from "react-hook-form";
+import { getAllOutcomes } from "@/lib/actions/intakegroup/outcome/outcomeQuery";
 
 interface QRGeneratorProps {
   initialData?: string;
@@ -35,6 +36,7 @@ interface FormData {
   date: string;
   campusId: string;
   intakeGroupIds: string[];
+  outcomeId: string;
 }
 
 interface LessonQRData {
@@ -44,6 +46,10 @@ interface LessonQRData {
     id: string;
     title: string;
   }>;
+  outcome: {
+    id: string;
+    title: string;
+  };
   date: string;
   timestamp: string;
 }
@@ -61,6 +67,9 @@ const QRGenerator: React.FC<QRGeneratorProps> = ({ initialData }) => {
   const [campuses, setCampuses] = useState<
     Array<{ id: string; title: string }>
   >([]);
+  const [outcomes, setOutcomes] = useState<
+    Array<{ id: string; title: string }>
+  >([]);
   const [generatedQR, setGeneratedQR] = useState<string | null>(null);
   const [storedQRCodes, setStoredQRCodes] = useState<StoredQRCode[]>([]);
   const [loading, setLoading] = useState(true);
@@ -70,18 +79,21 @@ const QRGenerator: React.FC<QRGeneratorProps> = ({ initialData }) => {
       date: new Date().toISOString().split("T")[0],
       campusId: "",
       intakeGroupIds: [],
+      outcomeId: "",
     },
   });
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [groupsData, campusesData] = await Promise.all([
+        const [groupsData, campusesData, outcomesData] = await Promise.all([
           getAllIntakeGroups(),
           getAllCampuses(),
+          getAllOutcomes(),
         ]);
         setIntakeGroups(groupsData);
         setCampuses(campusesData);
+        setOutcomes(outcomesData);
       } catch (error) {
         console.error("Failed to fetch data:", error);
       } finally {
@@ -100,13 +112,21 @@ const QRGenerator: React.FC<QRGeneratorProps> = ({ initialData }) => {
     const selectedGroups = intakeGroups.filter((group) =>
       data.intakeGroupIds.includes(group.id)
     );
+    const selectedOutcome = outcomes.find(
+      (outcome) => outcome.id === data.outcomeId
+    );
 
-    if (!selectedCampus || selectedGroups.length === 0) return;
+    if (!selectedCampus || selectedGroups.length === 0 || !selectedOutcome)
+      return;
 
     const qrData: LessonQRData = {
       campusId: selectedCampus.id,
       campusTitle: selectedCampus.title,
       intakeGroups: selectedGroups,
+      outcome: {
+        id: selectedOutcome.id,
+        title: selectedOutcome.title,
+      },
       date: data.date,
       timestamp: now.toISOString(),
     };
@@ -193,12 +213,35 @@ const QRGenerator: React.FC<QRGeneratorProps> = ({ initialData }) => {
                 )}
               />
 
+              <FormField
+                control={methods.control}
+                name="outcomeId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Outcome</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select outcome" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {outcomes.map((outcome) => (
+                          <SelectItem key={outcome.id} value={outcome.id}>
+                            {outcome.title}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </FormItem>
+                )}
+              />
+
               <Button
                 type="submit"
                 className="w-full"
                 disabled={
                   !methods.watch("campusId") ||
-                  methods.watch("intakeGroupIds").length === 0
+                  methods.watch("intakeGroupIds").length === 0 ||
+                  !methods.watch("outcomeId")
                 }
               >
                 Generate QR Code
@@ -249,6 +292,9 @@ const QRGenerator: React.FC<QRGeneratorProps> = ({ initialData }) => {
                         <p className="text-sm text-muted-foreground">
                           Groups:{" "}
                           {qr.data.intakeGroups.map((g) => g.title).join(", ")}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          Outcome: {qr.data.outcome.title}
                         </p>
                         <p className="text-xs text-muted-foreground">
                           Created: {format(new Date(qr.createdAt), "PPP p")}
