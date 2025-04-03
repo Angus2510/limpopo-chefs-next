@@ -16,12 +16,11 @@ import {
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/components/ui/use-toast";
-import WelLocationSelect from "./WelLocationSelect";
 import { addWelHours } from "@/lib/actions/wels/addWelHours";
 
 const formSchema = z.object({
-  welId: z.string({
-    required_error: "Please select where the student worked",
+  establishmentName: z.string({
+    required_error: "Please enter where the student worked",
   }),
   startDate: z.string({
     required_error: "When did they start working?",
@@ -51,7 +50,7 @@ const WelHoursForm = ({ studentId }: WelHoursFormProps) => {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      welId: "",
+      establishmentName: "",
       startDate: "",
       endDate: "",
       totalHours: "",
@@ -71,9 +70,9 @@ const WelHoursForm = ({ studentId }: WelHoursFormProps) => {
         return;
       }
 
-      const formData: WelHoursData = {
+      const formData = {
         studentId,
-        welId: values.welId,
+        establishmentName: values.establishmentName,
         startDate: values.startDate,
         endDate: values.endDate,
         totalHours: values.totalHours,
@@ -113,13 +112,13 @@ const WelHoursForm = ({ studentId }: WelHoursFormProps) => {
 
         <FormField
           control={form.control}
-          name="welId"
+          name="establishmentName"
           render={({ field }) => (
             <FormItem>
-              <WelLocationSelect
-                onSelect={(welId) => field.onChange(welId)}
-                selectedWel={field.value}
-              />
+              <FormLabel>Establishment Name</FormLabel>
+              <FormControl>
+                <Input {...field} placeholder="Enter establishment name" />
+              </FormControl>
               <FormMessage />
             </FormItem>
           )}
