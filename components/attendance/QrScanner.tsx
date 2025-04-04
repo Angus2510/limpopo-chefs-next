@@ -20,161 +20,121 @@ interface QrScannerProps {
 
 export function QrScanner({ isOpen, onClose, onScan }: QrScannerProps) {
   const html5QrRef = useRef<Html5Qrcode | null>(null);
-  const scannerDivId = "qr-scanner-container";
   const [cameras, setCameras] = useState<Array<{ id: string; label: string }>>(
     []
   );
   const [currentCamera, setCurrentCamera] = useState<string>("");
-  const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
-  const findBackCamera = (devices: Array<{ id: string; label: string }>) => {
-    return (
-      devices.find(
-        (device) =>
-          device.label.toLowerCase().includes("back") ||
-          device.label.toLowerCase().includes("rear") ||
-          device.label.toLowerCase().includes("environment")
-      ) || devices[0]
-    );
-  };
+  useEffect(() => {
+    async function initializeScanner() {
+      if (!isOpen) return;
 
-  const startScanner = async (cameraId: string) => {
-    if (!html5QrRef.current) return;
+      try {
+        // Get available cameras
+        const devices = await Html5Qrcode.getCameras();
+        console.log("Available cameras:", devices);
+        setCameras(devices);
 
-    try {
-      await html5QrRef.current.start(
-        cameraId,
-        {
-          fps: 10,
-          qrbox: { width: 250, height: 250 },
-          aspectRatio: 1.0,
-          videoConstraints: {
-            deviceId: cameraId,
-            facingMode: "environment",
-            width: { ideal: 1280 },
-            height: { ideal: 720 },
-          },
-        },
-        async (decodedText) => {
-          console.log("QR Code detected:", decodedText);
-          try {
-            await onScan(decodedText);
-            if (html5QrRef.current) {
-              await html5QrRef.current.stop();
-              html5QrRef.current = null;
-            }
-            onClose();
-          } catch (error) {
-            console.error("Failed to process scan:", error);
-          }
-        },
-        (errorMessage) => {
-          if (!errorMessage.includes("NotFoundException")) {
-            console.warn("QR Scan error:", errorMessage);
-          }
+        if (devices.length === 0) {
+          toast({
+            title: "No cameras found",
+            description: "Please ensure you have a camera connected",
+            variant: "destructive",
+          });
+          return;
         }
-      );
-      setCurrentCamera(cameraId);
-    } catch (error) {
-      console.error("Failed to start camera:", error);
-      toast({
-        title: "Camera Error",
-        description: "Failed to start camera. Please try again.",
-        variant: "destructive",
-      });
+
+        // Try to find back camera
+        const backCamera =
+          devices.find(
+            (device) =>
+              device.label.toLowerCase().includes("back") ||
+              device.label.toLowerCase().includes("rear")
+          ) || devices[0];
+
+        // Initialize scanner
+        html5QrRef.current = new Html5Qrcode("reader");
+
+        await html5QrRef.current.start(
+          backCamera.id,
+          {
+            fps: 10,
+            qrbox: 250,
+            facingMode: "environment",
+          },
+          async (decodedText) => {
+            console.log("QR Code detected:", decodedText);
+            await onScan(decodedText);
+            onClose();
+          },
+          (error) => {
+            if (!error.includes("NotFoundException")) {
+              console.warn(error);
+            }
+          }
+        );
+
+        setCurrentCamera(backCamera.id);
+      } catch (error) {
+        console.error("Scanner initialization failed:", error);
+        toast({
+          title: "Camera Error",
+          description: "Failed to start camera. Please check permissions.",
+          variant: "destructive",
+        });
+      }
     }
-  };
 
-  const switchCamera = async () => {
-    if (!html5QrRef.current || cameras.length <= 1 || isLoading) return;
+    initializeScanner();
 
-    setIsLoading(true);
+    // Cleanup
+    return () => {
+      if (html5QrRef.current) {
+        html5QrRef.current.stop().catch(console.error);
+      }
+    };
+  }, [isOpen, onClose, onScan, toast]);
+
+  const handleSwitchCamera = async () => {
+    if (!html5QrRef.current || cameras.length <= 1) return;
+
     try {
       const currentIndex = cameras.findIndex(
         (camera) => camera.id === currentCamera
       );
-      const nextIndex = (currentIndex + 1) % cameras.length;
-      const nextCamera = cameras[nextIndex];
+      const nextCamera = cameras[(currentIndex + 1) % cameras.length];
 
-      console.log("Current camera ID:", currentCamera);
-      console.log("Available cameras:", cameras);
-      console.log("Switching to camera:", nextCamera.label);
-
-      // Stop and cleanup current scanner
       await html5QrRef.current.stop();
-      html5QrRef.current = null;
+      await html5QrRef.current.start(
+        nextCamera.id,
+        {
+          fps: 10,
+          qrbox: 250,
+          facingMode: "environment",
+        },
+        async (decodedText) => {
+          console.log("QR Code detected:", decodedText);
+          await onScan(decodedText);
+          onClose();
+        },
+        (error) => {
+          if (!error.includes("NotFoundException")) {
+            console.warn(error);
+          }
+        }
+      );
 
-      // Create new scanner instance
-      const element = document.getElementById(scannerDivId);
-      if (!element) return;
-
-      html5QrRef.current = new Html5Qrcode(scannerDivId);
-      await startScanner(nextCamera.id);
-
-      toast({
-        title: "Camera Switched",
-        description: `Now using ${nextCamera.label}`,
-      });
+      setCurrentCamera(nextCamera.id);
     } catch (error) {
       console.error("Failed to switch camera:", error);
       toast({
         title: "Error",
-        description: "Failed to switch camera. Please try again.",
+        description: "Failed to switch camera",
         variant: "destructive",
       });
-    } finally {
-      setIsLoading(false);
     }
   };
-
-  useEffect(() => {
-    const initializeScanner = async () => {
-      if (isOpen && !html5QrRef.current) {
-        try {
-          const element = document.getElementById(scannerDivId);
-          if (!element) return;
-
-          html5QrRef.current = new Html5Qrcode(scannerDivId);
-          const devices = await Html5Qrcode.getCameras();
-          console.log("Available cameras:", devices);
-          setCameras(devices);
-
-          if (devices.length > 0) {
-            const backCamera = findBackCamera(devices);
-            console.log("Starting with camera:", backCamera.label);
-            await startScanner(backCamera.id);
-          } else {
-            toast({
-              title: "No Cameras",
-              description: "No cameras found on your device.",
-              variant: "destructive",
-            });
-          }
-        } catch (err) {
-          console.error("Scanner initialization failed:", err);
-          toast({
-            title: "Scanner Error",
-            description: "Failed to initialize camera scanner.",
-            variant: "destructive",
-          });
-        }
-      }
-    };
-
-    initializeScanner();
-
-    return () => {
-      if (html5QrRef.current) {
-        html5QrRef.current
-          .stop()
-          .then(() => {
-            html5QrRef.current = null;
-          })
-          .catch(console.error);
-      }
-    };
-  }, [isOpen, onScan, onClose, toast]);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -183,35 +143,17 @@ export function QrScanner({ isOpen, onClose, onScan }: QrScannerProps) {
           <DialogTitle>Scan QR Code</DialogTitle>
         </DialogHeader>
         <div className="mt-4 flex flex-col items-center">
-          <div
-            id={scannerDivId}
-            className="w-full max-w-[300px]"
-            style={{
-              minHeight: "300px",
-              backgroundColor: "#000000",
-            }}
-          />
+          <div id="reader" className="w-full" />
           {cameras.length > 1 && (
             <Button
               variant="outline"
               size="icon"
               className="mt-4"
-              onClick={switchCamera}
-              disabled={isLoading}
-              title={`Switch Camera (Current: ${
-                cameras.find((c) => c.id === currentCamera)?.label
-              })`}
+              onClick={handleSwitchCamera}
             >
-              <SwitchCamera
-                className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`}
-              />
+              <SwitchCamera className="h-4 w-4" />
             </Button>
           )}
-          <p className="text-sm text-muted-foreground mt-2">
-            {cameras.length > 1
-              ? "Point your camera at the QR code. Click the button above to switch cameras."
-              : "Point your camera at the QR code"}
-          </p>
         </div>
       </DialogContent>
     </Dialog>
