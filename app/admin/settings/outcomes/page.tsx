@@ -221,13 +221,6 @@ export default function OutcomesPage() {
                     >
                       Edit
                     </Button>
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => handleDelete(outcome.id)}
-                    >
-                      Delete
-                    </Button>
                   </div>
                 </TableCell>
               </TableRow>
