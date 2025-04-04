@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { QrModal } from "@/components/attendance/QrModal";
+import { QrScanner } from "@/components/attendance/QrScanner";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/auth-context";
 import { markAttendance } from "@/lib/actions/attendance/getStudentAttendance";
@@ -67,7 +67,6 @@ export default function ScanAttendancePage() {
       });
 
       setIsScanning(false);
-      // Optionally redirect to attendance view
       router.push("/student/attendance/viewAttendance");
     } catch (error: any) {
       console.error("Attendance marking failed:", error);
@@ -106,10 +105,9 @@ export default function ScanAttendancePage() {
             {isLoading ? "Processing..." : "Open Camera to Scan"}
           </Button>
 
-          <QrModal
+          <QrScanner
             isOpen={isScanning}
             onClose={() => setIsScanning(false)}
-            mode="scan"
             onScan={handleScan}
           />
         </CardContent>
