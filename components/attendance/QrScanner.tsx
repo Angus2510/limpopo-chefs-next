@@ -14,10 +14,17 @@ import { useToast } from "@/components/ui/use-toast";
 import { Camera, RefreshCcw } from "lucide-react";
 
 interface QrData {
-  campusId: string;
-  outcomeId: string;
-  date: string;
-  timestamp?: string;
+  data: {
+    campusId: string;
+    campusTitle: string;
+    intakeGroups: Array<{ id: string; title: string }>;
+    outcome: {
+      id: string;
+      title: string;
+    };
+    date: string;
+    timestamp: string;
+  };
 }
 
 interface QrScannerProps {
@@ -53,11 +60,24 @@ export function QrScanner({ isOpen, onClose, onScan }: QrScannerProps) {
   };
 
   const validateQrData = (data: string): QrData => {
-    const parsed = JSON.parse(data);
-    if (!parsed.campusId || !parsed.outcomeId || !parsed.date) {
-      throw new Error("Invalid QR code - missing required fields");
+    try {
+      const parsed = JSON.parse(data);
+      console.log("Parsed QR data:", parsed);
+
+      if (!parsed.data) {
+        throw new Error("Invalid QR code - missing data wrapper");
+      }
+
+      const qrData = parsed.data;
+      if (!qrData.campusId || !qrData.outcome?.id || !qrData.date) {
+        throw new Error("Invalid QR code - missing required fields");
+      }
+
+      return parsed as QrData;
+    } catch (error) {
+      console.error("QR validation error:", error);
+      throw new Error("Invalid QR code format");
     }
-    return parsed as QrData;
   };
 
   const startScanner = async () => {
@@ -75,7 +95,6 @@ export function QrScanner({ isOpen, onClose, onScan }: QrScannerProps) {
       console.log("Available cameras:", devices);
 
       if (devices && devices.length > 0) {
-        // Try to find back camera
         const backCamera =
           devices.find(
             (device) =>
@@ -103,10 +122,17 @@ export function QrScanner({ isOpen, onClose, onScan }: QrScannerProps) {
           async (decodedText) => {
             try {
               console.log("Raw QR data:", decodedText);
-              const qrData = validateQrData(decodedText);
-              console.log("Validated QR data:", qrData);
+              const validatedData = validateQrData(decodedText);
+              console.log("Validated QR data:", validatedData);
 
-              await onScan(decodedText);
+              // Pass only the required data to onScan
+              await onScan(
+                JSON.stringify({
+                  campusId: validatedData.data.campusId,
+                  outcomeId: validatedData.data.outcome.id,
+                  date: validatedData.data.date,
+                })
+              );
 
               if (html5QrRef.current) {
                 await html5QrRef.current.stop();
@@ -114,7 +140,7 @@ export function QrScanner({ isOpen, onClose, onScan }: QrScannerProps) {
 
               toast({
                 title: "Success",
-                description: "Attendance marked successfully",
+                description: `Attendance marked for ${validatedData.data.outcome.title}`,
               });
 
               onClose();
@@ -131,7 +157,6 @@ export function QrScanner({ isOpen, onClose, onScan }: QrScannerProps) {
             }
           },
           (error) => {
-            // Only log non-NotFoundException errors
             if (!error.includes("NotFoundException")) {
               console.warn("QR Scan error:", error);
             }
