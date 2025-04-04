@@ -38,20 +38,22 @@ export default function ScanAttendancePage() {
 
     setIsLoading(true);
     try {
-      // Parse the QR code data (contains class/session details)
-      const qrData = JSON.parse(decodedText);
+      // Parse the QR code data
+      const parsedData = JSON.parse(decodedText);
+      console.log("Parsed QR data:", parsedData);
 
-      // Validate QR code data
-      if (!qrData.campusId || !qrData.outcomeId || !qrData.date) {
-        throw new Error("Invalid QR code");
+      // Extract data from the correct structure
+      const qrData = parsedData.data;
+      if (!qrData || !qrData.campusId || !qrData.outcome?.id || !qrData.date) {
+        throw new Error("Invalid QR code format");
       }
 
-      // Mark attendance
+      // Mark attendance with correct data structure
       const result = await markAttendance({
         studentId: user.id,
         qrData: {
           campusId: qrData.campusId,
-          outcomeId: qrData.outcomeId,
+          outcomeId: qrData.outcome.id, // Note: accessing outcome.id
           date: qrData.date,
         },
       });
@@ -62,9 +64,7 @@ export default function ScanAttendancePage() {
 
       toast({
         title: "Attendance Marked",
-        description: `Successfully marked present for ${
-          qrData.outcome?.title || "class"
-        }`,
+        description: `Successfully marked present for ${qrData.outcome.title}`,
       });
 
       setIsScanning(false);
