@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { SwitchCamera } from "lucide-react";
+import { useToast } from "@/components/ui/use-toast";
 
 interface QrScannerProps {
   isOpen: boolean;
@@ -24,54 +25,82 @@ export function QrScanner({ isOpen, onClose, onScan }: QrScannerProps) {
     []
   );
   const [currentCamera, setCurrentCamera] = useState<string>("");
-
-  const switchCamera = async () => {
-    if (!html5QrRef.current || cameras.length <= 1) return;
-
-    const currentIndex = cameras.findIndex(
-      (camera) => camera.id === currentCamera
-    );
-    const nextIndex = (currentIndex + 1) % cameras.length;
-    const nextCamera = cameras[nextIndex];
-
-    try {
-      await html5QrRef.current.stop();
-      await startScanner(nextCamera.id);
-      setCurrentCamera(nextCamera.id);
-    } catch (error) {
-      console.error("Failed to switch camera:", error);
-    }
-  };
+  const [isLoading, setIsLoading] = useState(false);
+  const { toast } = useToast();
 
   const startScanner = async (cameraId: string) => {
     if (!html5QrRef.current) return;
 
-    await html5QrRef.current.start(
-      cameraId,
-      {
-        fps: 10,
-        qrbox: { width: 250, height: 250 },
-        aspectRatio: 1.0,
-      },
-      async (decodedText) => {
-        console.log("QR Code detected:", decodedText);
-        try {
-          await onScan(decodedText);
-          if (html5QrRef.current) {
-            await html5QrRef.current.stop();
-            html5QrRef.current = null;
+    try {
+      await html5QrRef.current.start(
+        cameraId,
+        {
+          fps: 10,
+          qrbox: { width: 250, height: 250 },
+          aspectRatio: 1.0,
+          facingMode: "environment",
+        },
+        async (decodedText) => {
+          console.log("QR Code detected:", decodedText);
+          try {
+            await onScan(decodedText);
+            if (html5QrRef.current) {
+              await html5QrRef.current.stop();
+              html5QrRef.current = null;
+            }
+            onClose();
+          } catch (error) {
+            console.error("Failed to process scan:", error);
           }
-          onClose();
-        } catch (error) {
-          console.error("Failed to process scan:", error);
+        },
+        (errorMessage) => {
+          if (!errorMessage.includes("NotFoundException")) {
+            console.warn("QR Scan error:", errorMessage);
+          }
         }
-      },
-      (errorMessage) => {
-        if (!errorMessage.includes("NotFoundException")) {
-          console.warn("QR Scan error:", errorMessage);
-        }
-      }
-    );
+      );
+      setCurrentCamera(cameraId);
+    } catch (error) {
+      console.error("Failed to start camera:", error);
+      toast({
+        title: "Camera Error",
+        description: "Failed to start camera. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const switchCamera = async () => {
+    if (!html5QrRef.current || cameras.length <= 1 || isLoading) return;
+
+    setIsLoading(true);
+    try {
+      const currentIndex = cameras.findIndex(
+        (camera) => camera.id === currentCamera
+      );
+      const nextIndex = (currentIndex + 1) % cameras.length;
+      const nextCamera = cameras[nextIndex];
+
+      console.log("Switching to camera:", nextCamera.label);
+
+      await html5QrRef.current.stop();
+      await new Promise((resolve) => setTimeout(resolve, 500)); // Add delay
+      await startScanner(nextCamera.id);
+
+      toast({
+        title: "Camera Switched",
+        description: `Now using ${nextCamera.label}`,
+      });
+    } catch (error) {
+      console.error("Failed to switch camera:", error);
+      toast({
+        title: "Error",
+        description: "Failed to switch camera. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -83,15 +112,25 @@ export function QrScanner({ isOpen, onClose, onScan }: QrScannerProps) {
 
           html5QrRef.current = new Html5Qrcode(scannerDivId);
           const devices = await Html5Qrcode.getCameras();
+          console.log("Available cameras:", devices);
           setCameras(devices);
 
           if (devices.length > 0) {
-            const defaultCamera = devices[0].id;
-            setCurrentCamera(defaultCamera);
-            await startScanner(defaultCamera);
+            await startScanner(devices[0].id);
+          } else {
+            toast({
+              title: "No Cameras",
+              description: "No cameras found on your device.",
+              variant: "destructive",
+            });
           }
         } catch (err) {
-          console.error("Failed to initialize scanner:", err);
+          console.error("Scanner initialization failed:", err);
+          toast({
+            title: "Scanner Error",
+            description: "Failed to initialize camera scanner.",
+            variant: "destructive",
+          });
         }
       }
     };
@@ -109,7 +148,7 @@ export function QrScanner({ isOpen, onClose, onScan }: QrScannerProps) {
           .catch(console.error);
       }
     };
-  }, [isOpen, onScan, onClose]);
+  }, [isOpen, onScan, onClose, toast]);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -132,13 +171,20 @@ export function QrScanner({ isOpen, onClose, onScan }: QrScannerProps) {
               size="icon"
               className="mt-4"
               onClick={switchCamera}
-              title="Switch Camera"
+              disabled={isLoading}
+              title={`Switch Camera (Current: ${
+                cameras.find((c) => c.id === currentCamera)?.label
+              })`}
             >
-              <SwitchCamera className="h-4 w-4" />
+              <SwitchCamera
+                className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`}
+              />
             </Button>
           )}
           <p className="text-sm text-muted-foreground mt-2">
-            Point your camera at the QR code
+            {cameras.length > 1
+              ? "Point your camera at the QR code. Click the button above to switch cameras."
+              : "Point your camera at the QR code"}
           </p>
         </div>
       </DialogContent>
