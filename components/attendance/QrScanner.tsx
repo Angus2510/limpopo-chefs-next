@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Html5Qrcode } from "html5-qrcode";
 import {
   Dialog,
@@ -8,6 +8,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { SwitchCamera } from "lucide-react";
 
 interface QrScannerProps {
   isOpen: boolean;
@@ -18,53 +20,75 @@ interface QrScannerProps {
 export function QrScanner({ isOpen, onClose, onScan }: QrScannerProps) {
   const html5QrRef = useRef<Html5Qrcode | null>(null);
   const scannerDivId = "qr-scanner-container";
+  const [cameras, setCameras] = useState<Array<{ id: string; label: string }>>(
+    []
+  );
+  const [currentCamera, setCurrentCamera] = useState<string>("");
+
+  const switchCamera = async () => {
+    if (!html5QrRef.current || cameras.length <= 1) return;
+
+    const currentIndex = cameras.findIndex(
+      (camera) => camera.id === currentCamera
+    );
+    const nextIndex = (currentIndex + 1) % cameras.length;
+    const nextCamera = cameras[nextIndex];
+
+    try {
+      await html5QrRef.current.stop();
+      await startScanner(nextCamera.id);
+      setCurrentCamera(nextCamera.id);
+    } catch (error) {
+      console.error("Failed to switch camera:", error);
+    }
+  };
+
+  const startScanner = async (cameraId: string) => {
+    if (!html5QrRef.current) return;
+
+    await html5QrRef.current.start(
+      cameraId,
+      {
+        fps: 10,
+        qrbox: { width: 250, height: 250 },
+        aspectRatio: 1.0,
+      },
+      async (decodedText) => {
+        console.log("QR Code detected:", decodedText);
+        try {
+          await onScan(decodedText);
+          if (html5QrRef.current) {
+            await html5QrRef.current.stop();
+            html5QrRef.current = null;
+          }
+          onClose();
+        } catch (error) {
+          console.error("Failed to process scan:", error);
+        }
+      },
+      (errorMessage) => {
+        if (!errorMessage.includes("NotFoundException")) {
+          console.warn("QR Scan error:", errorMessage);
+        }
+      }
+    );
+  };
 
   useEffect(() => {
     const initializeScanner = async () => {
       if (isOpen && !html5QrRef.current) {
-        console.log("Initializing camera scanner...");
         try {
-          // Wait for DOM element to be available
           const element = document.getElementById(scannerDivId);
-          if (!element) {
-            console.error("Scanner element not found");
-            return;
-          }
+          if (!element) return;
 
           html5QrRef.current = new Html5Qrcode(scannerDivId);
-
           const devices = await Html5Qrcode.getCameras();
-          console.log("Available cameras:", devices);
+          setCameras(devices);
 
-          if (devices && devices.length > 0) {
-            const cameraId = devices[0].id;
-            await html5QrRef.current.start(
-              cameraId,
-              {
-                fps: 10,
-                qrbox: { width: 250, height: 250 },
-              },
-              async (decodedText) => {
-                console.log("QR Code detected:", decodedText);
-                try {
-                  await onScan(decodedText);
-                  console.log("Successfully processed scan");
-                  if (html5QrRef.current) {
-                    await html5QrRef.current.stop();
-                    html5QrRef.current = null;
-                  }
-                  onClose();
-                } catch (error) {
-                  console.error("Failed to process scan:", error);
-                }
-              },
-              (errorMessage) => {
-                console.warn("QR Scan error:", errorMessage);
-              }
-            );
-            console.log("Camera started successfully");
-          } else {
-            console.error("No cameras found");
+          if (devices.length > 0) {
+            const defaultCamera = devices[0].id;
+            setCurrentCamera(defaultCamera);
+            await startScanner(defaultCamera);
           }
         } catch (err) {
           console.error("Failed to initialize scanner:", err);
@@ -72,34 +96,23 @@ export function QrScanner({ isOpen, onClose, onScan }: QrScannerProps) {
       }
     };
 
-    // Add a small delay to ensure DOM is ready
-    const timeoutId = setTimeout(() => {
-      initializeScanner();
-    }, 1000);
+    const timeoutId = setTimeout(initializeScanner, 1000);
 
     return () => {
       clearTimeout(timeoutId);
       if (html5QrRef.current) {
-        console.log("Stopping camera scanner...");
         html5QrRef.current
           .stop()
           .then(() => {
             html5QrRef.current = null;
-            console.log("Camera scanner stopped");
           })
-          .catch((err) => console.error("Failed to stop scanner:", err));
+          .catch(console.error);
       }
     };
-  }, [isOpen, onScan, onClose, scannerDivId]);
+  }, [isOpen, onScan, onClose]);
 
   return (
-    <Dialog
-      open={isOpen}
-      onOpenChange={(open) => {
-        console.log("Dialog state changing to:", open);
-        onClose();
-      }}
-    >
+    <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Scan QR Code</DialogTitle>
@@ -113,6 +126,17 @@ export function QrScanner({ isOpen, onClose, onScan }: QrScannerProps) {
               backgroundColor: "#000000",
             }}
           />
+          {cameras.length > 1 && (
+            <Button
+              variant="outline"
+              size="icon"
+              className="mt-4"
+              onClick={switchCamera}
+              title="Switch Camera"
+            >
+              <SwitchCamera className="h-4 w-4" />
+            </Button>
+          )}
           <p className="text-sm text-muted-foreground mt-2">
             Point your camera at the QR code
           </p>
