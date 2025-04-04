@@ -40,6 +40,43 @@ export function QrScanner({ isOpen, onClose, onScan }: QrScannerProps) {
   const [currentCamera, setCurrentCamera] = useState<string>("");
   const { toast } = useToast();
 
+  const handleQrCodeScan = async (decodedText: string) => {
+    try {
+      console.log("Raw QR data:", decodedText);
+      const validatedData = validateQrData(decodedText);
+      console.log("Validated QR data:", validatedData);
+
+      // Transform the data for onScan
+      const scanData = {
+        campusId: validatedData.data.campusId,
+        outcomeId: validatedData.data.outcome.id,
+        date: validatedData.data.date,
+      };
+
+      console.log("Sending scan data:", scanData);
+      await onScan(JSON.stringify(scanData));
+
+      if (html5QrRef.current) {
+        await html5QrRef.current.stop();
+      }
+
+      toast({
+        title: "Success",
+        description: `Attendance marked for ${validatedData.data.outcome.title}`,
+      });
+
+      onClose();
+    } catch (error) {
+      console.error("QR processing error:", error);
+      toast({
+        title: "Invalid QR Code",
+        description:
+          error instanceof Error ? error.message : "Failed to process QR code",
+        variant: "destructive",
+      });
+    }
+  };
+
   const requestCameraPermission = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -61,22 +98,37 @@ export function QrScanner({ isOpen, onClose, onScan }: QrScannerProps) {
 
   const validateQrData = (data: string): QrData => {
     try {
-      const parsed = JSON.parse(data);
-      console.log("Parsed QR data:", parsed);
-
-      if (!parsed.data) {
-        throw new Error("Invalid QR code - missing data wrapper");
+      console.log("Raw QR data:", data);
+      let parsed;
+      try {
+        parsed = JSON.parse(data);
+      } catch (e) {
+        console.error("JSON parse error:", e);
+        throw new Error("Invalid QR code - not valid JSON");
       }
 
-      const qrData = parsed.data;
-      if (!qrData.campusId || !qrData.outcome?.id || !qrData.date) {
-        throw new Error("Invalid QR code - missing required fields");
+      console.log("Parsed data:", parsed);
+
+      // Check if we have a data wrapper
+      if (parsed.data) {
+        const qrData = parsed.data;
+        if (!qrData.campusId || !qrData.outcome?.id || !qrData.date) {
+          throw new Error("Invalid QR code - missing required fields");
+        }
+        return parsed as QrData;
       }
 
-      return parsed as QrData;
+      // If no data wrapper, check direct properties
+      if (parsed.campusId && parsed.outcome?.id && parsed.date) {
+        return { data: parsed } as QrData;
+      }
+
+      throw new Error("Invalid QR code - missing required fields");
     } catch (error) {
       console.error("QR validation error:", error);
-      throw new Error("Invalid QR code format");
+      throw new Error(
+        error instanceof Error ? error.message : "Invalid QR code format"
+      );
     }
   };
 
@@ -119,43 +171,7 @@ export function QrScanner({ isOpen, onClose, onScan }: QrScannerProps) {
               height: { ideal: 720 },
             },
           },
-          async (decodedText) => {
-            try {
-              console.log("Raw QR data:", decodedText);
-              const validatedData = validateQrData(decodedText);
-              console.log("Validated QR data:", validatedData);
-
-              // Pass only the required data to onScan
-              await onScan(
-                JSON.stringify({
-                  campusId: validatedData.data.campusId,
-                  outcomeId: validatedData.data.outcome.id,
-                  date: validatedData.data.date,
-                })
-              );
-
-              if (html5QrRef.current) {
-                await html5QrRef.current.stop();
-              }
-
-              toast({
-                title: "Success",
-                description: `Attendance marked for ${validatedData.data.outcome.title}`,
-              });
-
-              onClose();
-            } catch (error) {
-              console.error("QR processing error:", error);
-              toast({
-                title: "Invalid QR Code",
-                description:
-                  error instanceof Error
-                    ? error.message
-                    : "Failed to process QR code",
-                variant: "destructive",
-              });
-            }
-          },
+          handleQrCodeScan,
           (error) => {
             if (!error.includes("NotFoundException")) {
               console.warn("QR Scan error:", error);

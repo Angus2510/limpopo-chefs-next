@@ -94,7 +94,7 @@ export default function AttendanceList({
                           title="Click to enlarge QR code"
                         >
                           <QRCodeCanvas
-                            value={JSON.stringify(qr.data)}
+                            value={JSON.stringify(qr)} // Changed from qr.data to qr
                             size={100}
                             level="H"
                             includeMargin
