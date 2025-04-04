@@ -1,11 +1,12 @@
-"use client";
-
 import QRGenerator from "@/components/attendance/QrGenerator";
 import { Separator } from "@/components/ui/separator";
 import { Card, CardContent } from "@/components/ui/card";
 import { ContentLayout } from "@/components/layout/content-layout";
+import { getAttendanceQRs } from "@/lib/actions/attendance/attendanceCrud";
 
-export default function QRPage() {
+export default async function QRPage() {
+  const { data: qrCodes } = await getAttendanceQRs();
+
   return (
     <ContentLayout title="Class Attendance QR Code">
       <div className="container mx-auto space-y-6">
@@ -20,7 +21,7 @@ export default function QRPage() {
         <Separator />
         <Card>
           <CardContent className="p-6">
-            <QRGenerator />
+            <QRGenerator initialQRCodes={qrCodes} />
           </CardContent>
         </Card>
       </div>

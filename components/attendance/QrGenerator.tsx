@@ -27,9 +27,26 @@ import { getAllIntakeGroups } from "@/lib/actions/intakegroup/intakeGroups";
 import { getAllCampuses } from "@/lib/actions/campus/campuses";
 import { useForm, FormProvider } from "react-hook-form";
 import { getAllOutcomes } from "@/lib/actions/intakegroup/outcome/outcomeQuery";
+import { toast } from "@/components/ui/use-toast";
+import {
+  createAttendanceQR,
+  deleteAttendanceQR,
+  type AttendanceQRCode,
+} from "@/lib/actions/attendance/attendanceCrud";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 interface QRGeneratorProps {
-  initialData?: string;
+  initialQRCodes: AttendanceQRCode[];
 }
 
 interface FormData {
@@ -39,28 +56,7 @@ interface FormData {
   outcomeId: string;
 }
 
-interface LessonQRData {
-  campusId: string;
-  campusTitle: string;
-  intakeGroups: Array<{
-    id: string;
-    title: string;
-  }>;
-  outcome: {
-    id: string;
-    title: string;
-  };
-  date: string;
-  timestamp: string;
-}
-
-interface StoredQRCode {
-  id: string;
-  data: LessonQRData;
-  createdAt: string;
-}
-
-const QRGenerator: React.FC<QRGeneratorProps> = ({ initialData }) => {
+const QRGenerator: React.FC<QRGeneratorProps> = ({ initialQRCodes }) => {
   const [intakeGroups, setIntakeGroups] = useState<
     Array<{ id: string; title: string }>
   >([]);
@@ -71,8 +67,9 @@ const QRGenerator: React.FC<QRGeneratorProps> = ({ initialData }) => {
     Array<{ id: string; title: string }>
   >([]);
   const [generatedQR, setGeneratedQR] = useState<string | null>(null);
-  const [storedQRCodes, setStoredQRCodes] = useState<StoredQRCode[]>([]);
+  const [qrCodes, setQrCodes] = useState<AttendanceQRCode[]>(initialQRCodes);
   const [loading, setLoading] = useState(true);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const methods = useForm<FormData>({
     defaultValues: {
@@ -96,6 +93,11 @@ const QRGenerator: React.FC<QRGeneratorProps> = ({ initialData }) => {
         setOutcomes(outcomesData);
       } catch (error) {
         console.error("Failed to fetch data:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load required data",
+          variant: "destructive",
+        });
       } finally {
         setLoading(false);
       }
@@ -104,7 +106,7 @@ const QRGenerator: React.FC<QRGeneratorProps> = ({ initialData }) => {
     fetchData();
   }, []);
 
-  const generateQRCode = (data: FormData) => {
+  const generateQRCode = async (data: FormData) => {
     const now = new Date();
     const selectedCampus = campuses.find(
       (campus) => campus.id === data.campusId
@@ -119,26 +121,64 @@ const QRGenerator: React.FC<QRGeneratorProps> = ({ initialData }) => {
     if (!selectedCampus || selectedGroups.length === 0 || !selectedOutcome)
       return;
 
-    const qrData: LessonQRData = {
-      campusId: selectedCampus.id,
-      campusTitle: selectedCampus.title,
-      intakeGroups: selectedGroups,
-      outcome: {
-        id: selectedOutcome.id,
-        title: selectedOutcome.title,
+    const qrData = {
+      data: {
+        campusId: selectedCampus.id,
+        campusTitle: selectedCampus.title,
+        intakeGroups: selectedGroups,
+        outcome: {
+          id: selectedOutcome.id,
+          title: selectedOutcome.title,
+        },
+        date: data.date,
+        timestamp: now.toISOString(),
       },
-      date: data.date,
-      timestamp: now.toISOString(),
     };
 
-    const newQRCode: StoredQRCode = {
-      id: crypto.randomUUID(),
-      data: qrData,
-      createdAt: now.toISOString(),
-    };
+    try {
+      const result = await createAttendanceQR(qrData);
+      if (result.success) {
+        setQrCodes((prev) => [result.data, ...prev]);
+        setGeneratedQR(JSON.stringify(qrData.data));
+        toast({
+          title: "Success",
+          description: "QR code generated successfully",
+        });
+        methods.reset();
+      } else {
+        throw new Error(result.error);
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to generate QR code",
+        variant: "destructive",
+      });
+    }
+  };
 
-    setStoredQRCodes((prev) => [newQRCode, ...prev]);
-    setGeneratedQR(JSON.stringify(qrData));
+  const handleDelete = async (id: string) => {
+    setIsDeleting(true);
+    try {
+      const result = await deleteAttendanceQR(id);
+      if (result.success) {
+        setQrCodes((prev) => prev.filter((qr) => qr.id !== id));
+        toast({
+          title: "Success",
+          description: "QR code deleted successfully",
+        });
+      } else {
+        throw new Error(result.error);
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to delete QR code",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   if (loading) {
@@ -268,7 +308,7 @@ const QRGenerator: React.FC<QRGeneratorProps> = ({ initialData }) => {
         </CardContent>
       </Card>
 
-      {storedQRCodes.length > 0 && (
+      {qrCodes.length > 0 && (
         <Card>
           <CardHeader>
             <CardTitle>Generated QR Codes</CardTitle>
@@ -276,32 +316,65 @@ const QRGenerator: React.FC<QRGeneratorProps> = ({ initialData }) => {
           <CardContent>
             <ScrollArea className="h-[400px] w-full rounded-md border">
               <div className="space-y-4 p-4">
-                {storedQRCodes.map((qr) => (
+                {qrCodes.map((qr) => (
                   <Card key={qr.id} className="p-4">
-                    <div className="flex items-start space-x-4">
-                      <QRCodeCanvas
-                        value={JSON.stringify(qr.data)}
-                        size={100}
-                        level="H"
-                        includeMargin
-                        className="border p-1"
-                      />
-                      <div className="flex-1 space-y-1">
-                        <p className="font-medium">{qr.data.campusTitle}</p>
-                        <p className="text-sm text-muted-foreground">
-                          Date: {format(new Date(qr.data.date), "PPP")}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          Groups:{" "}
-                          {qr.data.intakeGroups.map((g) => g.title).join(", ")}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          Outcome: {qr.data.outcome.title}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          Created: {format(new Date(qr.createdAt), "PPP p")}
-                        </p>
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-start space-x-4">
+                        <QRCodeCanvas
+                          value={JSON.stringify(qr.data)}
+                          size={100}
+                          level="H"
+                          includeMargin
+                          className="border p-1"
+                        />
+                        <div className="flex-1 space-y-1">
+                          <p className="font-medium">{qr.data.campusTitle}</p>
+                          <p className="text-sm text-muted-foreground">
+                            Date: {format(new Date(qr.data.date), "PPP")}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            Groups:{" "}
+                            {qr.data.intakeGroups
+                              .map((g) => g.title)
+                              .join(", ")}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            Outcome: {qr.data.outcome.title}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            Created: {format(new Date(qr.createdAt), "PPP p")}
+                          </p>
+                        </div>
                       </div>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            disabled={isDeleting}
+                          >
+                            Delete
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This action cannot be undone. This will
+                              permanently delete the QR code.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => handleDelete(qr.id)}
+                              className="bg-destructive hover:bg-destructive/90"
+                            >
+                              Delete
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                     </div>
                   </Card>
                 ))}

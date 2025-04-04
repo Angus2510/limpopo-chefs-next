@@ -403,14 +403,16 @@ model outcomes {
   type   String
 }
 
-model qrs {
-  id             String   @id @default(auto()) @map("_id") @db.ObjectId
-  v              Int      @map("__v")
-  attendanceDate DateTime @db.Date
-  campus         String
-  intakeGroup    String[]
-  qrcode         String
-  type           String
+model QrAttendance {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  campusId  String   @db.ObjectId
+  outcomeId String   @db.ObjectId
+  date      DateTime
+  data      Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("qr_attendance")
 }
 
 model qualifications {
