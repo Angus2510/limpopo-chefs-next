@@ -94,7 +94,14 @@ export default function AttendanceList({
                           title="Click to enlarge QR code"
                         >
                           <QRCodeCanvas
-                            value={JSON.stringify(qr)} // Changed from qr.data to qr
+                            value={JSON.stringify({
+                              campusId: qr.data.campusId,
+                              campusTitle: qr.data.campusTitle,
+                              intakeGroups: qr.data.intakeGroups,
+                              outcome: qr.data.outcome,
+                              date: qr.data.date,
+                              timestamp: qr.data.timestamp,
+                            })}
                             size={100}
                             level="H"
                             includeMargin

@@ -38,22 +38,15 @@ export default function ScanAttendancePage() {
 
     setIsLoading(true);
     try {
-      // Parse the QR code data
-      const parsedData = JSON.parse(decodedText);
-      console.log("Parsed QR data:", parsedData);
+      const qrData = JSON.parse(decodedText);
+      console.log("Parsed QR data:", qrData);
 
-      // Extract data from the correct structure
-      const qrData = parsedData.data;
-      if (!qrData || !qrData.campusId || !qrData.outcome?.id || !qrData.date) {
-        throw new Error("Invalid QR code format");
-      }
-
-      // Mark attendance with correct data structure
+      // Mark attendance with the data
       const result = await markAttendance({
         studentId: user.id,
         qrData: {
           campusId: qrData.campusId,
-          outcomeId: qrData.outcome.id, // Note: accessing outcome.id
+          outcomeId: qrData.outcome.id,
           date: qrData.date,
         },
       });
