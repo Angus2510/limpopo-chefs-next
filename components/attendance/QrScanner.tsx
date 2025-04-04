@@ -13,17 +13,31 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 import { Camera, RefreshCcw } from "lucide-react";
 
-// ...existing interfaces...
+interface QrData {
+  campusId: string;
+  outcomeId: string;
+  date: string;
+  timestamp?: string;
+}
+
+interface QrScannerProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onScan: (data: string) => Promise<void>;
+}
 
 export function QrScanner({ isOpen, onClose, onScan }: QrScannerProps) {
   const html5QrRef = useRef<Html5Qrcode | null>(null);
   const [hasPermission, setHasPermission] = useState<boolean>(false);
   const [permissionError, setPermissionError] = useState<string>("");
+  const [currentCamera, setCurrentCamera] = useState<string>("");
   const { toast } = useToast();
 
   const requestCameraPermission = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "environment" },
+      });
       stream.getTracks().forEach((track) => track.stop());
       setHasPermission(true);
       setPermissionError("");
@@ -36,6 +50,14 @@ export function QrScanner({ isOpen, onClose, onScan }: QrScannerProps) {
       );
       return false;
     }
+  };
+
+  const validateQrData = (data: string): QrData => {
+    const parsed = JSON.parse(data);
+    if (!parsed.campusId || !parsed.outcomeId || !parsed.date) {
+      throw new Error("Invalid QR code - missing required fields");
+    }
+    return parsed as QrData;
   };
 
   const startScanner = async () => {
@@ -53,28 +75,36 @@ export function QrScanner({ isOpen, onClose, onScan }: QrScannerProps) {
       console.log("Available cameras:", devices);
 
       if (devices && devices.length > 0) {
+        // Try to find back camera
         const backCamera =
           devices.find(
             (device) =>
               device.label.toLowerCase().includes("back") ||
-              device.label.toLowerCase().includes("rear")
+              device.label.toLowerCase().includes("rear") ||
+              device.label.toLowerCase().includes("environment")
           ) || devices[0];
+
+        console.log("Selected camera:", backCamera.label);
+        setCurrentCamera(backCamera.id);
 
         await html5QrRef.current.start(
           backCamera.id,
           {
             fps: 10,
-            qrbox: 250,
+            qrbox: { width: 250, height: 250 },
             aspectRatio: 1.0,
-            facingMode: "environment",
+            videoConstraints: {
+              deviceId: backCamera.id,
+              facingMode: "environment",
+              width: { ideal: 1280 },
+              height: { ideal: 720 },
+            },
           },
           async (decodedText) => {
             try {
-              const qrData = JSON.parse(decodedText) as QrData;
-
-              if (!qrData.campusId || !qrData.outcomeId || !qrData.date) {
-                throw new Error("Invalid QR code format");
-              }
+              console.log("Raw QR data:", decodedText);
+              const qrData = validateQrData(decodedText);
+              console.log("Validated QR data:", qrData);
 
               await onScan(decodedText);
 
@@ -91,7 +121,7 @@ export function QrScanner({ isOpen, onClose, onScan }: QrScannerProps) {
             } catch (error) {
               console.error("QR processing error:", error);
               toast({
-                title: "Error",
+                title: "Invalid QR Code",
                 description:
                   error instanceof Error
                     ? error.message
@@ -101,6 +131,7 @@ export function QrScanner({ isOpen, onClose, onScan }: QrScannerProps) {
             }
           },
           (error) => {
+            // Only log non-NotFoundException errors
             if (!error.includes("NotFoundException")) {
               console.warn("QR Scan error:", error);
             }
