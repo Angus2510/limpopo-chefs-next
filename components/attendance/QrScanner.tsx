@@ -43,30 +43,19 @@ export function QrScanner({ isOpen, onClose, onScan }: QrScannerProps) {
   const handleQrCodeScan = async (decodedText: string) => {
     try {
       console.log("Raw QR data:", decodedText);
-      let parsedData;
-      try {
-        parsedData = JSON.parse(decodedText);
-      } catch (e) {
-        console.error("JSON parse error:", e);
-        throw new Error("Invalid QR code - not valid JSON");
-      }
+      const parsedData = JSON.parse(decodedText);
 
       // Validate the structure
       if (!parsedData.campusId || !parsedData.outcome?.id || !parsedData.date) {
         throw new Error("Invalid QR code - missing required fields");
       }
 
-      // Pass the data directly without stringifying again
+      // Pass the raw decoded text to let the parent handle parsing
       await onScan(decodedText);
 
       if (html5QrRef.current) {
         await html5QrRef.current.stop();
       }
-
-      toast({
-        title: "Success",
-        description: `Attendance marked for ${parsedData.outcome.title}`,
-      });
 
       onClose();
     } catch (error) {

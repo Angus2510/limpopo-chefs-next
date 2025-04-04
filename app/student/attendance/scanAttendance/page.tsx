@@ -38,26 +38,30 @@ export default function ScanAttendancePage() {
 
     setIsLoading(true);
     try {
-      const qrData = JSON.parse(decodedText);
-      console.log("Parsed QR data:", qrData);
+      const parsedData = JSON.parse(decodedText);
+      console.log("Parsed QR data:", parsedData);
 
-      // Mark attendance with the data
-      const result = await markAttendance({
+      // Create attendance data in the correct format
+      const attendanceData = {
         studentId: user.id,
         qrData: {
-          campusId: qrData.campusId,
-          outcomeId: qrData.outcome.id,
-          date: qrData.date,
+          campusId: parsedData.campusId,
+          outcomeId: parsedData.outcome.id,
+          date: parsedData.date,
         },
-      });
+      };
+
+      console.log("Sending attendance data:", attendanceData);
+
+      const result = await markAttendance(attendanceData);
 
       if (!result.success) {
         throw new Error(result.error || "Failed to mark attendance");
       }
 
       toast({
-        title: "Attendance Marked",
-        description: `Successfully marked present for ${qrData.outcome.title}`,
+        title: "Success",
+        description: `Successfully marked present for ${parsedData.outcome.title}`,
       });
 
       setIsScanning(false);
