@@ -28,6 +28,17 @@ export function QrScanner({ isOpen, onClose, onScan }: QrScannerProps) {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
+  const findBackCamera = (devices: Array<{ id: string; label: string }>) => {
+    return (
+      devices.find(
+        (device) =>
+          device.label.toLowerCase().includes("back") ||
+          device.label.toLowerCase().includes("rear") ||
+          device.label.toLowerCase().includes("environment")
+      ) || devices[0]
+    );
+  };
+
   const startScanner = async (cameraId: string) => {
     if (!html5QrRef.current) return;
 
@@ -38,7 +49,12 @@ export function QrScanner({ isOpen, onClose, onScan }: QrScannerProps) {
           fps: 10,
           qrbox: { width: 250, height: 250 },
           aspectRatio: 1.0,
-          facingMode: "environment",
+          videoConstraints: {
+            deviceId: cameraId,
+            facingMode: "environment",
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+          },
         },
         async (decodedText) => {
           console.log("QR Code detected:", decodedText);
@@ -81,10 +97,19 @@ export function QrScanner({ isOpen, onClose, onScan }: QrScannerProps) {
       const nextIndex = (currentIndex + 1) % cameras.length;
       const nextCamera = cameras[nextIndex];
 
+      console.log("Current camera ID:", currentCamera);
+      console.log("Available cameras:", cameras);
       console.log("Switching to camera:", nextCamera.label);
 
+      // Stop and cleanup current scanner
       await html5QrRef.current.stop();
-      await new Promise((resolve) => setTimeout(resolve, 500)); // Add delay
+      html5QrRef.current = null;
+
+      // Create new scanner instance
+      const element = document.getElementById(scannerDivId);
+      if (!element) return;
+
+      html5QrRef.current = new Html5Qrcode(scannerDivId);
       await startScanner(nextCamera.id);
 
       toast({
@@ -116,7 +141,9 @@ export function QrScanner({ isOpen, onClose, onScan }: QrScannerProps) {
           setCameras(devices);
 
           if (devices.length > 0) {
-            await startScanner(devices[0].id);
+            const backCamera = findBackCamera(devices);
+            console.log("Starting with camera:", backCamera.label);
+            await startScanner(backCamera.id);
           } else {
             toast({
               title: "No Cameras",
@@ -135,10 +162,9 @@ export function QrScanner({ isOpen, onClose, onScan }: QrScannerProps) {
       }
     };
 
-    const timeoutId = setTimeout(initializeScanner, 1000);
+    initializeScanner();
 
     return () => {
-      clearTimeout(timeoutId);
       if (html5QrRef.current) {
         html5QrRef.current
           .stop()
