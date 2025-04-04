@@ -1,11 +1,30 @@
+"use client";
+
 import QRGenerator from "@/components/attendance/QrGenerator";
+import AttendanceList from "@/components/attendance/attendanceList";
 import { Separator } from "@/components/ui/separator";
 import { Card, CardContent } from "@/components/ui/card";
 import { ContentLayout } from "@/components/layout/content-layout";
 import { getAttendanceQRs } from "@/lib/actions/attendance/attendanceCrud";
+import { useEffect, useState } from "react";
+import type { AttendanceQRCode } from "@/lib/actions/attendance/attendanceCrud";
 
-export default async function QRPage() {
-  const { data: qrCodes } = await getAttendanceQRs();
+export default function QRPage() {
+  const [qrCodes, setQrCodes] = useState<AttendanceQRCode[]>([]);
+
+  useEffect(() => {
+    const fetchQRCodes = async () => {
+      const { data } = await getAttendanceQRs();
+      if (data) {
+        setQrCodes(data);
+      }
+    };
+    fetchQRCodes();
+  }, []);
+
+  const handleDelete = (id: string) => {
+    setQrCodes((prev) => prev.filter((qr) => qr.id !== id));
+  };
 
   return (
     <ContentLayout title="Class Attendance QR Code">
@@ -21,9 +40,12 @@ export default async function QRPage() {
         <Separator />
         <Card>
           <CardContent className="p-6">
-            <QRGenerator initialQRCodes={qrCodes} />
+            <QRGenerator
+              onGenerate={(newQR) => setQrCodes((prev) => [newQR, ...prev])}
+            />
           </CardContent>
         </Card>
+        <AttendanceList qrCodes={qrCodes} onDelete={handleDelete} />
       </div>
     </ContentLayout>
   );
