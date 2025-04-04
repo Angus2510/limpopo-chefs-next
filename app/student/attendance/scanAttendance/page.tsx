@@ -8,6 +8,7 @@ import { useAuth } from "@/context/auth-context";
 import { markAttendance } from "@/lib/actions/attendance/getStudentAttendance";
 import { useToast } from "@/components/ui/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ContentLayout } from "@/components/layout/content-layout";
 
 export default function ScanAttendancePage() {
   const [isScanning, setIsScanning] = useState(false);
@@ -86,32 +87,34 @@ export default function ScanAttendancePage() {
   }
 
   return (
-    <div className="container mx-auto py-6 px-4">
-      <Card className="max-w-md mx-auto">
-        <CardHeader>
-          <CardTitle>Mark Class Attendance</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <p className="text-muted-foreground">
-            Point your camera at the QR code shown by your lecturer to mark your
-            attendance
-          </p>
-          <Button
-            onClick={() => setIsScanning(true)}
-            className="w-full"
-            size="lg"
-            disabled={isLoading}
-          >
-            {isLoading ? "Processing..." : "Open Camera to Scan"}
-          </Button>
+    <ContentLayout title="Scan Attendance">
+      <div className="container mx-auto py-6 px-4">
+        <Card className="max-w-md mx-auto">
+          <CardHeader>
+            <CardTitle>Mark Class Attendance</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-muted-foreground">
+              Point your camera at the QR code shown by your lecturer to mark
+              your attendance
+            </p>
+            <Button
+              onClick={() => setIsScanning(true)}
+              className="w-full"
+              size="lg"
+              disabled={isLoading}
+            >
+              {isLoading ? "Processing..." : "Open Camera to Scan"}
+            </Button>
 
-          <QrScanner
-            isOpen={isScanning}
-            onClose={() => setIsScanning(false)}
-            onScan={handleScan}
-          />
-        </CardContent>
-      </Card>
-    </div>
+            <QrScanner
+              isOpen={isScanning}
+              onClose={() => setIsScanning(false)}
+              onScan={handleScan}
+            />
+          </CardContent>
+        </Card>
+      </div>
+    </ContentLayout>
   );
 }
