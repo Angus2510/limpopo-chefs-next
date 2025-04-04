@@ -39,3 +39,34 @@ export async function getStudentAttendance(studentId: string, year: number) {
     return [];
   }
 }
+
+export async function markAttendance({
+  studentId,
+  qrData,
+}: {
+  studentId: string;
+  qrData: {
+    campusId: string;
+    outcomeId: string;
+    date: string;
+  };
+}) {
+  try {
+    const attendance = await prisma.attendances.create({
+      data: {
+        studentId,
+        campus: qrData.campusId,
+        date: new Date(qrData.date),
+        status: "full",
+        timeCheckedIn: new Date(),
+        intakeGroup: qrData.outcomeId,
+      },
+    });
+
+    revalidatePath("/student/attendance/calendar");
+    return { success: true, data: attendance };
+  } catch (error) {
+    console.error("Failed to mark attendance:", error);
+    return { success: false, error: "Failed to mark attendance" };
+  }
+}

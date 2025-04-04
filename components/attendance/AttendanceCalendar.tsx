@@ -1,5 +1,6 @@
 // components/AttendanceCalendar.tsx
 import React, { useState } from "react";
+import { getStudentAttendance } from "@/lib/actions/attendance/attendanceCrud";
 
 type AttendanceType = "full" | "half" | "lesson" | "sick" | null;
 
@@ -86,6 +87,37 @@ const AttendanceCalendar: React.FC = () => {
     [currentYear]: generateEmptyYear(currentYear),
     [currentYear - 1]: generateEmptyYear(currentYear - 1),
   });
+
+  useEffect(() => {
+    const fetchAttendance = async () => {
+      const currentMonth = new Date().getMonth();
+      const { data } = await getStudentAttendance(
+        studentId,
+        currentMonth,
+        selectedYear
+      );
+
+      if (data) {
+        const newAttendanceData = { ...attendanceData };
+        data.forEach((record) => {
+          const date = new Date(record.date);
+          const month = months[date.getMonth()];
+          const day = date.getDate();
+
+          if (!newAttendanceData[selectedYear]) {
+            newAttendanceData[selectedYear] = generateEmptyYear(selectedYear);
+          }
+
+          newAttendanceData[selectedYear][month][day] =
+            record.status as AttendanceType;
+        });
+
+        setAttendanceData(newAttendanceData);
+      }
+    };
+
+    fetchAttendance();
+  }, [selectedYear, studentId]);
 
   // Function to update attendance
   const updateAttendance = (

@@ -286,6 +286,24 @@ export function getMenuList(pathname: string): Group[] {
             icon: SquarePen,
             submenus: [],
           },
+          {
+            href: "/student/attendance",
+            label: "Attendance",
+            active: pathname.includes("/student/attendance"),
+            icon: ClipboardList,
+            submenus: [
+              {
+                href: "/student/attendance/scanAttendance",
+                label: "Scan Attendance",
+                active: pathname === "/student/attendance/scanAttendance",
+              },
+              {
+                href: "/student/attendance/viewAttendance",
+                label: "View Attendance",
+                active: pathname === "/student/attendance/viewAttendance",
+              },
+            ],
+          },
         ],
       },
       {
