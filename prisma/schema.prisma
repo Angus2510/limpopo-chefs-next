@@ -279,8 +279,17 @@ model attendances {
   timeCheckedIn DateTime? @db.Date
   campus        String   @db.ObjectId
   intakeGroup   String   @db.ObjectId
-
+  
+  // New fields
+  note          String?   // For storing any additional comments about attendance
+  updatedAt     DateTime  @updatedAt // Tracks when the record was last modified
+  createdAt     DateTime  @default(now()) // Tracks when the record was created
+  updatedBy     String?  @db.ObjectId // Tracks who last modified the record
+  reason        String?   // For storing reason when status is "sick" or "absent"
+  
   @@index([studentId, date])
+  @@index([campus, date]) // Additional index for campus queries
+  @@index([intakeGroup, date]) // Additional index for intake group queries
 }
 
 model campus {

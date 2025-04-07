@@ -31,6 +31,7 @@ interface AttendanceTypeConfig {
 
 interface AttendanceCalendarProps {
   studentId: string;
+  onAttendanceChange?: (date: Date, status: string) => Promise<boolean>;
 }
 
 const attendanceTypes: AttendanceTypeConfig[] = [
@@ -97,6 +98,7 @@ const generateEmptyYear = (
 
 const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
   studentId,
+  onAttendanceChange,
 }) => {
   const currentYear = new Date().getFullYear();
   const [selectedYear, setSelectedYear] = useState<number>(currentYear);
@@ -154,11 +156,11 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
     }));
   };
 
-  const cycleAttendanceType = (
+  const cycleAttendanceType = async (
     year: number,
     month: string,
     day: number
-  ): void => {
+  ): Promise<void> => {
     const currentType = attendanceData[year][month][day];
     const types: AttendanceType[] = [
       "full",
@@ -170,9 +172,19 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
     ];
     const currentIndex = types.indexOf(currentType);
     const nextType = types[(currentIndex + 1) % types.length];
-    updateAttendance(year, month, day, nextType);
+
+    if (nextType && onAttendanceChange) {
+      const date = new Date(year, months.indexOf(month), day);
+      const success = await onAttendanceChange(date, nextType);
+      if (success) {
+        updateAttendance(year, month, day, nextType);
+      }
+    } else {
+      updateAttendance(year, month, day, nextType);
+    }
   };
 
+  // ... keep all existing helper functions ...
   const getDaysInMonth = (month: string, year: number): number => {
     return new Date(year, months.indexOf(month) + 1, 0).getDate();
   };
@@ -247,6 +259,7 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
     );
   };
 
+  // Keep the existing return JSX
   return (
     <div className="font-sans max-w-full p-5 text-gray-800">
       <div className="mb-6">

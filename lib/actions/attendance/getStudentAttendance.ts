@@ -12,7 +12,12 @@ interface AttendanceData {
   };
 }
 
-type AttendanceStatus = "full" | "half" | "lesson" | "sick" | "absent";
+type AttendanceStatus =
+  | "full"
+  | "absent"
+  | "absent with reason"
+  | "W.E.L"
+  | "sick";
 
 export async function getStudentAttendance(studentId: string, year: number) {
   try {
@@ -58,13 +63,11 @@ export async function markAttendance(data: AttendanceData) {
   try {
     const { studentId, qrData } = data;
 
-    // Validate date format
     const attendanceDate = new Date(qrData.date);
     if (isNaN(attendanceDate.getTime())) {
       throw new Error("Invalid date format");
     }
 
-    // Check for existing attendance
     const existingAttendance = await prisma.attendances.findFirst({
       where: {
         studentId,
@@ -81,7 +84,6 @@ export async function markAttendance(data: AttendanceData) {
       };
     }
 
-    // Create attendance record with all required fields
     const attendance = await prisma.attendances.create({
       data: {
         studentId,
@@ -90,12 +92,12 @@ export async function markAttendance(data: AttendanceData) {
         status: "full",
         timeCheckedIn: new Date(),
         intakeGroup: qrData.outcomeId,
-        v: 1, // Required version field from schema
+        v: 1,
       },
     });
 
-    console.log("Created attendance record:", attendance);
     revalidatePath("/student/attendance/calendar");
+    revalidatePath("/admin/attendance/student");
 
     return {
       success: true,
@@ -107,6 +109,76 @@ export async function markAttendance(data: AttendanceData) {
       success: false,
       error:
         error instanceof Error ? error.message : "Failed to mark attendance",
+    };
+  }
+}
+
+export async function updateStudentAttendance(
+  studentId: string,
+  date: Date,
+  status: AttendanceStatus
+) {
+  try {
+    console.log("Attempting to update attendance:", {
+      studentId,
+      date,
+      status,
+    });
+
+    const existingAttendance = await prisma.attendances.findFirst({
+      where: {
+        studentId,
+        date: {
+          equals: date,
+        },
+      },
+    });
+
+    console.log("Existing attendance record:", existingAttendance);
+
+    let result;
+
+    if (existingAttendance) {
+      result = await prisma.attendances.update({
+        where: {
+          id: existingAttendance.id,
+        },
+        data: {
+          status,
+          updatedAt: new Date(),
+        },
+      });
+      console.log("Updated existing attendance:", result);
+    } else {
+      // Create new attendance record with minimal required fields
+      result = await prisma.attendances.create({
+        data: {
+          studentId,
+          date,
+          status,
+          timeCheckedIn: new Date(),
+          // Set default values for required fields that can't be null
+          campus: "000000000000000000000000", // Default MongoDB ObjectId
+          intakeGroup: "000000000000000000000000", // Default MongoDB ObjectId
+          v: 1,
+        },
+      });
+      console.log("Created new attendance:", result);
+    }
+
+    revalidatePath("/admin/attendance/student");
+
+    console.log("Operation successful");
+    return {
+      success: true,
+      data: result,
+    };
+  } catch (error) {
+    console.error("Failed to update attendance:", error);
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : "Failed to update attendance",
     };
   }
 }
