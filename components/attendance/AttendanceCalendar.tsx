@@ -1,6 +1,5 @@
-// components/AttendanceCalendar.tsx
-import React, { useState } from "react";
-import { getStudentAttendance } from "@/lib/actions/attendance/attendanceCrud";
+import React, { useState, useEffect } from "react";
+import { getStudentAttendance } from "@/lib/actions/attendance/getStudentAttendance";
 
 type AttendanceType = "full" | "half" | "lesson" | "sick" | null;
 
@@ -22,6 +21,10 @@ interface AttendanceTypeConfig {
   label: string;
   color: string;
   textColor?: string;
+}
+
+interface AttendanceCalendarProps {
+  studentId: string;
 }
 
 const attendanceTypes: AttendanceTypeConfig[] = [
@@ -62,27 +65,25 @@ const months: string[] = [
   "December",
 ];
 
-// Sample data structure
 const generateEmptyYear = (
   year: number
 ): { [month: string]: { [day: number]: AttendanceType } } => {
   const yearData: { [month: string]: { [day: number]: AttendanceType } } = {};
   months.forEach((month) => {
     yearData[month] = {};
-    // Generate 31 days per month (we'll handle actual days when rendering)
     for (let day = 1; day <= 31; day++) {
-      yearData[month][day] = null; // null means no attendance recorded
+      yearData[month][day] = null;
     }
   });
   return yearData;
 };
 
-const AttendanceCalendar: React.FC = () => {
+const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
+  studentId,
+}) => {
   const currentYear = new Date().getFullYear();
   const [selectedYear, setSelectedYear] = useState<number>(currentYear);
   const [timeFilter, setTimeFilter] = useState<string>("All time");
-
-  // Sample data - in a real app, this would come from your database
   const [attendanceData, setAttendanceData] = useState<AttendanceRecord>({
     [currentYear]: generateEmptyYear(currentYear),
     [currentYear - 1]: generateEmptyYear(currentYear - 1),
@@ -90,119 +91,94 @@ const AttendanceCalendar: React.FC = () => {
 
   useEffect(() => {
     const fetchAttendance = async () => {
-      const currentMonth = new Date().getMonth();
-      const { data } = await getStudentAttendance(
-        studentId,
-        currentMonth,
-        selectedYear
-      );
-
-      if (data) {
-        const newAttendanceData = { ...attendanceData };
-        data.forEach((record) => {
-          const date = new Date(record.date);
-          const month = months[date.getMonth()];
-          const day = date.getDate();
+      try {
+        const records = await getStudentAttendance(studentId, selectedYear);
+        if (records && records.length > 0) {
+          const newAttendanceData = { ...attendanceData };
 
           if (!newAttendanceData[selectedYear]) {
             newAttendanceData[selectedYear] = generateEmptyYear(selectedYear);
           }
 
-          newAttendanceData[selectedYear][month][day] =
-            record.status as AttendanceType;
-        });
+          records.forEach((record) => {
+            const date = new Date(record.date);
+            const month = months[date.getMonth()];
+            const day = date.getDate();
+            newAttendanceData[selectedYear][month][day] = record.status;
+          });
 
-        setAttendanceData(newAttendanceData);
+          setAttendanceData(newAttendanceData);
+        }
+      } catch (error) {
+        console.error("Error fetching attendance:", error);
       }
     };
 
-    fetchAttendance();
+    if (studentId) {
+      fetchAttendance();
+    }
   }, [selectedYear, studentId]);
 
-  // Function to update attendance
   const updateAttendance = (
     year: number,
     month: string,
     day: number,
     type: AttendanceType
   ): void => {
-    const newData = { ...attendanceData };
-    newData[year][month][day] = type;
-    setAttendanceData(newData);
+    setAttendanceData((prev) => ({
+      ...prev,
+      [year]: {
+        ...prev[year],
+        [month]: {
+          ...prev[year][month],
+          [day]: type,
+        },
+      },
+    }));
   };
 
-  // Function to cycle through attendance types on click
   const cycleAttendanceType = (
     year: number,
     month: string,
     day: number
   ): void => {
     const currentType = attendanceData[year][month][day];
-    let nextType: AttendanceType;
-
-    switch (currentType) {
-      case null:
-        nextType = "full";
-        break;
-      case "full":
-        nextType = "half";
-        break;
-      case "half":
-        nextType = "lesson";
-        break;
-      case "lesson":
-        nextType = "sick";
-        break;
-      case "sick":
-        nextType = null;
-        break;
-      default:
-        nextType = "full";
-    }
-
+    const types: AttendanceType[] = ["full", "half", "lesson", "sick", null];
+    const currentIndex = types.indexOf(currentType);
+    const nextType = types[(currentIndex + 1) % types.length];
     updateAttendance(year, month, day, nextType);
   };
 
-  // Function to get days in a month
   const getDaysInMonth = (month: string, year: number): number => {
     return new Date(year, months.indexOf(month) + 1, 0).getDate();
   };
 
-  // Function to get the day of week for a specific date
   const getDayOfWeek = (year: number, month: string, day: number): number => {
     const date = new Date(year, months.indexOf(month), day);
     const dayIndex = date.getDay();
-    // Convert from 0-6 (Sunday-Saturday) to 1-5 (Monday-Friday)
     return dayIndex === 0 ? 6 : dayIndex - 1;
   };
 
-  // Organize days into weeks for display
   const organizeMonthByWeeks = (
     month: string,
     year: number
   ): AttendanceDay[][] => {
     const daysInMonth = getDaysInMonth(month, year);
     const firstDayOfWeek = getDayOfWeek(year, month, 1);
-
     const weeks: AttendanceDay[][] = [];
     let currentWeek: AttendanceDay[] = Array(5).fill({
       day: null,
       attendance: null,
     });
 
-    // Add empty cells for days before the 1st of the month
     for (let i = 0; i < firstDayOfWeek; i++) {
       currentWeek[i] = { day: null, attendance: null };
     }
 
-    // Add days of the month
     for (let day = 1; day <= daysInMonth; day++) {
       const dayOfWeek = getDayOfWeek(year, month, day);
-
-      // Skip weekends (5 and 6 are Saturday and Sunday)
       if (dayOfWeek >= 5) continue;
 
-      // If we've filled a week, start a new one
       if (dayOfWeek === 0 && day > 1) {
         weeks.push([...currentWeek]);
         currentWeek = Array(5).fill({ day: null, attendance: null });
@@ -213,7 +189,6 @@ const AttendanceCalendar: React.FC = () => {
         attendance: attendanceData[year][month][day],
       };
 
-      // If it's the last day, add the final week
       if (day === daysInMonth) {
         weeks.push([...currentWeek]);
       }
@@ -222,7 +197,6 @@ const AttendanceCalendar: React.FC = () => {
     return weeks;
   };
 
-  // Render the attendance cell
   const renderAttendanceCell = (
     dayData: AttendanceDay | null,
     month: string,
@@ -252,9 +226,7 @@ const AttendanceCalendar: React.FC = () => {
   return (
     <div className="font-sans max-w-full p-5 text-gray-800">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold mb-4">
-          Child&apos;s Attendance and Success
-        </h1>
+        <h1 className="text-2xl font-bold mb-4">Attendance Calendar</h1>
         <div className="flex flex-wrap items-center gap-4">
           {attendanceTypes.map((type) => (
             <div key={type.id} className="flex items-center gap-2">
