@@ -1,7 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { getStudentAttendance } from "@/lib/actions/attendance/getStudentAttendance";
 
-type AttendanceType = "full" | "half" | "lesson" | "sick" | null;
+type AttendanceType =
+  | "full"
+  | "absent"
+  | "absent with reason"
+  | "W.E.L"
+  | "sick"
+  | null;
 
 interface AttendanceDay {
   day: number | null;
@@ -28,16 +34,27 @@ interface AttendanceCalendarProps {
 }
 
 const attendanceTypes: AttendanceTypeConfig[] = [
-  { id: "full", label: "Full day", color: "bg-black", textColor: "text-white" },
   {
-    id: "half",
-    label: "Half day",
-    color: "bg-gray-500",
+    id: "full",
+    label: "Full day",
+    color: "bg-primary-500",
     textColor: "text-white",
   },
   {
-    id: "lesson",
-    label: "One lesson",
+    id: "absent",
+    label: "Absent",
+    color: "bg-red-500",
+    textColor: "text-white",
+  },
+  {
+    id: "absent with reason",
+    label: "Absent with reason",
+    color: "bg-yellow-500",
+    textColor: "text-black",
+  },
+  {
+    id: "W.E.L",
+    label: "W.E.L",
     color: "bg-gray-300",
     textColor: "text-black",
   },
@@ -143,7 +160,14 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
     day: number
   ): void => {
     const currentType = attendanceData[year][month][day];
-    const types: AttendanceType[] = ["full", "half", "lesson", "sick", null];
+    const types: AttendanceType[] = [
+      "full",
+      "absent",
+      "absent with reason",
+      "W.E.L",
+      "sick",
+      null,
+    ];
     const currentIndex = types.indexOf(currentType);
     const nextType = types[(currentIndex + 1) % types.length];
     updateAttendance(year, month, day, nextType);
