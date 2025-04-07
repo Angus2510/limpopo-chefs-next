@@ -33,7 +33,7 @@ import { toast } from "@/components/ui/use-toast";
 import { uploadDocument } from "@/lib/actions/uploads/uploadDocuments";
 import { useRouter } from "next/navigation";
 
-const documentTypes = ["pdf", "doc", "docx", "xls", "xlsx"] as const;
+const documentTypes = ["pdf", "doc", "docx", "xls", "xlsx", "jpg"] as const;
 type DocumentType = (typeof documentTypes)[number];
 
 const documentTitles = [
