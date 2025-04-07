@@ -180,14 +180,23 @@ export function QrScanner({ isOpen, onClose, onScan }: QrScannerProps) {
   useEffect(() => {
     let mounted = true;
 
-    if (isOpen && mounted) {
-      startScanner();
-    }
+    const initScanner = async () => {
+      if (isOpen && mounted) {
+        await startScanner();
+      }
+    };
+
+    initScanner();
 
     return () => {
       mounted = false;
       if (html5QrRef.current) {
-        html5QrRef.current.stop().catch(console.error);
+        // Check if scanner is running before stopping
+        try {
+          html5QrRef.current.stop();
+        } catch (error) {
+          console.log("Scanner already stopped");
+        }
       }
     };
   }, [isOpen]);

@@ -19,6 +19,7 @@ export default function ScanAttendancePage() {
 
   // Ensure only students can access this page
   useEffect(() => {
+    // Check user authentication
     if (!user) {
       router.push("/login");
       return;
@@ -31,16 +32,13 @@ export default function ScanAttendancePage() {
         variant: "destructive",
       });
     }
-  }, [user, router, toast]);
 
-  useEffect(() => {
-    const cleanup = () => {
+    // Cleanup function
+    return () => {
       setIsScanning(false);
       setIsLoading(false);
     };
-
-    return cleanup;
-  }, []);
+  }, [user, router, toast]);
 
   const handleScan = async (decodedText: string) => {
     if (!user?.id) return;
@@ -48,7 +46,11 @@ export default function ScanAttendancePage() {
     setIsLoading(true);
     try {
       const parsedData = JSON.parse(decodedText);
-      console.log("Parsed QR data:", parsedData);
+
+      // Add validation before sending data
+      if (!parsedData.campusId || !parsedData.outcome?.id || !parsedData.date) {
+        throw new Error("Invalid QR code format");
+      }
 
       const attendanceData = {
         studentId: user.id,
@@ -59,25 +61,19 @@ export default function ScanAttendancePage() {
         },
       };
 
-      console.log("Sending attendance data:", attendanceData);
-
       const result = await markAttendance(attendanceData);
 
       if (!result.success) {
         throw new Error(result.error || "Failed to mark attendance");
       }
 
-      setIsScanning(false);
-
       toast({
         title: "Success",
         description: `Successfully marked present for ${parsedData.outcome.title}`,
       });
 
-      // Add a small delay before navigation
-      setTimeout(() => {
-        router.push("/student/attendance/viewAttendance");
-      }, 100);
+      setIsScanning(false);
+      router.push("/student/attendance/viewAttendance");
     } catch (error: any) {
       console.error("Attendance marking failed:", error);
       toast({
