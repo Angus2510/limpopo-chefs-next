@@ -22,6 +22,12 @@ interface AttendanceRecord {
   };
 }
 
+interface WelRecord {
+  startDate: Date;
+  endDate: Date;
+  establishmentName: string;
+}
+
 interface AttendanceTypeConfig {
   id: AttendanceType;
   label: string;
@@ -32,6 +38,11 @@ interface AttendanceTypeConfig {
 interface AttendanceCalendarProps {
   studentId: string;
   onAttendanceChange?: (date: Date, status: string) => Promise<boolean>;
+  welRecords?: {
+    startDate: string;
+    endDate: string;
+    establishmentName: string;
+  }[];
 }
 
 const attendanceTypes: AttendanceTypeConfig[] = [
@@ -99,6 +110,7 @@ const generateEmptyYear = (
 const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
   studentId,
   onAttendanceChange,
+  welRecords = [],
 }) => {
   const currentYear = new Date().getFullYear();
   const [selectedYear, setSelectedYear] = useState<number>(currentYear);
@@ -137,6 +149,39 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
       fetchAttendance();
     }
   }, [selectedYear, studentId]);
+
+  useEffect(() => {
+    if (welRecords && welRecords.length > 0) {
+      const newAttendanceData = { ...attendanceData };
+
+      welRecords.forEach((record) => {
+        const startDate = new Date(record.startDate);
+        const endDate = new Date(record.endDate);
+
+        // Loop through each day between start and end dates
+        for (
+          let date = new Date(startDate);
+          date <= endDate;
+          date.setDate(date.getDate() + 1)
+        ) {
+          const year = date.getFullYear();
+          const month = months[date.getMonth()];
+          const day = date.getDate();
+
+          // Only update weekdays
+          const dayOfWeek = date.getDay();
+          if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+            if (!newAttendanceData[year]) {
+              newAttendanceData[year] = generateEmptyYear(year);
+            }
+            newAttendanceData[year][month][day] = "W.E.L";
+          }
+        }
+      });
+
+      setAttendanceData(newAttendanceData);
+    }
+  }, [welRecords]);
 
   const updateAttendance = (
     year: number,

@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/table";
 import { toast } from "@/components/ui/use-toast";
 import { ContentLayout } from "@/components/layout/content-layout";
+import { fetchStudentWelRecords } from "@/lib/actions/student/fetchStudentWelRecords";
 
 interface Student {
   id: string;
@@ -43,6 +44,7 @@ export default function StudentAttendancePage() {
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [searching, setSearching] = useState(false);
   const [pendingChanges, setPendingChanges] = useState<PendingChange[]>([]);
+  const [welRecords, setWelRecords] = useState<any[]>([]);
 
   useEffect(() => {
     console.log("Current pending changes:", pendingChanges);
@@ -86,11 +88,25 @@ export default function StudentAttendancePage() {
     }
   };
 
-  const handleSelectStudent = (student: Student) => {
+  const handleSelectStudent = async (student: Student) => {
     setSelectedStudent(student);
     setStudents([]);
     setSearchQuery("");
-    setPendingChanges([]); // Clear pending changes when switching students
+    setPendingChanges([]);
+
+    // Fetch WEL records
+    try {
+      const records = await fetchStudentWelRecords(student.id);
+      setWelRecords(records);
+    } catch (error) {
+      console.error("Error fetching WEL records:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load WEL records",
+        variant: "destructive",
+      });
+    }
+
     toast({
       title: "Student selected",
       description: `Viewing attendance for ${student.firstName} ${student.lastName}`,
@@ -273,6 +289,7 @@ export default function StudentAttendancePage() {
             <AttendanceCalendar
               studentId={selectedStudent.id}
               onAttendanceChange={handleAttendanceUpdate}
+              welRecords={welRecords}
               key={selectedStudent.id}
             />
           </div>
