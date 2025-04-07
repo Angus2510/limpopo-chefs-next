@@ -33,6 +33,15 @@ export default function ScanAttendancePage() {
     }
   }, [user, router, toast]);
 
+  useEffect(() => {
+    const cleanup = () => {
+      setIsScanning(false);
+      setIsLoading(false);
+    };
+
+    return cleanup;
+  }, []);
+
   const handleScan = async (decodedText: string) => {
     if (!user?.id) return;
 
@@ -41,7 +50,6 @@ export default function ScanAttendancePage() {
       const parsedData = JSON.parse(decodedText);
       console.log("Parsed QR data:", parsedData);
 
-      // Create attendance data in the correct format
       const attendanceData = {
         studentId: user.id,
         qrData: {
@@ -59,13 +67,17 @@ export default function ScanAttendancePage() {
         throw new Error(result.error || "Failed to mark attendance");
       }
 
+      setIsScanning(false);
+
       toast({
         title: "Success",
         description: `Successfully marked present for ${parsedData.outcome.title}`,
       });
 
-      setIsScanning(false);
-      router.push("/student/attendance/viewAttendance");
+      // Add a small delay before navigation
+      setTimeout(() => {
+        router.push("/student/attendance/viewAttendance");
+      }, 100);
     } catch (error: any) {
       console.error("Attendance marking failed:", error);
       toast({

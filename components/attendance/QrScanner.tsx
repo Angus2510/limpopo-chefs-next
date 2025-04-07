@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
-import { Camera, RefreshCcw } from "lucide-react";
+import { RefreshCcw } from "lucide-react";
 
 interface QrData {
   data: {
@@ -45,12 +45,10 @@ export function QrScanner({ isOpen, onClose, onScan }: QrScannerProps) {
       console.log("Raw QR data:", decodedText);
       const parsedData = JSON.parse(decodedText);
 
-      // Validate the structure
       if (!parsedData.campusId || !parsedData.outcome?.id || !parsedData.date) {
         throw new Error("Invalid QR code - missing required fields");
       }
 
-      // Pass the raw decoded text to let the parent handle parsing
       await onScan(decodedText);
 
       if (html5QrRef.current) {
@@ -90,18 +88,13 @@ export function QrScanner({ isOpen, onClose, onScan }: QrScannerProps) {
 
   const validateQrData = (data: string): QrData => {
     try {
-      console.log("Raw QR data:", data);
       let parsed;
       try {
         parsed = JSON.parse(data);
       } catch (e) {
-        console.error("JSON parse error:", e);
         throw new Error("Invalid QR code - not valid JSON");
       }
 
-      console.log("Parsed data:", parsed);
-
-      // Check if we have a data wrapper
       if (parsed.data) {
         const qrData = parsed.data;
         if (!qrData.campusId || !qrData.outcome?.id || !qrData.date) {
@@ -110,14 +103,12 @@ export function QrScanner({ isOpen, onClose, onScan }: QrScannerProps) {
         return parsed as QrData;
       }
 
-      // If no data wrapper, check direct properties
       if (parsed.campusId && parsed.outcome?.id && parsed.date) {
         return { data: parsed } as QrData;
       }
 
       throw new Error("Invalid QR code - missing required fields");
     } catch (error) {
-      console.error("QR validation error:", error);
       throw new Error(
         error instanceof Error ? error.message : "Invalid QR code format"
       );
@@ -187,11 +178,14 @@ export function QrScanner({ isOpen, onClose, onScan }: QrScannerProps) {
   };
 
   useEffect(() => {
-    if (isOpen) {
+    let mounted = true;
+
+    if (isOpen && mounted) {
       startScanner();
     }
 
     return () => {
+      mounted = false;
       if (html5QrRef.current) {
         html5QrRef.current.stop().catch(console.error);
       }
