@@ -2,6 +2,7 @@
 import React from "react";
 import AttendanceCalendar from "@/components/attendance/AttendanceCalendar";
 import { useAuth } from "@/context/auth-context";
+import { ContentLayout } from "@/components/layout/content-layout";
 
 const AttendancePage = () => {
   const { user, isAuthenticated } = useAuth();
@@ -16,10 +17,12 @@ const AttendancePage = () => {
   }
 
   return (
-    <div className="container mx-auto px-4">
-      <h1 className="text-2xl font-bold mb-6">My Attendance History</h1>
-      <AttendanceCalendar studentId={studentId} />
-    </div>
+    <ContentLayout title="Attendance History">
+      <div className="container mx-auto px-4">
+        <h1 className="text-2xl font-bold mb-6">My Attendance History</h1>
+        <AttendanceCalendar studentId={studentId} />
+      </div>
+    </ContentLayout>
   );
 };
 
