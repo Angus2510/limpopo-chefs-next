@@ -10,14 +10,15 @@ interface DayCellProps {
   isCurrentMonth: boolean;
   onClick: () => void;
   onEventClick: (event: Event) => void;
+  intakeGroups: { id: string; title: string }[];
 }
-
 export function DayCell({
   date,
   events,
   isCurrentMonth,
   onClick,
   onEventClick,
+  intakeGroups,
 }: DayCellProps) {
   const dayEvents = events.filter((event) => {
     const eventDate =
@@ -55,6 +56,7 @@ export function DayCell({
               key={event.id}
               event={event}
               onClick={() => onEventClick(event)}
+              intakeGroups={intakeGroups}
             />
           ))}
         </div>

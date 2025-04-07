@@ -11,6 +11,13 @@ import { getEvents } from "@/lib/actions/events/getEvents";
 import { toast } from "@/components/ui/use-toast";
 import { addWeeks, subWeeks } from "date-fns";
 
+interface CalendarProps {
+  intakeGroups: {
+    id: string;
+    title: string;
+  }[];
+}
+
 export function Calendar({ intakeGroups }: CalendarProps) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const {
@@ -138,6 +145,7 @@ export function Calendar({ intakeGroups }: CalendarProps) {
         events={sortEventsByTime(events)}
         onDayClick={handleDayClick}
         onEventClick={handleEventClick}
+        intakeGroups={intakeGroups}
       />
 
       <EventDialog
