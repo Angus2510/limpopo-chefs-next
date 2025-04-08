@@ -79,72 +79,76 @@ const GROUP_SUBJECTS = {
       // First Year Theory
       { title: "01:01 - Introduction to Food Costing 1.0", type: "Theory" },
       { title: "01:02 - Introduction to French 1.0", type: "Theory" },
+      { title: "01:03 - Intro to the Hospitality Industry", type: "Theory" }, // Changed
       {
-        title: "01:03 - Introduction to the Hospitality Industry",
+        title: "01:04 - Intro to Nutrition and Healthy Eating",
         type: "Theory",
-      },
-      {
-        title: "01:04 - Introduction to Nutrition and Healthy Eating",
-        type: "Theory",
-      },
+      }, // Changed
       { title: "01:05 - Essential Knife Skills", type: "Theory" },
       { title: "01:06 - Food Safety and Quality Assurance", type: "Theory" },
       { title: "01:07 - Health and Safety in the Workplace", type: "Theory" },
       { title: "01:08 - Personal Hygiene in the Workplace", type: "Theory" },
       {
-        title: "01:09 - Food Preparation Methods, Techniques and Equipment",
+        title: "01:09 - Food prep Methods, Techniques and Equipment",
         type: "Theory",
-      },
-      { title: "01:10 - Food Cooking Methods & Techniques", type: "Theory" },
+      }, // Changed
+      { title: "01:10 - Food Cooking Methods and Techniques", type: "Theory" }, // Changed
       {
-        title: "01:11 part 1 - Food Commodities & Basic Ingredients",
+        title: "01:11 - Food Commodities and Basic Ingredients",
         type: "Theory",
-      },
+      }, // Base version
       {
-        title: "01:11 part 2 - Food Commodities & Basic Ingredients",
+        title: "01:11 (P1) - Food Commodities and Basic Ingredients",
         type: "Theory",
-      },
+      }, // Part 1
       {
-        title: "01:12 - Theory of Food Production & Customer Service",
+        title: "01:11 (P2) - Food Commodities and Basic Ingredients",
+        type: "Theory",
+      }, // Part 2
+      {
+        title: "01:12 - Theory of Food Production and Customer Service",
         type: "Theory",
       },
-      { title: "01:13 - Numeracy and Units of Measurement", type: "Theory" },
+      { title: "01:13 - Numeracy and Units of Measure", type: "Theory" }, // Changed
       {
         title: "01:14 - Introduction: Meal Planning and Menus",
         type: "Theory",
       },
-      { title: "01:15 - Computer Literacy and Research", type: "Theory" },
+      { title: "01:15 - Computer Litracy & Research", type: "Theory" }, // Changed
       { title: "01:16 - Environmental Awareness", type: "Theory" },
       { title: "01:17 - Personal Development as a Chef", type: "Theory" },
 
-      // Second Year Theory
+      // Second Year Theory - Update format to match database
       { title: "02:01 - Environmental Sustainability", type: "Theory" },
       { title: "02:02 - Advanced Menu Planning and Costing", type: "Theory" },
       {
-        title:
-          "02:03 part 1 - Theory of Preparing, Cooking and Finishing Dishes",
+        title: "02:03 - Theory of Preparing, Cooking and Finishing Dishes",
+        type: "Theory",
+      }, // Base version
+      {
+        title: "02:03 (P1) - Theory of Preparing, Cooking and Finishing Dishes",
         type: "Theory",
       },
       {
-        title:
-          "02:03 part 2 - Theory of Preparing, Cooking and Finishing Dishes",
+        title: "02:03 (P2) - Theory of Preparing, Cooking and Finishing Dishes",
         type: "Theory",
       },
       {
-        title:
-          "02:03 part 3 - Theory of Preparing, Cooking and Finishing Dishes",
+        title: "02:03 (P3) - Theory of Preparing, Cooking and Finishing Dishes",
         type: "Theory",
       },
       {
-        title:
-          "02:03 part 4 - Theory of Preparing, Cooking and Finishing Dishes",
+        title: "02:03 (P4) - Theory of Preparing, Cooking and Finishing Dishes",
         type: "Theory",
       },
       {
-        title:
-          "02:03 part 5 - Theory of Preparing, Cooking and Finishing Dishes",
+        title: "02:03 (P5) - Theory of Preparing, Cooking and Finishing Dishes",
         type: "Theory",
       },
+      {
+        title: "02:04 - Theory of Facility and Equipment Resource Management",
+        type: "Theory",
+      }, // Added
       {
         title: "02:05 - Staff Resource Management and Self Development",
         type: "Theory",
@@ -155,8 +159,12 @@ const GROUP_SUBJECTS = {
       },
       { title: "02:07 - Understand Business Success", type: "Theory" },
       { title: "02:08 - Provide Guest Service", type: "Theory" },
+      {
+        title: "02:09 - Preparation & Cooking: Nutrition & Healthier Foods",
+        type: "Theory",
+      }, // Added
 
-      // Third Year Theory
+      // Third Year Theory - Update format
       { title: "03:01 - Theory of Safety Supervision", type: "Theory" },
       {
         title: "03:02 - Theory of Food Production Supervision",
@@ -166,21 +174,13 @@ const GROUP_SUBJECTS = {
       { title: "03:04 - Contribute to the Guest Experience", type: "Theory" },
       {
         title:
-          "03:05 - Developing Opportunities for Progression in the Culinary Industry",
+          "03:05 - Developing opportunities for progression in the Culinary Industry",
         type: "Theory",
-      },
-      {
-        title: "03:06 part 1 - Gastronomy and Global Cuisines",
-        type: "Theory",
-      },
-      {
-        title: "03:06 part 2 - Gastronomy and Global Cuisines",
-        type: "Theory",
-      },
-      {
-        title: "03:06 part 3 - Gastronomy and Global Cuisines",
-        type: "Theory",
-      },
+      }, // Changed
+      { title: "03:06 - Gastronomy and Global Cuisine", type: "Theory" }, // Base version
+      { title: "03:06 (P1) - Gastronomy and Global Cuisine", type: "Theory" },
+      { title: "03:06 (P2) - Gastronomy and Global Cuisine", type: "Theory" },
+      { title: "03:06 (P3) - Gastronomy and Global Cuisine", type: "Theory" },
       { title: "03:07 - Operational Cost Control", type: "Theory" },
 
       // Function Tasks
