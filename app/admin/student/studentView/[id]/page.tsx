@@ -20,12 +20,22 @@ const StudentPage = async ({
   console.log("Fetching student data for ID:", id);
 
   try {
-    // Fetch all student data using the centralized function
     const studentData = await fetchStudentData(id);
+
+    // Log full structure to verify data
+    console.log(
+      "Full student data structure:",
+      JSON.stringify(studentData, null, 2)
+    );
 
     if (!studentData) {
       console.error("Error: No data found for student ID:", id);
       return <div>No student data found.</div>;
+    }
+
+    // Verify the data structure before passing to StudentView
+    if (!studentData.student?.mappedTitles?.intakeGroup) {
+      console.warn("Warning: Missing mapped titles or intake group");
     }
 
     return (

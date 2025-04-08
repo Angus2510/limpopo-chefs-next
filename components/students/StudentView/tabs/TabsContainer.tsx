@@ -13,6 +13,7 @@ interface TabsContainerProps {
   };
   documents: any[];
   studentId: string;
+  intakeGroup: string;
 }
 
 export function TabsContainer({
@@ -20,7 +21,10 @@ export function TabsContainer({
   finances,
   documents,
   studentId,
+  intakeGroup,
 }: TabsContainerProps) {
+  console.log("TabsContainer rendering with intakeGroup:", intakeGroup);
+
   return (
     <Tabs defaultValue="results">
       <TabsList className="grid grid-cols-3 mb-4">
@@ -30,7 +34,7 @@ export function TabsContainer({
       </TabsList>
 
       <TabsContent value="results">
-        <ResultsTab results={results} />
+        <ResultsTab results={results} intakeGroup={intakeGroup} />
       </TabsContent>
 
       <TabsContent value="finances">

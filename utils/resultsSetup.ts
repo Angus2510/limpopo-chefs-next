@@ -1,62 +1,70 @@
-export type IntakeType = keyof typeof GROUP_SUBJECTS;
 export type IntakeCategory =
   | "OCG"
   | "PASTRY"
-  | "AWARDS"
+  | "AWARD" // Changed from AWARDS to AWARD
   | "DIPLOMA"
   | "CERTIFICATE";
 
-export interface Result {
-  id: string;
-  dateTaken: Date;
-  assignments?: {
-    title: string;
-    type: string;
-  };
-  outcome?: {
-    title: string;
-  };
-  scores: number;
-  percent: number;
-  taskScore: number | null;
-  testScore: number | null;
-  status: string;
-}
-
 export function getIntakeCategory(intakeString?: string): IntakeCategory {
   if (!intakeString) {
+    console.log("No intake string provided");
     return "OCG";
   }
 
-  const upperIntake = intakeString.toUpperCase();
+  const upperIntake = intakeString.trim().toUpperCase();
+  console.log("Processing intake:", upperIntake);
 
-  // Check for special cases first
-  if (upperIntake.includes("DIPLOMA PASTRY")) return "PASTRY";
-  if (upperIntake.includes("DIPLOMA EXCHANGE")) return "DIPLOMA";
-  if (upperIntake.includes("DIPLOMA")) return "DIPLOMA";
+  // First, check for strict matches
+  if (upperIntake.includes("DIPLOMA EXCHANGE")) {
+    console.log("✅ Matched DIPLOMA category (exchange)");
+    return "DIPLOMA";
+  }
 
-  // Check for online variants
-  if (upperIntake.includes("ONLINE AWARD")) return "AWARDS";
-  if (upperIntake.includes("ONLINE CERTIFICATE")) return "CERTIFICATE";
+  if (upperIntake.includes("DIPLOMA PASTRY")) {
+    console.log("✅ Matched PASTRY category (diploma)");
+    return "PASTRY";
+  }
 
-  // Check for standard categories
-  if (upperIntake.includes("OCG") || upperIntake.includes("CATHSSETA"))
-    return "OCG";
-  if (upperIntake.includes("PASTRY")) return "PASTRY";
-  if (upperIntake.includes("AWARD")) return "AWARDS";
-  if (upperIntake.includes("CERTIFICATE")) return "CERTIFICATE";
+  if (upperIntake.includes("DIPLOMA")) {
+    console.log("✅ Matched DIPLOMA category");
+    return "DIPLOMA";
+  }
 
-  // Handle COOK category - map it to OCG since they follow the same curriculum
-  if (upperIntake.includes("COOK") || upperIntake.includes("BLOCK RELEASE")) {
+  if (upperIntake.includes("AWARD") || upperIntake.includes("ONLINE AWARD")) {
+    console.log("✅ Matched AWARD category");
+    return "AWARD";
+  }
+
+  if (
+    upperIntake.includes("CERTIFICATE") ||
+    upperIntake.includes("ONLINE CERTIFICATE")
+  ) {
+    console.log("✅ Matched CERTIFICATE category");
+    return "CERTIFICATE";
+  }
+
+  if (
+    upperIntake.includes("PASTRY") ||
+    upperIntake.includes("PART - TIME (PASTRY)")
+  ) {
+    console.log("✅ Matched PASTRY category");
+    return "PASTRY";
+  }
+
+  // OCG checks - these need to be last since they're more general
+  if (
+    upperIntake.includes("OCG") ||
+    upperIntake.includes("COOK") ||
+    upperIntake.includes("CATHSSETA") ||
+    upperIntake.includes("BLOCK RELEASE") ||
+    upperIntake.includes("CHOBE") ||
+    upperIntake.includes("PART - TIME (COOK)")
+  ) {
+    console.log("✅ Matched OCG category");
     return "OCG";
   }
 
-  // Handle part-time variants
-  if (upperIntake.includes("PART - TIME")) {
-    if (upperIntake.includes("PASTRY")) return "PASTRY";
-    if (upperIntake.includes("COOK")) return "OCG";
-  }
-
+  console.warn("⚠️ Unmatched intake group:", intakeString);
   return "OCG";
 }
 
@@ -327,7 +335,7 @@ const GROUP_SUBJECTS = {
     ],
   },
 
-  AWARDS: {
+  AWARD: {
     subjects: [
       // Theory subjects
       { title: "01:01 - Introduction to Food Costing 1.0", type: "Theory" },

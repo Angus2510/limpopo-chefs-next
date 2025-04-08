@@ -5,7 +5,29 @@ import { StudentInfo } from "./sections/StudentInfo";
 import { AddressInfo } from "./sections/AddressInfo";
 import { GuardianInfo } from "./sections/GuardianInfo";
 import { TabsContainer } from "./tabs/TabsContainer";
-import { StudentViewProps } from "./types";
+
+export interface Student {
+  id: string;
+  email: string;
+  profile: {
+    address?: any;
+  };
+  mappedTitles: {
+    campus: string;
+    intakeGroup: string;
+    email: string;
+  };
+}
+
+export interface StudentViewProps {
+  data: {
+    student: Student;
+    guardians: any[];
+    results: any[];
+    finances: any;
+    documents: any[];
+  };
+}
 
 export default function StudentView({ data }: StudentViewProps) {
   const {
@@ -16,10 +38,18 @@ export default function StudentView({ data }: StudentViewProps) {
     documents = [],
   } = data;
 
+  // Use intakeGroupTitle instead of mappedTitles
+  const intakeGroup = student?.intakeGroupTitle || "";
+
+  console.log("StudentView rendering with:", {
+    intakeGroup,
+    studentId: student?.id,
+    hasResults: results?.length,
+  });
+
   return (
     <div className="space-y-6">
       <Header />
-
       <StudentInfo student={student} />
       <AddressInfo address={student?.profile?.address} />
       <GuardianInfo guardians={guardians} />
@@ -28,7 +58,8 @@ export default function StudentView({ data }: StudentViewProps) {
         results={results}
         finances={finances}
         documents={documents}
-        studentId={student.id}
+        studentId={student?.id || ""}
+        intakeGroup={intakeGroup}
       />
     </div>
   );

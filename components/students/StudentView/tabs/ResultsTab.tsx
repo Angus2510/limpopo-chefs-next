@@ -26,9 +26,20 @@ interface ResultsTabProps {
   intakeGroup: string;
 }
 
-export function ResultsTab({ results = [], intakeGroup }: ResultsTabProps) {
+export function ResultsTab({
+  results = [],
+  intakeGroup = "",
+}: ResultsTabProps) {
+  console.log("ResultsTab received:", {
+    resultsCount: results.length,
+    intakeGroup,
+  });
+
   const intakeCategory = getIntakeCategory(intakeGroup);
+  console.log("Resolved category:", intakeCategory);
+
   const subjects = GROUP_SUBJECTS_CONFIG[intakeCategory]?.subjects || [];
+  console.log("Found subjects:", subjects.length);
 
   // Create a map of the latest results for each subject
   const latestResults = new Map();
@@ -37,6 +48,8 @@ export function ResultsTab({ results = [], intakeGroup }: ResultsTabProps) {
 
     const title = result.assignments?.title || result.outcome?.title;
     if (!title) return;
+
+    console.log("Processing result:", { title, category: intakeCategory }); // Log each result being processed
 
     const existing = latestResults.get(title);
     if (
