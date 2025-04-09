@@ -53,7 +53,7 @@ export default function LoginPage() {
       {/* Right section: Background image, now proportional */}
       <div className="hidden md:block w-1/2 lg:w-2/3 rounded-bl-[250px] md:rounded-bl-[150px] lg:rounded-bl-[200px] overflow-hidden">
         <Image
-          src="/img/auth/auth.jpg"
+          src="/img/auth/front-img-2.jpg"
           alt="Auth background"
           width={1000}
           height={1000}
