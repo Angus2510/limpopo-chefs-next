@@ -387,10 +387,12 @@ const GROUP_SUBJECTS = {
   DIPLOMA: {
     subjects: [
       // Theory subjects
+      { title: "01:01 - Introduction to Food Costing 1.0", type: "Theory" },
       {
         title: "01:03 - Introduction to the Hospitality Industry",
         type: "Theory",
       },
+      { title: "01:05 - Essential Knife Skills", type: "Theory" },
       { title: "01:06 - Food Safety and Quality Assurance", type: "Theory" },
       { title: "01:08 - Personal Hygiene in the Workplace", type: "Theory" },
       { title: "01:10 - Food Cooking Methods & Techniques", type: "Theory" },
@@ -429,6 +431,11 @@ const GROUP_SUBJECTS = {
       { title: "02:08 - Provide Guest Service", type: "Theory" },
 
       // Practical Menus
+      { title: "Menu A1", type: "Practical" }, // Knife skills
+      { title: "Menu A2", type: "Practical" }, // Eggs
+      { title: "Menu A3", type: "Practical" }, // Stocks
+      { title: "Menu A4", type: "Practical" }, // Sauces
+      { title: "Menu A5", type: "Practical" }, // Bread
       { title: "Menu B1", type: "Practical" }, // Flat fish & Prawn tail
       { title: "Menu B2", type: "Practical" }, // Guiness ale Steak n Kidney Pie
       { title: "Menu B3", type: "Practical" }, // Cold cucumber soup
