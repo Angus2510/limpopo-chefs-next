@@ -41,7 +41,8 @@ interface MarkAnswersProps {
   initialScores: Record<string, number>;
   totalPossible: number;
   staffId: string;
-  studentId: string; // Add this prop
+  studentId: string;
+  groupId: string; // Add this prop
 }
 
 export function MarkAnswers({
@@ -51,7 +52,8 @@ export function MarkAnswers({
   initialScores,
   totalPossible,
   staffId,
-  studentId, // Add this prop
+  studentId,
+  groupId, // Add this prop
 }: MarkAnswersProps) {
   const [scores, setScores] = useState<Record<string, number>>(
     initialScores || {}
@@ -156,7 +158,7 @@ export function MarkAnswers({
 
       // Short delay before redirect
       await new Promise((resolve) => setTimeout(resolve, 1000));
-      router.push("/admin/assignment");
+      router.push(`/admin/assignment/mark/group/${groupId}`);
     } catch (error) {
       console.error("Error in handleSubmit:", error);
 

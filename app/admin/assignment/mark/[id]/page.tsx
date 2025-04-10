@@ -427,6 +427,7 @@ export default async function AssignmentMarkingPage({ params }: PageProps) {
                       totalPossible={totalPossible}
                       staffId={staffId || ""}
                       studentId={result.student.id}
+                      groupId={result.assignment.intakeGroups[0]} // Add this line - assuming the first group is the relevant one
                     />
                   </div>
                 </CardContent>
