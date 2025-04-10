@@ -186,11 +186,6 @@ export function getMenuList(pathname: string): Group[] {
             icon: Building,
             submenus: [
               {
-                href: "/admin/admin/accommodation",
-                label: "Accommodation",
-                active: pathname === "/admin/admin/accommodation",
-              },
-              {
                 href: "/admin/admin/graduate",
                 label: "Graduate Student",
                 active: pathname === "/admin/admin/graduate",

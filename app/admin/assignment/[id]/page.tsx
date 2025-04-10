@@ -340,7 +340,7 @@ export default function AssignmentViewPage({ params }: PageProps) {
                       Available From:
                     </p>
                     <p className="text-sm">
-                      {format(new Date(assignment.availableFrom), "PPP 'at' p")}
+                      {format(new Date(assignment.availableFrom), "PPP")}
                     </p>
                   </div>
                 </div>
