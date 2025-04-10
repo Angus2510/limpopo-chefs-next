@@ -65,24 +65,21 @@ export function StudentInfo({ student }: StudentInfoProps) {
               label="Admission Date"
               value={formatDate(profile?.admissionDate)}
             />
+            <InfoField label="Campus" value={student?.campusTitle} />
+            <InfoField
+              label="Qualification"
+              value={student?.qualificationTitle}
+            />
+            <InfoField label="Intake Group" value={student?.intakeGroupTitle} />
+            <InfoField
+              label="Status"
+              value={student?.active ? "Active" : "Inactive"}
+            />
+            <InfoField
+              label="City & Guild Number"
+              value={profile?.cityAndGuildNumber}
+            />
           </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
-          <InfoField label="Campus" value={student?.campusTitle} />
-          <InfoField
-            label="Qualification"
-            value={student?.qualificationTitle}
-          />
-          <InfoField label="Intake Group" value={student?.intakeGroupTitle} />
-          <InfoField
-            label="Status"
-            value={student?.active ? "Active" : "Inactive"}
-          />
-          <InfoField
-            label="City & Guild Number"
-            value={profile?.cityAndGuildNumber}
-          />
         </div>
       </CardContent>
     </Card>
