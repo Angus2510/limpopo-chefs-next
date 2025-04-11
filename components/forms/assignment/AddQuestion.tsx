@@ -37,9 +37,11 @@ interface Question {
 
 interface AddQuestionProps {
   newQuestion: Question;
-  setNewQuestion: React.Dispatch<React.SetStateAction<Question>>;
+  setNewQuestion: (question: Question) => void;
   addQuestion: (question: Question) => void;
   toast: any;
+  isEditing?: boolean;
+  onUpdate?: () => void;
 }
 
 // Multiple Choice Input Component

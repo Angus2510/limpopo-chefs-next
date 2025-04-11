@@ -74,6 +74,7 @@ interface TestCreationFormProps {
 }
 
 interface Question {
+  id: string;
   questionText: string; // Changed from text
   questionType: string; // Changed from type
   mark: string;
@@ -135,6 +136,8 @@ const TestCreationForm: React.FC<TestCreationFormProps> = ({
   const router = useRouter();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
 
   // Form Setup
   const form = useForm<FormValues>({
@@ -255,6 +258,11 @@ const TestCreationForm: React.FC<TestCreationFormProps> = ({
     } finally {
       setIsSubmitting(false);
     }
+  };
+  const handleEditQuestion = (index: number, updatedQuestion: Question) => {
+    const updatedQuestions = [...questionFields];
+    updatedQuestions[index] = updatedQuestion;
+    setValue("questions", updatedQuestions);
   };
 
   return (
@@ -535,6 +543,7 @@ const TestCreationForm: React.FC<TestCreationFormProps> = ({
           <QuestionsList
             questionFields={questionFields}
             removeQuestion={removeQuestion}
+            editQuestion={handleEditQuestion}
           />
           <div className="px-6 py-4 bg-muted/50 rounded-lg mx-6">
             <div className="flex justify-between items-center">
