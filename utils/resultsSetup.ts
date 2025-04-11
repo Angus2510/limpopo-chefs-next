@@ -389,7 +389,7 @@ const GROUP_SUBJECTS = {
       // Theory subjects
       { title: "01:01 - Introduction to Food Costing 1.0", type: "Theory" },
       {
-        title: "01:03 - Introduction to the Hospitality Industry",
+        title: "01:03 - Intro to the Hospitality Industry",
         type: "Theory",
       },
       { title: "01:05 - Essential Knife Skills", type: "Theory" },
