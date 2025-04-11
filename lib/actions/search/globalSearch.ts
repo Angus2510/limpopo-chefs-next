@@ -1,14 +1,17 @@
 "use server";
 
 import prisma from "@/lib/db";
+import { z } from "zod";
 
-export type SearchResult = {
-  id: string;
-  type: "student" | "staff" | "guardian";
-  title: string;
-  subtitle: string;
-  url: string;
-};
+const searchResultSchema = z.object({
+  id: z.string(),
+  type: z.enum(["student", "staff", "guardian"]),
+  title: z.string(),
+  subtitle: z.string(),
+  url: z.string(),
+});
+
+export type SearchResult = z.infer<typeof searchResultSchema>;
 
 export async function globalSearch(
   searchTerm: string
@@ -18,99 +21,85 @@ export async function globalSearch(
   }
 
   try {
-    const [students, staff, guardians] = await Promise.all([
-      // Students search
-      prisma.students.findMany({
-        where: {
-          OR: [
-            { admissionNumber: { contains: searchTerm, mode: "insensitive" } },
-            { email: { contains: searchTerm, mode: "insensitive" } },
-            { username: { contains: searchTerm, mode: "insensitive" } },
-            {
-              importantInformation: {
-                contains: searchTerm,
-                mode: "insensitive",
-              },
-            },
-          ],
-        },
-        include: {
-          profile: true,
-        },
-        take: 5,
-      }),
+    const students = await prisma.students.findMany({
+      where: {
+        OR: [
+          { admissionNumber: searchTerm },
+          { email: { contains: searchTerm, mode: "insensitive" } },
+          { username: { contains: searchTerm, mode: "insensitive" } },
+        ],
+      },
+      include: {
+        profile: true,
+      },
+      take: 5,
+    });
 
-      // Staff search
-      prisma.staffs.findMany({
-        where: {
-          OR: [
-            { email: { contains: searchTerm, mode: "insensitive" } },
-            { username: { contains: searchTerm, mode: "insensitive" } },
-          ],
-        },
-        include: {
-          profile: true,
-        },
-        take: 5,
-      }),
+    const staff = await prisma.staffs.findMany({
+      where: {
+        OR: [
+          { email: { contains: searchTerm, mode: "insensitive" } },
+          { username: { contains: searchTerm, mode: "insensitive" } },
+        ],
+      },
+      include: {
+        profile: true,
+      },
+      take: 5,
+    });
 
-      // Guardians search
-      prisma.guardians.findMany({
-        where: {
-          OR: [
-            { firstName: { contains: searchTerm, mode: "insensitive" } },
-            { lastName: { contains: searchTerm, mode: "insensitive" } },
-            { email: { contains: searchTerm, mode: "insensitive" } },
-            { mobileNumber: { contains: searchTerm, mode: "insensitive" } },
-            { relation: { contains: searchTerm, mode: "insensitive" } },
-          ],
-        },
-        take: 5,
-      }),
-    ]);
+    const guardians = await prisma.guardians.findMany({
+      where: {
+        OR: [
+          { firstName: { contains: searchTerm, mode: "insensitive" } },
+          { lastName: { contains: searchTerm, mode: "insensitive" } },
+          { email: { contains: searchTerm, mode: "insensitive" } },
+        ],
+      },
+      take: 5,
+    });
 
-    const results: SearchResult[] = [];
-
-    // Format student results
-    for (const student of students) {
-      if (student.profile) {
-        results.push({
+    const results = [
+      ...students.map(
+        (student): SearchResult => ({
           id: student.id,
           type: "student",
-          title: `${student.profile.firstName} ${student.profile.lastName}`,
-          subtitle: `${student.admissionNumber} • ${student.email}`,
+          title: student.profile
+            ? `${student.profile.firstName || ""} ${
+                student.profile.lastName || ""
+              }`.trim()
+            : student.admissionNumber || "Unknown Student",
+          subtitle: [student.admissionNumber, student.email]
+            .filter(Boolean)
+            .join(" • "),
           url: `/admin/student/studentView/${student.id}`,
-        });
-      }
-    }
-
-    // Format staff results
-    for (const staffMember of staff) {
-      if (staffMember.profile) {
-        results.push({
+        })
+      ),
+      ...staff.map(
+        (staffMember): SearchResult => ({
           id: staffMember.id,
           type: "staff",
-          title: `${staffMember.profile.firstName} ${staffMember.profile.lastName}`,
-          subtitle: staffMember.email,
+          title: `${staffMember.profile?.firstName || ""} ${
+            staffMember.profile?.lastName || ""
+          }`.trim(),
+          subtitle: staffMember.email || "",
           url: `/admin/settings/staff/edit/${staffMember.id}`,
-        });
-      }
-    }
+        })
+      ),
+      ...guardians.map(
+        (guardian): SearchResult => ({
+          id: guardian.id,
+          type: "guardian",
+          title: `${guardian.firstName || ""} ${
+            guardian.lastName || ""
+          }`.trim(),
+          subtitle: guardian.email || "",
+          url: `/admin/student/studentView/${guardian.studentId}`,
+        })
+      ),
+    ].filter((result) => result.title !== "");
 
-    // Format guardian results
-    for (const guardian of guardians) {
-      results.push({
-        id: guardian.id,
-        type: "guardian",
-        title: `${guardian.firstName || ""} ${guardian.lastName || ""}`,
-        subtitle: `${guardian.relation || "Guardian"} • ${
-          guardian.email || guardian.mobileNumber || ""
-        }`,
-        url: `/admin/student/edit/${guardian.studentId}#guardians`,
-      });
-    }
-
-    return results.filter((result) => result.title.trim() !== "");
+    return results;
   } catch (error) {
     if (error instanceof Error) {
       console.error("Search error:", error.message);
