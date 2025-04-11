@@ -59,6 +59,8 @@ export interface Student {
   intakeGroup: string[];
   qualification?: string[];
   accommodation?: string;
+  guardians: string[]; // IDs of guardians
+  guardiansData?: Guardian[]; // Full guardian objects
 }
 
 export interface Guardian {

@@ -7,7 +7,7 @@ import { getAllQualifications } from "@/lib/actions/qualification/action";
 import { getAllAccommodations } from "@/lib/actions/accommodation/action";
 import { fetchStudentData } from "@/lib/actions/student/fetchStudentData";
 import { notFound } from "next/navigation";
-import type { Student } from "@/types/student/studentData";
+import type Student from "@/types/student/studentData";
 
 // Use correct parameter type
 type PageParams = {

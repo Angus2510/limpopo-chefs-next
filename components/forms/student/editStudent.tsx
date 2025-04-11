@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import type {
   Student,
@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/select";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import { useCallback } from "react";
 
 interface EditStudentFormProps {
   student: Student;
@@ -38,6 +39,15 @@ interface EditStudentFormProps {
   campuses: Campus[];
   accommodations: Accommodation[];
   qualifications: Qualification[];
+}
+
+export interface Guardian {
+  id: string;
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  mobileNumber?: string;
+  relation?: string;
 }
 
 const EditStudentForm: React.FC<EditStudentFormProps> = ({
@@ -79,8 +89,25 @@ const EditStudentForm: React.FC<EditStudentFormProps> = ({
       country: student.profile?.address?.country || "",
       postalCode: student.profile?.address?.postalCode || "",
       avatar: "", // Handled separately with file input
+      guardians: student.guardiansData || [], // Add this line
     },
   });
+  const guardians = form.watch("guardians");
+  const memoizedGuardians = useMemo(() => guardians || [], [guardians]);
+
+  const addGuardian = useCallback(() => {
+    const currentGuardians = memoizedGuardians;
+    const newGuardian: Guardian = {
+      id: `temp-${Date.now()}`,
+      firstName: "",
+      lastName: "",
+      email: "",
+      mobileNumber: "",
+      relation: "",
+    };
+
+    form.setValue("guardians", [...currentGuardians, newGuardian]);
+  }, [memoizedGuardians, form]);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -92,82 +119,54 @@ const EditStudentForm: React.FC<EditStudentFormProps> = ({
     }
   };
 
+  // In editStudent.tsx, update the handleSubmit function
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
 
     try {
       const values = form.getValues();
-
-      // Create FormData
       const formData = new FormData();
 
-      // Append all form values to FormData
+      // Add student ID
       formData.append("id", student.id);
-      formData.append("email", values.email || "");
-      formData.append("admissionNumber", values.admissionNumber || "");
-      formData.append("firstName", values.firstName || "");
-      formData.append("lastName", values.lastName || "");
-      formData.append("middleName", values.middleName || "");
-      formData.append("idNumber", values.idNumber || "");
-      formData.append("gender", values.gender || "");
-      formData.append("mobileNumber", values.mobileNumber || "");
-      formData.append("homeLanguage", values.homeLanguage || "");
-      formData.append("cityAndGuildNumber", values.cityAndGuildNumber || "");
 
-      // Append avatar if selected
-      if (avatarFile) {
-        formData.append("avatar", avatarFile);
-      }
+      // Add guardians data
+      formData.append("guardians", JSON.stringify(values.guardians));
 
-      // References
-      if (values.campus) formData.append("campus", values.campus);
-      if (values.intakeGroup)
-        formData.append("intakeGroup", values.intakeGroup);
-      if (values.qualification)
-        formData.append("qualification", values.qualification);
-      formData.append("accommodation", values.accommodation || "none");
+      // Add all other form fields
+      Object.entries(values).forEach(([key, value]) => {
+        if (key !== "guardians") {
+          // Skip guardians as we've already handled them
+          formData.append(key, value?.toString() || "");
+        }
+      });
 
-      // Address
-      formData.append("street1", values.street1 || "");
-      formData.append("street2", values.street2 || "");
-      formData.append("city", values.city || "");
-      formData.append("province", values.province || "");
-      formData.append("country", values.country || "");
-      formData.append("postalCode", values.postalCode || "");
-
-      // Send the request
       const response = await fetch("/api/students/updateStudent", {
         method: "POST",
         body: formData,
       });
 
       if (!response.ok) {
-        throw new Error(`API returned ${response.status}`);
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      const result = await response.json();
+      const data = await response.json();
 
-      if (result.success) {
+      if (data.success) {
         toast({
           title: "Success",
           description: "Student updated successfully",
         });
-
-        // Redirect to student view page
         router.push(`/admin/student/studentView/${student.id}`);
       } else {
-        toast({
-          title: "Update Failed",
-          description: result.error || "Unknown error",
-          variant: "destructive",
-        });
+        throw new Error(data.message || "Update failed");
       }
     } catch (error) {
       console.error("Form submission error:", error);
       toast({
         title: "Error",
-        description: "Failed to update student",
+        description: error instanceof Error ? error.message : "Update failed",
         variant: "destructive",
       });
     } finally {
@@ -385,7 +384,6 @@ const EditStudentForm: React.FC<EditStudentFormProps> = ({
               />
             </CardContent>
           </div>
-
           <div className="space-y-4">
             <CardHeader>
               <CardTitle>Personal Details</CardTitle>
@@ -500,7 +498,6 @@ const EditStudentForm: React.FC<EditStudentFormProps> = ({
               />
             </CardContent>
           </div>
-
           <div className="space-y-4">
             <CardHeader>
               <CardTitle>Address Information</CardTitle>
@@ -589,6 +586,133 @@ const EditStudentForm: React.FC<EditStudentFormProps> = ({
                   </FormItem>
                 )}
               />
+            </CardContent>
+          </div>
+
+          <div className="space-y-4">
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle>Guardian Information</CardTitle>
+              <Button type="button" variant="outline" onClick={addGuardian}>
+                Add Guardian
+              </Button>
+            </CardHeader>
+            <CardContent>
+              {memoizedGuardians.map((guardian, index) => (
+                <div
+                  key={guardian.id || index}
+                  className="mb-6 p-4 border rounded-lg"
+                >
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name={`guardians.${index}.firstName`}
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>First Name</FormLabel>
+                          <FormControl>
+                            <Input
+                              {...field}
+                              placeholder="Guardian's First Name"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name={`guardians.${index}.lastName`}
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Last Name</FormLabel>
+                          <FormControl>
+                            <Input
+                              {...field}
+                              placeholder="Guardian's Last Name"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name={`guardians.${index}.email`}
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Email</FormLabel>
+                          <FormControl>
+                            <Input
+                              {...field}
+                              type="email"
+                              placeholder="Guardian's Email"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name={`guardians.${index}.mobileNumber`}
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Mobile Number</FormLabel>
+                          <FormControl>
+                            <Input
+                              {...field}
+                              placeholder="Guardian's Mobile Number"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name={`guardians.${index}.relation`}
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Relation</FormLabel>
+                          <Select
+                            value={field.value || ""}
+                            onValueChange={field.onChange}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select Relation" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Parent">Parent</SelectItem>
+                              <SelectItem value="Guardian">Guardian</SelectItem>
+                              <SelectItem value="Other">Other</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  <div className="flex justify-end mt-4">
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => {
+                        const currentGuardians = [...memoizedGuardians];
+                        currentGuardians.splice(index, 1);
+                        form.setValue("guardians", currentGuardians);
+                      }}
+                    >
+                      Remove Guardian
+                    </Button>
+                  </div>
+                </div>
+              ))}
             </CardContent>
           </div>
 

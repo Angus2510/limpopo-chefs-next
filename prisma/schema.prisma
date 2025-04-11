@@ -146,7 +146,6 @@ type StudentsProfile {
   middleName         String
   mobileNumber       String
   postalAddress      StudentsProfilePostalAddress
-  
 }
 
 type StudentsProfileAddress {
@@ -334,18 +333,16 @@ model generaldocuments {
 
 model guardians {
   id               String    @id @default(auto()) @map("_id") @db.ObjectId
-  v                Int?      @map("__v") // Nullable
-  createdAt        DateTime? @db.Date
-  email            String?   // Nullable
-  firstName        String?   // Nullable
-  lastName         String?   // Nullable
-  mobileNumber     String?   // Nullable
-  password         String?   // Nullable
-  relation         String?   // Nullable
-  resetToken       String?   // Nullable
-  resetTokenExpiry DateTime? @db.Date
-  updatedAt        DateTime? @db.Date
-  userType         String?   // Nullable
+  firstName        String?
+  lastName         String?
+  email            String?   @unique
+  mobileNumber     String?
+  relation         String?
+  password         String?
+  userType         String    @default("Guardian")
+  studentId        String    @db.ObjectId
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 }
 
 
