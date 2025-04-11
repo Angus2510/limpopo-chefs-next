@@ -335,7 +335,7 @@ model guardians {
   id               String    @id @default(auto()) @map("_id") @db.ObjectId
   firstName        String?
   lastName         String?
-  email            String?   @unique
+  email            String?   @db.String
   mobileNumber     String?
   relation         String?
   password         String?
@@ -343,8 +343,11 @@ model guardians {
   studentId        String    @db.ObjectId
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
-}
+  resetToken       String?
+  resetTokenExpiry DateTime?
 
+  @@index([email])
+}
 
 model intakegroups {
   id      String   @id @default(auto()) @map("_id") @db.ObjectId

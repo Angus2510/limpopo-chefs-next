@@ -103,7 +103,8 @@ export default function ProtectedStudentDashboard() {
           return;
         }
 
-        if (user?.userType !== "Student") {
+        // Allow both Student and Guardian access
+        if (user?.userType !== "Student" && user?.userType !== "Guardian") {
           console.log("Unauthorized access attempt");
           router.push("/unauthorized");
           return;
@@ -112,21 +113,12 @@ export default function ProtectedStudentDashboard() {
         const token = getToken();
         if (!token) throw new Error("No token found");
 
-        const response = await fetch("/api/validate-token", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "X-User-Type": "student",
-          },
-        });
-
-        if (!response.ok) {
-          const data = await response.json();
-          throw new Error(data.message || "Token validation failed");
-        }
+        // For guardians, we'll use their linkedStudentId from the token
+        const studentId =
+          user?.userType === "Guardian" ? user.linkedStudentId : undefined;
 
         // Fetch student data after authentication
-        const data = await fetchStudentData();
+        const data = await fetchStudentData(studentId);
         setStudentData(data);
       } catch (error) {
         console.error("Authentication error:", error);

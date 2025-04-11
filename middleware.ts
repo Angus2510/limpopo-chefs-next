@@ -8,6 +8,8 @@ interface DecodedToken {
   userType: string;
   exp: number;
   active?: boolean;
+  studentId?: string; // Added for Guardian access
+  linkedStudentId?: string; // Added for Guardian validation
 }
 
 export async function middleware(request: NextRequest) {
@@ -81,6 +83,18 @@ export async function middleware(request: NextRequest) {
       if (userType === "Student" && decoded.active === false) {
         console.log("Disabled student account attempting access");
         return NextResponse.redirect(new URL("/account-disabled", request.url));
+      }
+
+      // Special handling for student routes - allow both Students and Guardians
+      if (currentPath.startsWith("/student")) {
+        if (userType === "Student" || userType === "Guardian") {
+          // For Guardians, ensure they have a linkedStudentId
+          if (userType === "Guardian" && !decoded.linkedStudentId) {
+            console.log("Guardian missing linkedStudentId");
+            return NextResponse.redirect(new URL("/unauthorized", request.url));
+          }
+          return NextResponse.next();
+        }
       }
 
       const userPath = `/${userType.toLowerCase()}`;
