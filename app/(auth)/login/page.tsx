@@ -20,11 +20,8 @@ export default function LoginPage() {
           <div className="grid gap-2 text-center">
             {/* Adjusted text sizes so it's proportional */}
             <h1 className="text-3xl md:text-2xl lg:text-3xl font-bold">
-              Login
+              Student Portal Login
             </h1>
-            <p className="text-lg md:text-sm lg:text-base text-muted-foreground">
-              Enter your Student Number below to login to your account
-            </p>
           </div>
         </div>
 

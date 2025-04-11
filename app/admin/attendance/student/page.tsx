@@ -212,7 +212,7 @@ export default function StudentAttendancePage() {
         <div className="flex gap-4 mb-6">
           <Input
             type="text"
-            placeholder="Search by name, email or admission number..."
+            placeholder="Search by name, email or student number..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             onKeyPress={handleKeyPress}

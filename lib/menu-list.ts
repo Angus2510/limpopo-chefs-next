@@ -167,7 +167,7 @@ export function getMenuList(pathname: string): Group[] {
               },
               {
                 href: "/admin/wel/students",
-                label: "Student WEL",
+                label: "Student WEL Records",
                 active: pathname === "/admin/wel/students",
               },
             ],
@@ -249,7 +249,7 @@ export function getMenuList(pathname: string): Group[] {
               },
               {
                 href: "/admin/settings/accommodations",
-                label: "Accommodation",
+                label: "Student Accommodation",
                 active: pathname === "/admin/settings/accommodation",
               },
             ],
