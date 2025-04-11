@@ -14,11 +14,30 @@ export async function POST(request: Request) {
     ];
 
     for (const { model, type } of userTypes) {
-      const user = await model.findFirst({
-        where: {
-          OR: [{ email: identifier }, { username: identifier }],
-        },
-      });
+      let user;
+
+      if (type === "Guardian") {
+        user = await model.findFirst({
+          where: {
+            OR: [{ email: identifier }, { username: identifier }],
+          },
+          include: {
+            student: {
+              select: {
+                id: true,
+                active: true,
+                inactiveReason: true,
+              },
+            },
+          },
+        });
+      } else {
+        user = await model.findFirst({
+          where: {
+            OR: [{ email: identifier }, { username: identifier }],
+          },
+        });
+      }
 
       if (user && bcrypt.compareSync(password, user.password)) {
         // Check if student account is disabled
@@ -33,13 +52,30 @@ export async function POST(request: Request) {
           );
         }
 
+        // For guardians, check if linked student account is disabled
+        if (type === "Guardian" && user.student?.active === false) {
+          return NextResponse.json(
+            {
+              error: "Student account disabled",
+              reason:
+                user.student.inactiveReason ||
+                "The linked student account has been disabled",
+              accountDisabled: true,
+            },
+            { status: 403 }
+          );
+        }
+
         // Create JWT token
         const token = jwt.sign(
           {
             id: user.id,
             userType: type,
-            // Add active status for students to the token
             ...(type === "Student" && { active: user.active }),
+            ...(type === "Guardian" && {
+              linkedStudentId: user.student?.id,
+              viewingAs: "Student",
+            }),
           },
           process.env["JWT_SECRET"]!,
           { expiresIn: "2h" }
@@ -51,10 +87,13 @@ export async function POST(request: Request) {
           firstName: user.firstName,
           lastName: user.lastName,
           userType: type,
-          // Include active status and reason for students
           ...(type === "Student" && {
             active: user.active,
             inactiveReason: user.inactiveReason,
+          }),
+          ...(type === "Guardian" && {
+            linkedStudentId: user.student?.id,
+            viewingAs: "Student",
           }),
         };
 
@@ -71,7 +110,7 @@ export async function POST(request: Request) {
           httpOnly: true,
           secure: process.env.NODE_ENV === "production",
           sameSite: "lax",
-          maxAge: 60 * 60 * 2, // 1 hour
+          maxAge: 60 * 60 * 2, // 2 hours
         });
 
         response.cookies.set({
@@ -80,7 +119,7 @@ export async function POST(request: Request) {
           httpOnly: true,
           secure: process.env.NODE_ENV === "production",
           sameSite: "lax",
-          maxAge: 60 * 60 * 2, // 1 hour
+          maxAge: 60 * 60 * 2, // 2 hours
         });
 
         return response;

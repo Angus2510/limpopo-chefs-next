@@ -114,7 +114,12 @@ export default function LoginForm() {
           router.push("/student/dashboard");
           break;
         case "Guardian":
-          router.push("/guardian/dashboard");
+          // Redirect guardian to their linked student's dashboard
+          if (user.linkedStudentId) {
+            router.push(`/student/dashboard?viewing=${user.linkedStudentId}`);
+          } else {
+            setError("No linked student found for this guardian account");
+          }
           break;
         default:
           router.push("/dashboard");
