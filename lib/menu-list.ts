@@ -90,6 +90,11 @@ export function getMenuList(pathname: string): Group[] {
                 label: "QR Attendance",
                 active: pathname === "/admin/attendance/qr",
               },
+              {
+                href: "/admin/attendance/group",
+                label: "Group Attendance",
+                active: pathname === "/admin/attendance/group",
+              },
             ],
           },
         ],

@@ -399,28 +399,23 @@ const GROUP_SUBJECTS = {
       { title: "02:01 - Environmental Sustainability", type: "Theory" },
       { title: "02:02 - Advanced Menu Planning and Costing", type: "Theory" },
       {
-        title:
-          "02:03 part 1 - Theory of Preparing, Cooking and Finishing Dishes",
+        title: "02:03 (P1) - Theory of Preparing, Cooking and Finishing Dishes",
         type: "Theory",
       },
       {
-        title:
-          "02:03 part 2 - Theory of Preparing, Cooking and Finishing Dishes",
+        title: "02:03 (P2) - Theory of Preparing, Cooking and Finishing Dishes",
         type: "Theory",
       },
       {
-        title:
-          "02:03 part 3 - Theory of Preparing, Cooking and Finishing Dishes",
+        title: "02:03 (P3) - Theory of Preparing, Cooking and Finishing Dishes",
         type: "Theory",
       },
       {
-        title:
-          "02:03 part 4 - Theory of Preparing, Cooking and Finishing Dishes",
+        title: "02:03 (P4) - Theory of Preparing, Cooking and Finishing Dishes",
         type: "Theory",
       },
       {
-        title:
-          "02:03 part 5 - Theory of Preparing, Cooking and Finishing Dishes",
+        title: "02:03 (P5) - Theory of Preparing, Cooking and Finishing Dishes",
         type: "Theory",
       },
       {

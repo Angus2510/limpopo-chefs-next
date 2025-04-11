@@ -182,3 +182,74 @@ export async function updateStudentAttendance(
     };
   }
 }
+export async function updateGroupAttendance(
+  studentIds: string[],
+  date: Date,
+  status: AttendanceStatus,
+  campusId: string,
+  groupId: string
+) {
+  try {
+    console.log("Attempting to update group attendance:", {
+      studentIds,
+      date,
+      status,
+      campusId,
+      groupId,
+    });
+
+    const results = await Promise.all(
+      studentIds.map(async (studentId) => {
+        const existingAttendance = await prisma.attendances.findFirst({
+          where: {
+            studentId,
+            date: {
+              equals: date,
+            },
+          },
+        });
+
+        if (existingAttendance) {
+          return prisma.attendances.update({
+            where: {
+              id: existingAttendance.id,
+            },
+            data: {
+              status,
+              updatedAt: new Date(),
+            },
+          });
+        } else {
+          return prisma.attendances.create({
+            data: {
+              studentId,
+              date,
+              status,
+              timeCheckedIn: new Date(),
+              campus: campusId,
+              intakeGroup: groupId,
+              v: 1,
+            },
+          });
+        }
+      })
+    );
+
+    revalidatePath("/admin/attendance/group");
+    revalidatePath("/admin/attendance/student");
+
+    return {
+      success: true,
+      data: results,
+    };
+  } catch (error) {
+    console.error("Failed to update group attendance:", error);
+    return {
+      success: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to update group attendance",
+    };
+  }
+}
