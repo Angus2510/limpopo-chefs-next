@@ -246,12 +246,13 @@ const AddQuestion: React.FC<AddQuestionProps> = ({
         <FormItem>
           <FormLabel>Question</FormLabel>
           <FormControl>
-            <Input
+            <Textarea
               value={newQuestion.questionText}
               onChange={(e) =>
                 setNewQuestion({ ...newQuestion, questionText: e.target.value })
               }
               placeholder="Enter question text"
+              className="min-h-[100px] resize-vertical"
             />
           </FormControl>
         </FormItem>
