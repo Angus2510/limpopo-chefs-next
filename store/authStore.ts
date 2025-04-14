@@ -30,6 +30,7 @@ import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { jwtDecode } from "jwt-decode";
 import Cookies from "js-cookie";
+import { useTermsDialog } from "@/hooks/use-dialog";
 
 interface AuthState {
   user: User | null;
@@ -59,22 +60,32 @@ const useAuthStore = create<AuthState>()(
       login: ({ user, accessToken }) => {
         console.log("Logging in with:", { user, accessToken });
 
+        // Set cookie first
         Cookies.set("accessToken", accessToken, {
-          expires: 10 / (24 * 60), // 10 minutes
+          expires: 10 / (24 * 60),
           secure: process.env.NODE_ENV === "production",
           sameSite: "lax",
         });
 
+        // Then update state
         set({
           user,
           accessToken,
           studentData: null,
           error: null,
         });
+
+        // Force show POPI dialog
+        setTimeout(() => {
+          useTermsDialog.getState().showOnLogin();
+        }, 0);
       },
 
       logout: async () => {
         console.log("Logout function called");
+
+        // Reset POPI dialog state
+        useTermsDialog.getState().resetTerms();
 
         // Clear client-side state first for immediate effect
         Cookies.remove("accessToken");
@@ -85,7 +96,6 @@ const useAuthStore = create<AuthState>()(
           error: null,
         });
 
-        // Then call API in background
         try {
           console.log("Calling logout API");
           await fetch("/api/auth/logout", {
@@ -96,26 +106,20 @@ const useAuthStore = create<AuthState>()(
           console.error("Logout API error:", error);
         }
 
-        // Immediate redirect
         window.location.href = "/login";
       },
-
-      // Replace the isAuthenticated function with this quieter version:
 
       isAuthenticated: () => {
         const { accessToken, user } = get();
 
-        // No console.log here!
         if (!accessToken) {
           return false;
         }
 
         try {
           const decoded = jwtDecode<TokenPayload>(accessToken);
-          // Simple validation without logging every detail
           return decoded.exp > Date.now() / 1000;
         } catch (error) {
-          // Only log actual errors, not regular checks
           console.error("Token verification error:", error);
           return false;
         }
@@ -132,7 +136,7 @@ const useAuthStore = create<AuthState>()(
 
         if (accessToken && !cookieToken) {
           Cookies.set("accessToken", accessToken, {
-            expires: 10 / (24 * 60), // 10 minutes
+            expires: 10 / (24 * 60),
             secure: process.env.NODE_ENV === "production",
             sameSite: "lax",
           });

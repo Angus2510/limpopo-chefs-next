@@ -15,7 +15,7 @@ export function TermsDialog() {
   const { isOpen, setIsOpen, acceptTerms } = useTermsDialog();
 
   return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+    <Dialog open={isOpen} onOpenChange={setIsOpen} modal={true}>
       <DialogContent className="sm:max-w-[800px] h-[90vh] sm:h-[80vh]">
         <DialogHeader>
           <DialogTitle className="text-xl font-bold">

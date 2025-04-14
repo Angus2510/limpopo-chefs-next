@@ -19,19 +19,9 @@ export default function ProtectedStudentDashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [studentData, setStudentData] = useState<StudentData | null>(null);
-  const { hasAccepted, setIsOpen } = useTermsDialog();
-  const [showTerms, setShowTerms] = useState(true);
+  const { hasAccepted } = useTermsDialog();
 
   useEffect(() => {
-    // Only show terms dialog once during session
-    const hasShownTerms = sessionStorage.getItem("termsShown");
-    if (!hasShownTerms && !hasAccepted) {
-      setIsOpen(true);
-      sessionStorage.setItem("termsShown", "true");
-    } else {
-      setIsOpen(false);
-    }
-
     const authenticateAndFetchData = async () => {
       try {
         if (!isAuthenticated()) {
@@ -67,17 +57,7 @@ export default function ProtectedStudentDashboard() {
     };
 
     authenticateAndFetchData();
-  }, [router, user, isAuthenticated, getToken, logout, setIsOpen, hasAccepted]);
-
-  // Clear terms shown flag on logout
-  useEffect(() => {
-    const handleLogout = () => {
-      sessionStorage.removeItem("termsShown");
-    };
-
-    window.addEventListener("beforeunload", handleLogout);
-    return () => window.removeEventListener("beforeunload", handleLogout);
-  }, []);
+  }, [router, user, isAuthenticated, getToken, logout]);
 
   const renderDashboardContent = () => {
     if (isLoading) {
@@ -158,7 +138,7 @@ export default function ProtectedStudentDashboard() {
   return (
     <>
       <TermsDialog />
-      {renderDashboardContent()}
+      {!hasAccepted ? null : renderDashboardContent()}
     </>
   );
 }
