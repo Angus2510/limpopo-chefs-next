@@ -128,10 +128,11 @@ const DynamicCorrectAnswer: React.FC<{
       );
     default:
       return (
-        <Input
+        <Textarea
           value={correctAnswer}
           onChange={(e) => setCorrectAnswer(e.target.value)}
-          placeholder="Enter correct answer"
+          placeholder="Enter model answer"
+          className="min-h-[200px]"
         />
       );
   }
