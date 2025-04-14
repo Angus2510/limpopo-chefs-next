@@ -210,7 +210,7 @@ export function getMenuList(pathname: string): Group[] {
             icon: FileText,
             submenus: [
               {
-                href: "admin/reports/arrears",
+                href: "reports/arrears",
                 label: "Account in Arrears",
                 active: pathname === "admin/reports/arrears",
               },
