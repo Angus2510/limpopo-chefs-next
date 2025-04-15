@@ -1,33 +1,8 @@
 import { ContentLayout } from "@/components/layout/content-layout";
 import { Card, CardContent } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { format } from "date-fns";
 import prisma from "@/lib/db";
-import { getAllCampuses, type Campus } from "@/lib/actions/campus/campuses";
-
-// Utility functions
-const formatCurrency = (amount: number) => {
-  return new Intl.NumberFormat("en-ZA", {
-    style: "currency",
-    currency: "ZAR",
-    minimumFractionDigits: 2,
-  }).format(amount);
-};
-
-const formatDate = (dateString: Date) => {
-  try {
-    return format(dateString, "dd MMM yyyy");
-  } catch (error) {
-    return "N/A";
-  }
-};
+import { getAllCampuses } from "@/lib/actions/campus/campuses";
+import { FilteredArrearsTable } from "@/components/arrears/FilteredArrearsTable";
 
 async function getStudentsInArrears() {
   // Get all finance records with debits
@@ -86,9 +61,6 @@ async function getStudentsInArrears() {
         return sum + debitAmount;
       }, 0);
 
-      // Get the latest fee information
-      const latestFee = finance.collectedFees[0];
-
       // Map campus IDs to titles
       const campusTitles = student?.campus
         ? Array.isArray(student.campus)
@@ -104,78 +76,23 @@ async function getStudentsInArrears() {
         firstName: student?.profile?.firstName,
         lastName: student?.profile?.lastName,
         campus: campusTitles,
-        totalDebit,
-        latestDueDate: latestFee?.transactionDate || null,
-        description: latestFee?.description || "No description",
       };
     })
-    .filter((student) => student.totalDebit > 0)
-    .sort((a, b) => b.totalDebit - a.totalDebit);
-
-  const totalArrears = studentsWithArrears.reduce(
-    (sum, student) => sum + student.totalDebit,
-    0
-  );
+    .filter((student) => student.id !== "");
 
   return {
     students: studentsWithArrears,
-    totalArrears,
-    studentsInArrears: studentsWithArrears.length,
   };
 }
 
 export default async function ArrearsReportPage() {
-  const { students, totalArrears, studentsInArrears } =
-    await getStudentsInArrears();
+  const { students } = await getStudentsInArrears();
 
   return (
     <ContentLayout title="Students in Arrears Report">
       <Card className="rounded-lg border-none">
         <CardContent className="p-6">
-          {/* Summary Statistics */}
-          <div className="mb-6 grid grid-cols-2 gap-4">
-            <Card className="p-4">
-              <h3 className="text-lg font-semibold">Total Outstanding</h3>
-              <p className="text-2xl font-bold text-red-600">
-                {formatCurrency(totalArrears)}
-              </p>
-            </Card>
-            <Card className="p-4">
-              <h3 className="text-lg font-semibold">Students in Arrears</h3>
-              <p className="text-2xl font-bold">{studentsInArrears}</p>
-            </Card>
-          </div>
-
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Student Number</TableHead>
-                <TableHead>Name</TableHead>
-                <TableHead>Campus</TableHead>
-                <TableHead>Outstanding Amount</TableHead>
-                <TableHead>Due Date</TableHead>
-                <TableHead>Description</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {students.map((student) => (
-                <TableRow key={student.id} className="text-red-600">
-                  <TableCell>{student.admissionNumber}</TableCell>
-                  <TableCell>
-                    {student.firstName} {student.lastName}
-                  </TableCell>
-                  <TableCell>{student.campus}</TableCell>
-                  <TableCell>{formatCurrency(student.totalDebit)}</TableCell>
-                  <TableCell>
-                    {student.latestDueDate
-                      ? formatDate(student.latestDueDate)
-                      : "N/A"}
-                  </TableCell>
-                  <TableCell>{student.description}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          <FilteredArrearsTable students={students} />
         </CardContent>
       </Card>
     </ContentLayout>
