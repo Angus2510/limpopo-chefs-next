@@ -56,7 +56,7 @@ const documentTitles = [
   "Certified ID Copy: Parent/Guardian",
   "Certified ID Copy: Student",
   "Device Policy",
-  "Re-assessment Policy",
+  "Notice of Re-assessment Policy",
   "Popi Act Concent Form",
 ] as const;
 

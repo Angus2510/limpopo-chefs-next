@@ -34,7 +34,7 @@ const documentFolderMap = {
   "Certified ID Copy: Parent/Guardian": "identification",
   "Certified ID Copy: Student": "identification",
   "Device Policy": "policy",
-  "Re-assessment Policy": "policy",
+  "Notice of Re-assessment Policy": "policy",
   "Popi Act Concent Form": "policy",
 } as const;
 
