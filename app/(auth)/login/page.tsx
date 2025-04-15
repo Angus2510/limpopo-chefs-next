@@ -37,7 +37,7 @@ export default function LoginPage() {
         {/* Sponsor Image - Prevent distortion */}
         <div className="w-64 h-auto sm:w-48 md:w-44 lg:w-60 mt-4">
           <Image
-            src="/img/auth/sponsors-new.png"
+            src="/img/auth/sponsors-new2.png"
             alt="Sponsors"
             layout="intrinsic"
             width={550}
