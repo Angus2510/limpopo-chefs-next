@@ -34,8 +34,10 @@ const documentFolderMap = {
   "Certified ID Copy: Parent/Guardian": "identification",
   "Certified ID Copy: Student": "identification",
   "Device Policy": "policy",
-  "Notice of Re-assessment Policy": "policy",
+  "Re-assessment Policy": "policy",
   "Popi Act Concent Form": "policy",
+  "Notice of Assessment (NOA)": "acknowledgements",
+  "Notice of Re Assessment (NORA)": "acknowledgements",
 } as const;
 
 // Function to generate presigned URL

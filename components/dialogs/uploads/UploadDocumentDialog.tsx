@@ -56,8 +56,10 @@ const documentTitles = [
   "Certified ID Copy: Parent/Guardian",
   "Certified ID Copy: Student",
   "Device Policy",
-  "Notice of Re-assessment Policy",
+  "Re-assessment Policy",
   "Popi Act Concent Form",
+  "Notice of Assessment (NOA)",
+  "Notice of Re Assessment (NORA)",
 ] as const;
 
 const formSchema = z.object({
