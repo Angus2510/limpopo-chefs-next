@@ -18,6 +18,8 @@ import { useToast } from "@/components/ui/use-toast";
 import { notFound, useRouter } from "next/navigation";
 import { EditAssignmentModal } from "@/components/modals/EditAssignmentModal";
 import { updateQuestionAnswer } from "@/lib/actions/assignments/updateQuestion";
+import { AddQuestionModal } from "@/components/assignments/AddQuestionModal";
+import { addQuestion } from "@/lib/actions/assignments/addQuestion";
 
 // Keep all existing interfaces
 interface PageProps {
@@ -68,6 +70,7 @@ interface Assignment {
 export default function AssignmentViewPage({ params }: PageProps) {
   const router = useRouter();
   const { toast } = useToast();
+  const [isAddingQuestion, setIsAddingQuestion] = useState<boolean>(false);
   const [loading, setLoading] = useState(true);
   const [assignment, setAssignment] = useState<Assignment | null>(null);
   const [answers, setAnswers] = useState<Answer[]>([]);
@@ -141,6 +144,44 @@ export default function AssignmentViewPage({ params }: PageProps) {
       notFound();
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleAddQuestion = async (questionData: any) => {
+    try {
+      if (!assignment?.id) {
+        throw new Error("Assignment ID is required");
+      }
+
+      const result = await addQuestion({
+        ...questionData,
+        assignmentId: assignment.id,
+      });
+
+      if (!result.success) {
+        throw new Error(result.error);
+      }
+
+      // Update local state with the new question
+      setAssignment((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          questions: [...prev.questions, result.data],
+        };
+      });
+
+      toast({
+        description: "Question added successfully",
+      });
+    } catch (error) {
+      console.error("Failed to add question:", error);
+      toast({
+        variant: "destructive",
+        description:
+          "Failed to add question: " +
+          (error instanceof Error ? error.message : "Unknown error"),
+      });
     }
   };
 
@@ -309,8 +350,25 @@ export default function AssignmentViewPage({ params }: PageProps) {
         {/* Keep existing Assignment Details Card */}
         <Card>
           <CardHeader>
-            <CardTitle>Assessment Details</CardTitle>
-            <CardDescription>Overview and configuration</CardDescription>
+            <div className="flex justify-between items-center">
+              <div>
+                <CardTitle>Questions & Submissions</CardTitle>
+                <CardDescription>
+                  Total Questions: {assignment.questions?.length || 0} | Total
+                  Marks:{" "}
+                  {assignment.questions?.reduce(
+                    (acc, q) => acc + Number(q.mark),
+                    0
+                  ) || 0}
+                </CardDescription>
+              </div>
+              <Button
+                onClick={() => setIsAddingQuestion(true)}
+                className="bg-primary text-white"
+              >
+                Add Question
+              </Button>
+            </div>
           </CardHeader>
           <CardContent>
             {/* Keep existing Basic Information and Access/Outcomes sections */}
@@ -413,6 +471,13 @@ export default function AssignmentViewPage({ params }: PageProps) {
           question={editingQuestion}
           answer={editingAnswer}
           onSave={handleUpdate}
+        />
+      )}
+      {isAddingQuestion && (
+        <AddQuestionModal
+          isOpen={isAddingQuestion}
+          onClose={() => setIsAddingQuestion(false)}
+          onSave={handleAddQuestion}
         />
       )}
     </ContentLayout>
