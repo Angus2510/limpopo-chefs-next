@@ -20,6 +20,11 @@ interface User {
   lastName: string;
   userType: "Staff" | "Student" | "Guardian";
   avatar?: string;
+  email: string;
+  profile?: {
+    firstName: string;
+    lastName: string;
+  };
 }
 
 interface AuthContextType {
