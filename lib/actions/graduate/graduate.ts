@@ -1,6 +1,5 @@
 "use server";
 import prisma from "@/lib/db";
-
 import { revalidatePath } from "next/cache";
 
 interface GraduationStatus {
@@ -8,15 +7,17 @@ interface GraduationStatus {
 }
 
 export async function graduateStudents(graduationStatus: GraduationStatus) {
-  // Mark as server action
-
   try {
-    if (!graduationStatus || Object.keys(graduationStatus).length === 0) {
-      throw new Error("No students selected for graduation");
+    if (!graduationStatus || typeof graduationStatus !== "object") {
+      throw new Error("Invalid graduation status data");
+    }
+
+    const studentIds = Object.keys(graduationStatus);
+    if (studentIds.length === 0) {
+      throw new Error("No students provided for status update");
     }
 
     // First verify students exist and get their current status
-    const studentIds = Object.keys(graduationStatus);
     const existingStudents = await prisma.students.findMany({
       where: {
         id: { in: studentIds },
@@ -50,9 +51,22 @@ export async function graduateStudents(graduationStatus: GraduationStatus) {
     // Revalidate the alumni page
     revalidatePath("/admin/admin/alumni");
 
+    const updatedCount = results.length;
+    const graduatedCount = results.filter(
+      (student) => graduationStatus[student.id]
+    ).length;
+    const ungraduatedCount = updatedCount - graduatedCount;
+
+    let message = `Successfully updated ${updatedCount} student${
+      updatedCount !== 1 ? "s" : ""
+    } status`;
+    if (graduatedCount > 0 && ungraduatedCount > 0) {
+      message += ` (${graduatedCount} graduated, ${ungraduatedCount} ungraduated)`;
+    }
+
     return {
       success: true,
-      message: `Successfully updated ${results.length} students graduation status`,
+      message,
       results,
     };
   } catch (error) {

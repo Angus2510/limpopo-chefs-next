@@ -33,6 +33,10 @@ export default function GraduatePage() {
   const [graduationStatus, setGraduationStatus] = useState<{
     [key: string]: boolean;
   }>({});
+  const [currentSelection, setCurrentSelection] = useState<{
+    intakeGroupId: string[];
+    campusId: string;
+  }>({ intakeGroupId: [], campusId: "" });
 
   const handleSelectionComplete = async ({
     intakeGroupId,
@@ -41,15 +45,17 @@ export default function GraduatePage() {
     intakeGroupId: string[];
     campusId: string;
   }) => {
+    if (!intakeGroupId.length || !campusId) return;
+
     setLoading(true);
     try {
-      // Use the server action to fetch students
+      setCurrentSelection({ intakeGroupId, campusId });
+
       const studentsData = await getStudentsByIntakeAndCampus(
         intakeGroupId,
         campusId
       );
 
-      // Transform the data to match the Student interface
       const transformedStudents = studentsData.map((student) => ({
         id: student.id,
         profile: {
@@ -57,15 +63,15 @@ export default function GraduatePage() {
           lastName: student.surname,
         },
         admissionNumber: student.admissionNumber,
-        alumni: false,
+        alumni: student.alumni, // Use the alumni status from the database
       }));
 
       setStudents(transformedStudents);
 
-      // Initialize graduation status
+      // Initialize graduation status with current alumni status
       const initialStatus = {};
       transformedStudents.forEach((student) => {
-        initialStatus[student.id] = false;
+        initialStatus[student.id] = student.alumni;
       });
       setGraduationStatus(initialStatus);
 
@@ -98,19 +104,7 @@ export default function GraduatePage() {
   const handleSaveChanges = async () => {
     setLoading(true);
     try {
-      // Check if any students are selected for graduation
-      const hasSelectedStudents = Object.values(graduationStatus).some(
-        (status) => status
-      );
-      if (!hasSelectedStudents) {
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: "Please select at least one student to graduate",
-        });
-        return;
-      }
-
+      // Remove the validation check that requires selected students
       const result = await graduateStudents(graduationStatus);
 
       toast({
@@ -118,18 +112,19 @@ export default function GraduatePage() {
         description: result.message,
       });
 
-      // Reset form and refresh data
-      setGraduationStatus({});
-      handleSelectionComplete({
-        intakeGroupId: [], // Add your current selection values
-        campusId: "", // Add your current selection value
-      });
+      // Refresh the data with current selection
+      if (currentSelection.intakeGroupId.length && currentSelection.campusId) {
+        await handleSelectionComplete(currentSelection);
+      }
     } catch (error) {
       console.error("Error saving graduation status:", error);
       toast({
         variant: "destructive",
         title: "Error",
-        description: error.message || "Failed to update graduation status",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Failed to update graduation status",
       });
     } finally {
       setLoading(false);
@@ -163,12 +158,19 @@ export default function GraduatePage() {
                     <TableCell>{student.profile.firstName}</TableCell>
                     <TableCell>{student.profile.lastName}</TableCell>
                     <TableCell>
-                      <Switch
-                        checked={graduationStatus[student.id]}
-                        onCheckedChange={() =>
-                          handleGraduationToggle(student.id)
-                        }
-                      />
+                      <div className="flex items-center gap-2">
+                        <Switch
+                          checked={graduationStatus[student.id]}
+                          onCheckedChange={() =>
+                            handleGraduationToggle(student.id)
+                          }
+                        />
+                        <span className="text-sm text-gray-500">
+                          {graduationStatus[student.id]
+                            ? "Graduated"
+                            : "Not Graduated"}
+                        </span>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}

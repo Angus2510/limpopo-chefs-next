@@ -1,105 +1,84 @@
+"use server";
+
 import prisma from "@/lib/db";
-import type { GetStudentsSchema } from "@/types/student/students";
-import { Prisma } from "@prisma/client";
+import { GetStudentsSchema } from "@/types/student/students";
 
 export async function getAlumniData(params: GetStudentsSchema) {
   try {
-    const {
-      page = 1,
-      per_page = 10,
-      sort = "createdAt",
-      campusTitles,
-      intakeGroupTitles,
-      search,
-    } = params;
+    const page = params.page ?? 1;
+    const perPage = params.per_page ?? 10;
+    const search = params.search;
+    const skip = (page - 1) * perPage;
 
-    // Calculate pagination
-    const skip = (page - 1) * per_page;
-
-    // Base query conditions
-    const where: Prisma.studentsWhereInput = {
-      alumni: true,
-      ...(campusTitles?.length ? { campus: { hasSome: campusTitles } } : {}),
-      ...(intakeGroupTitles?.length
-        ? { intakeGroup: { hasSome: intakeGroupTitles } }
-        : {}),
-      ...(search
-        ? {
-            OR: [
-              {
-                admissionNumber: {
-                  contains: search,
-                  mode: "insensitive" as Prisma.QueryMode,
-                },
-              },
-              {
-                email: {
-                  contains: search,
-                  mode: "insensitive" as Prisma.QueryMode,
-                },
-              },
-              {
-                profile: {
-                  firstName: {
-                    contains: search,
-                    mode: "insensitive" as Prisma.QueryMode,
-                  },
-                },
-              },
-              {
-                profile: {
-                  lastName: {
-                    contains: search,
-                    mode: "insensitive" as Prisma.QueryMode,
-                  },
-                },
-              },
-            ],
-          }
-        : {}),
+    // Build the where clause
+    let where: any = {
+      alumni: true, // Only get alumni students
     };
 
-    // Define orderBy based on sort field
-    let orderBy: Prisma.studentsOrderByWithRelationInput;
+    // Add search condition if search parameter exists
+    if (search) {
+      where.OR = [
+        {
+          admissionNumber: {
+            contains: search,
+            mode: "insensitive",
+          },
+        },
+        {
+          email: {
+            contains: search,
+            mode: "insensitive",
+          },
+        },
+        {
+          profile: {
+            is: {
+              OR: [
+                {
+                  firstName: {
+                    contains: search,
+                    mode: "insensitive",
+                  },
+                },
+                {
+                  lastName: {
+                    contains: search,
+                    mode: "insensitive",
+                  },
+                },
+              ],
+            },
+          },
+        },
+      ];
+    }
 
-    // Handle different sort fields
-    switch (sort) {
-      case "profile.firstName":
-        orderBy = {
-          profile: {
-            firstName: "desc",
-          },
-        };
-        break;
-      case "profile.lastName":
-        orderBy = {
-          profile: {
-            lastName: "desc",
-          },
-        };
-        break;
-      case "admissionNumber":
-        orderBy = {
-          admissionNumber: "desc",
-        };
-        break;
-      case "email":
-        orderBy = {
-          email: "desc",
-        };
-        break;
-      default:
-        orderBy = {
-          createdAt: "desc",
-        };
+    // Add campus filter if provided
+    if (params.campusTitles?.length) {
+      where.campus = {
+        hasSome: params.campusTitles,
+      };
+    }
+
+    // Add intake group filter if provided
+    if (params.intakeGroupTitles?.length) {
+      where.intakeGroup = {
+        hasSome: params.intakeGroupTitles,
+      };
     }
 
     // Fetch students with pagination
     const students = await prisma.students.findMany({
       where,
       skip,
-      take: per_page,
-      orderBy,
+      take: perPage,
+      orderBy: params.sort
+        ? {
+            [params.sort.split(".")[0]]: params.sort.split(".")[1],
+          }
+        : {
+            createdAt: "desc",
+          },
       select: {
         id: true,
         admissionNumber: true,
@@ -115,7 +94,7 @@ export async function getAlumniData(params: GetStudentsSchema) {
 
     // Get total count for pagination
     const total = await prisma.students.count({ where });
-    const pageCount = Math.ceil(total / per_page);
+    const pageCount = Math.ceil(total / perPage);
 
     return {
       students,
@@ -123,6 +102,6 @@ export async function getAlumniData(params: GetStudentsSchema) {
     };
   } catch (error) {
     console.error("Error fetching alumni data:", error);
-    throw new Error("Failed to fetch alumni data");
+    throw error;
   }
 }

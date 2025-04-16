@@ -7,6 +7,7 @@ export interface StudentWithResults {
   name: string;
   surname: string;
   admissionNumber: string;
+  alumni: boolean;
   existingMark?: number;
   existingTestScore?: number;
   existingTaskScore?: number;
@@ -14,7 +15,7 @@ export interface StudentWithResults {
 }
 
 export async function getStudentsByIntakeAndCampus(
-  intakeGroupId: string[], // Changed to string[]
+  intakeGroupId: string[],
   campusId: string,
   outcomeId?: string
 ): Promise<StudentWithResults[]> {
@@ -32,7 +33,7 @@ export async function getStudentsByIntakeAndCampus(
     const students = await prisma.students.findMany({
       where: {
         intakeGroup: {
-          hasSome: intakeGroupId, // Pass the array directly
+          hasSome: intakeGroupId,
         },
         campus: {
           hasSome: [campusId],
@@ -42,6 +43,7 @@ export async function getStudentsByIntakeAndCampus(
       select: {
         id: true,
         admissionNumber: true,
+        alumni: true,
         profile: {
           select: {
             firstName: true,
@@ -120,6 +122,7 @@ export async function getStudentsByIntakeAndCampus(
       name: student.profile?.firstName || "",
       surname: student.profile?.lastName || "",
       admissionNumber: student.admissionNumber || "",
+      alumni: student.alumni || false,
       existingMark: studentResults[student.id]?.mark,
       existingTestScore: studentResults[student.id]?.testScore,
       existingTaskScore: studentResults[student.id]?.taskScore,
