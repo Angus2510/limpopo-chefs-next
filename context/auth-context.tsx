@@ -170,7 +170,7 @@ export function AuthProvider({
         title: "Session Expiring Soon",
         description: "Your session will expire soon.",
         action: (
-          <Toast.Action
+          <toast.Action
             altText="Stay Logged In"
             onClick={async () => {
               const refresh = await refreshToken();
@@ -187,7 +187,7 @@ export function AuthProvider({
             }}
           >
             Stay Logged In
-          </Toast.Action>
+          </toast.Action>
         ),
       });
     }, autoLogoutTime - 300000);

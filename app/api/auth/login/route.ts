@@ -69,7 +69,7 @@ export async function POST(request: Request) {
               viewingAs: "Guardian",
             },
             process.env.JWT_SECRET!,
-            { expiresIn: "2h" }
+            { expiresIn: "5h" }
           );
 
           // Create guardian user data
@@ -94,7 +94,7 @@ export async function POST(request: Request) {
             httpOnly: true,
             secure: process.env.NODE_ENV === "production",
             sameSite: "lax",
-            maxAge: 60 * 60 * 2,
+            maxAge: 60 * 60 * 5,
           });
 
           response.cookies.set({
@@ -103,7 +103,7 @@ export async function POST(request: Request) {
             httpOnly: true,
             secure: process.env.NODE_ENV === "production",
             sameSite: "lax",
-            maxAge: 60 * 60 * 2,
+            maxAge: 60 * 60 * 5,
           });
 
           return response;
@@ -135,7 +135,7 @@ export async function POST(request: Request) {
               ...(type === "Student" && { active: user.active }),
             },
             process.env.JWT_SECRET!,
-            { expiresIn: "2h" }
+            { expiresIn: "5h" }
           );
 
           const userData = {
@@ -160,7 +160,7 @@ export async function POST(request: Request) {
             httpOnly: true,
             secure: process.env.NODE_ENV === "production",
             sameSite: "lax",
-            maxAge: 60 * 60 * 2,
+            maxAge: 60 * 60 * 5,
           });
 
           response.cookies.set({
@@ -169,7 +169,7 @@ export async function POST(request: Request) {
             httpOnly: true,
             secure: process.env.NODE_ENV === "production",
             sameSite: "lax",
-            maxAge: 60 * 60 * 2,
+            maxAge: 60 * 60 * 5,
           });
 
           return response;
