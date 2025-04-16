@@ -15,6 +15,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/use-toast";
 import { ContentLayout } from "@/components/layout/content-layout";
+import { graduateStudents } from "@/lib/actions/graduate/graduate";
 
 interface Student {
   id: string;
@@ -97,28 +98,38 @@ export default function GraduatePage() {
   const handleSaveChanges = async () => {
     setLoading(true);
     try {
-      const response = await fetch("/api/students/graduate", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          graduationStatus,
-        }),
-      });
+      // Check if any students are selected for graduation
+      const hasSelectedStudents = Object.values(graduationStatus).some(
+        (status) => status
+      );
+      if (!hasSelectedStudents) {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Please select at least one student to graduate",
+        });
+        return;
+      }
 
-      if (!response.ok) throw new Error("Failed to update graduation status");
+      const result = await graduateStudents(graduationStatus);
 
       toast({
         title: "Success",
-        description: "Graduation status updated successfully",
+        description: result.message,
+      });
+
+      // Reset form and refresh data
+      setGraduationStatus({});
+      handleSelectionComplete({
+        intakeGroupId: [], // Add your current selection values
+        campusId: "", // Add your current selection value
       });
     } catch (error) {
       console.error("Error saving graduation status:", error);
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to update graduation status",
+        description: error.message || "Failed to update graduation status",
       });
     } finally {
       setLoading(false);
@@ -126,7 +137,7 @@ export default function GraduatePage() {
   };
 
   return (
-    <ContentLayout>
+    <ContentLayout title="Graduate Students">
       <div className="container mx-auto py-6 space-y-6">
         <h1 className="text-2xl font-bold">Student Graduation Management</h1>
 

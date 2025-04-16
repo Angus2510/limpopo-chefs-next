@@ -495,7 +495,7 @@ model students {
   admissionNumber       String          @unique(map: "admissionNumber_1")
   agreementAccepted     Boolean
   agreementAcceptedDate DateTime?       @db.Date
-  alumni                Boolean?
+  alumni Boolean @default(false)
 
   assignments           Json?
   campus                String[]
