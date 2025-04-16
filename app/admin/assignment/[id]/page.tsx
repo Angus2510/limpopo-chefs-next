@@ -20,6 +20,7 @@ import { EditAssignmentModal } from "@/components/modals/EditAssignmentModal";
 import { updateQuestionAnswer } from "@/lib/actions/assignments/updateQuestion";
 import { AddQuestionModal } from "@/components/assignments/AddQuestionModal";
 import { addQuestion } from "@/lib/actions/assignments/addQuestion";
+import BackButton from "@/components/common/BackButton";
 
 // Keep all existing interfaces
 interface PageProps {
@@ -347,6 +348,7 @@ export default function AssignmentViewPage({ params }: PageProps) {
   return (
     <ContentLayout title={assignment.title}>
       <div className="container mx-auto py-6 space-y-6">
+        <BackButton />
         {/* Keep existing Assignment Details Card */}
         <Card>
           <CardHeader>
