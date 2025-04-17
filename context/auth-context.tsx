@@ -20,11 +20,6 @@ interface User {
   lastName: string;
   userType: "Staff" | "Student" | "Guardian";
   avatar?: string;
-  email: string;
-  profile?: {
-    firstName: string;
-    lastName: string;
-  };
 }
 
 interface AuthContextType {
@@ -170,7 +165,7 @@ export function AuthProvider({
         title: "Session Expiring Soon",
         description: "Your session will expire soon.",
         action: (
-          <toast.Action
+          <Toast.Action
             altText="Stay Logged In"
             onClick={async () => {
               const refresh = await refreshToken();
@@ -187,7 +182,7 @@ export function AuthProvider({
             }}
           >
             Stay Logged In
-          </toast.Action>
+          </Toast.Action>
         ),
       });
     }, autoLogoutTime - 300000);
