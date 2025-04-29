@@ -81,22 +81,50 @@ export async function fetchStudentData(studentId?: string) {
 
     // Now get the guardians data by their IDs
     let guardians = [];
-    if (
-      student.guardians &&
-      Array.isArray(student.guardians) &&
-      student.guardians.length > 0
-    ) {
-      guardians = await prisma.guardians
-        .findMany({
-          where: {
-            id: { in: student.guardians },
-          },
-        })
-        .catch((error) => {
-          console.warn("Failed to fetch guardians:", error);
-          return [];
-        });
-      console.log(`Found ${guardians.length} guardians for student`);
+    try {
+      // First log the raw guardians data to inspect it
+      console.log("Raw guardians data:", student.guardians);
+
+      // Ensure guardians data is an array and remove duplicates
+      const guardianIds = Array.from(
+        new Set(
+          Array.isArray(student.guardians)
+            ? student.guardians
+            : typeof student.guardians === "object" &&
+              student.guardians !== null
+            ? Object.values(student.guardians)
+            : []
+        )
+      ).filter(Boolean);
+
+      console.log("Processed guardian IDs:", guardianIds);
+
+      if (guardianIds.length > 0) {
+        try {
+          guardians = await prisma.guardians.findMany({
+            where: {
+              id: { in: guardianIds },
+            },
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+              phone: true,
+              relationship: true,
+            },
+          });
+          console.log("Successfully retrieved guardians:", guardians);
+        } catch (dbError) {
+          console.warn("Database error fetching guardians:", dbError);
+          guardians = [];
+        }
+      } else {
+        console.log("No guardian IDs to fetch");
+      }
+    } catch (error) {
+      console.warn("Error in guardian processing:", error);
+      guardians = [];
     }
 
     // CRITICAL FIX: Better processing for data arrays
