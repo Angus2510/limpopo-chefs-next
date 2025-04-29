@@ -329,6 +329,7 @@ model generaldocuments {
   student     String    @db.ObjectId
   title       String
   uploadDate  DateTime? @db.Date
+  category    String    @default("general") // Add this field
 }
 
 model guardians {

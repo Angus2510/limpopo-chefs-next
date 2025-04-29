@@ -214,6 +214,29 @@ export function DocumentsTab({ documents, studentId }: DocumentsTabProps) {
                 </ul>
               </AccordionContent>
             </AccordionItem>
+
+            <AccordionItem value="other">
+              <AccordionTrigger>Other Documents</AccordionTrigger>
+              <AccordionContent>
+                <ul className="space-y-2">
+                  {documents
+                    .filter((doc) => {
+                      console.log("Checking document category:", doc.category); // Debug log
+                      return doc.category === "other";
+                    })
+                    .map((doc) => {
+                      console.log("Rendering other document:", doc); // Debug log
+                      return (
+                        <DocumentItem
+                          key={doc.id}
+                          document={doc}
+                          category="other"
+                        />
+                      );
+                    })}
+                </ul>
+              </AccordionContent>
+            </AccordionItem>
           </Accordion>
         ) : (
           <p className="text-gray-500">No documents available</p>

@@ -65,7 +65,7 @@ const documentTitles = [
 const formSchema = z.object({
   title: z.enum([...documentTitles] as [string, ...string[]]),
   description: z.string().optional(),
-  category: z.enum(["general", "legal"]),
+  category: z.enum(["general", "legal", "other"]), // Add "other" here
   file: z
     .custom<FileList>()
     .refine((files) => files?.length === 1, "A file is required")
@@ -286,6 +286,7 @@ export default function UploadDocumentDialog({
                     <SelectContent>
                       <SelectItem value="general">General</SelectItem>
                       <SelectItem value="legal">Legal</SelectItem>
+                      <SelectItem value="other">Other Documents</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />

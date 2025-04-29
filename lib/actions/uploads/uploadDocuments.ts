@@ -93,24 +93,45 @@ export const saveDocumentMetadata = async (metadata: {
 }) => {
   const { title, description, category, studentId, documentUrl } = metadata;
 
-  const documentData = {
-    title,
-    description: description || "",
-    documentUrl,
-    student: studentId,
-    uploadDate: new Date(),
-    v: 0,
-  };
+  console.log("Saving document with category:", category); // Debug log
 
   try {
     let document;
     if (category === "legal") {
       document = await prisma.legaldocuments.create({
-        data: documentData,
+        data: {
+          title,
+          description: description || "",
+          documentUrl,
+          student: studentId,
+          uploadDate: new Date(),
+          v: 0,
+        },
       });
+    } else if (category === "other") {
+      document = await prisma.generaldocuments.create({
+        data: {
+          title,
+          description: description || "",
+          documentUrl,
+          student: studentId,
+          uploadDate: new Date(),
+          v: 0,
+          category: "other", // Explicitly set category as "other"
+        },
+      });
+      console.log("Created 'other' document:", document); // Debug log
     } else {
       document = await prisma.generaldocuments.create({
-        data: documentData,
+        data: {
+          title,
+          description: description || "",
+          documentUrl,
+          student: studentId,
+          uploadDate: new Date(),
+          v: 0,
+          category: "general",
+        },
       });
     }
 
@@ -119,13 +140,10 @@ export const saveDocumentMetadata = async (metadata: {
       data: document,
     };
   } catch (error) {
-    console.error("Error saving document metadata:", error);
+    console.error("Error saving document:", error);
     return {
       success: false,
-      error:
-        error instanceof Error
-          ? error.message
-          : "Failed to save document metadata",
+      error: error instanceof Error ? error.message : "Failed to save document",
     };
   }
 };
@@ -152,14 +170,16 @@ export const uploadDocument = async (formData: FormData) => {
 
     // If documentUrl is provided, this is a metadata-only save
     if (documentUrl) {
-      console.log("Saving metadata only...");
-      return await saveDocumentMetadata({
+      console.log("Saving metadata with category:", category); // Add this debug log
+      const result = await saveDocumentMetadata({
         title,
         description,
         category,
         studentId,
         documentUrl,
       });
+      console.log("Metadata save result:", result); // Add this debug log
+      return result;
     }
 
     // Validation for presigned URL request

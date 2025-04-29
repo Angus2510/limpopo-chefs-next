@@ -7,7 +7,7 @@ interface Document {
   description: string;
   documentUrl: string;
   uploadDate?: Date | null;
-  category: "general" | "legal";
+  category: "general" | "legal" | "other"; // Update interface to include "other"
 }
 
 export async function fetchStudentDocuments(
@@ -25,6 +25,7 @@ export async function fetchStudentDocuments(
           description: true,
           documentUrl: true,
           uploadDate: true,
+          category: true, // Add this line to select the category field
         },
       }),
       prisma.legaldocuments.findMany({
@@ -39,15 +40,21 @@ export async function fetchStudentDocuments(
       }),
     ]);
 
-    // Add category to each document
+    // Keep the original category for general documents
     const formattedGeneralDocs = generalDocs.map((doc) => ({
       ...doc,
-      category: "general" as const,
+      category: doc.category || ("general" as const), // Use the stored category or default to "general"
     }));
+
     const formattedLegalDocs = legalDocs.map((doc) => ({
       ...doc,
       category: "legal" as const,
     }));
+
+    console.log("Fetched documents:", {
+      generalDocs: formattedGeneralDocs,
+      legalDocs: formattedLegalDocs,
+    });
 
     return [...formattedGeneralDocs, ...formattedLegalDocs];
   } catch (error) {
