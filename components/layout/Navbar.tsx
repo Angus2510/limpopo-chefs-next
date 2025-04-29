@@ -72,7 +72,7 @@ export function Navbar({ title }: NavbarProps) {
   };
 
   return (
-    <header className="sticky z-50 top-0  w-full bg-background/95 shadow">
+    <header className="sticky z-10 top-0  w-full bg-background/95 shadow">
       <div className="mx-4 sm:mx-8 flex h-14 items-center">
         <div className="flex items-center space-x-4 lg:space-x-0">
           <SheetMenu />
