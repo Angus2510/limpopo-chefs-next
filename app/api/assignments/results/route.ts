@@ -13,6 +13,9 @@ export async function GET(request: Request) {
       );
     }
 
+    // Debug log
+    console.log("Fetching results for group:", groupId);
+
     const results = await prisma.assignmentresults.findMany({
       where: {
         intakeGroup: groupId,
@@ -26,94 +29,114 @@ export async function GET(request: Request) {
         scores: true,
         percent: true,
         markedBy: true,
+        testScore: true,
+        taskScore: true,
       },
       orderBy: {
         dateTaken: "desc",
       },
     });
 
-    if (!results || results.length === 0) {
-      return NextResponse.json({ results: [] });
-    }
+    // Debug log
+    console.log("Found results:", results.length);
 
     const enhancedResults = await Promise.all(
       results.map(async (result) => {
         try {
-          const [assignment, student] = await Promise.all([
-            prisma.assignments.findUnique({
-              where: { id: result.assignment },
+          // Get assignment with outcomes
+          const assignment = await prisma.assignments.findUnique({
+            where: {
+              id: result.assignment,
+            },
+            select: {
+              id: true,
+              title: true,
+              type: true,
+              outcome: true,
+            },
+          });
+
+          // Get student details
+          const student = await prisma.students.findUnique({
+            where: {
+              id: result.student,
+            },
+            select: {
+              admissionNumber: true,
+              profile: true,
+            },
+          });
+
+          // Get outcomes
+          let outcomes = [];
+          if (assignment?.outcome?.length) {
+            outcomes = await prisma.outcomes.findMany({
+              where: {
+                id: {
+                  in: assignment.outcome,
+                },
+              },
               select: {
+                id: true,
                 title: true,
                 type: true,
-                outcome: true,
+                hidden: true,
+                campus: true,
               },
-            }),
-            prisma.students.findUnique({
-              where: { id: result.student },
-              select: {
-                admissionNumber: true,
-                profile: true,
-              },
-            }),
-          ]);
+            });
+          }
 
-          // Ensure we convert dates to ISO strings
-          const safeResult = {
-            ...result,
+          // Debug log
+          console.log("Processing assignment:", assignment?.title);
+          console.log("Found outcomes:", outcomes.length);
+
+          return {
+            id: result.id,
+            assignment: result.assignment,
+            student: result.student,
+            status: result.status,
             dateTaken: result.dateTaken.toISOString(),
             scores: result.scores || null,
             percent: result.percent || null,
-            assignmentData: assignment || {
-              title: "Unknown Assignment",
-              type: "Unknown",
-              outcome: [],
-            },
-            studentData: student || {
-              admissionNumber: "Unknown",
-              profile: {
-                firstName: "Unknown",
-                lastName: "Student",
-              },
-            },
+            testScore: result.testScore || null,
+            taskScore: result.taskScore || null,
+            markedBy: result.markedBy || null,
+            assignmentData: assignment
+              ? {
+                  id: assignment.id,
+                  title: assignment.title,
+                  type: assignment.type,
+                  outcome: assignment.outcome,
+                  outcomes: outcomes,
+                }
+              : null,
+            studentData: student
+              ? {
+                  admissionNumber: student.admissionNumber,
+                  profile: student.profile,
+                }
+              : null,
           };
-
-          return safeResult;
         } catch (error) {
           console.error("Error processing result:", error);
-          // Return a safe fallback object
-          return {
-            ...result,
-            dateTaken: result.dateTaken.toISOString(),
-            scores: null,
-            percent: null,
-            assignmentData: {
-              title: "Error Loading Assignment",
-              type: "Unknown",
-              outcome: [],
-            },
-            studentData: {
-              admissionNumber: "Error",
-              profile: {
-                firstName: "Error",
-                lastName: "Loading",
-              },
-            },
-          };
+          return null;
         }
       })
     );
 
-    // Ensure we never return null
+    // Filter out any null results from errors
+    const validResults = enhancedResults.filter(Boolean);
+
+    // Debug log
+    console.log("Sending enhanced results:", validResults.length);
+
     return NextResponse.json({
-      results: enhancedResults || [],
+      results: validResults,
     });
   } catch (error) {
     console.error("Error fetching assignment results:", error);
     return NextResponse.json(
-      {
-        error: "Failed to fetch assignment results",
-        results: [],
-      },
+      { error: "Failed to fetch assignment results", results: [] },
       { status: 500 }
     );
   }

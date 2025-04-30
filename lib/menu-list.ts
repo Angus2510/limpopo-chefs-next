@@ -195,7 +195,6 @@ export function getMenuList(pathname: string): Group[] {
                 label: "Graduate Student",
                 active: pathname === "/admin/admin/graduate",
               },
-
               {
                 href: "/admin/admin/alumni",
                 label: "Alumni",
@@ -204,20 +203,20 @@ export function getMenuList(pathname: string): Group[] {
             ],
           },
           {
-            href: "admin/reports",
+            href: "/admin/reports",
             label: "Reports",
-            active: pathname.includes("admin/reports"),
+            active: pathname.includes("/admin/reports"),
             icon: FileText,
             submenus: [
               {
-                href: "reports/arrears",
+                href: "/admin/reports/arrears",
                 label: "Account in Arrears",
-                active: pathname === "admin/reports/arrears",
+                active: pathname === "/admin/reports/arrears",
               },
               {
-                href: "admin/reports/moderation",
+                href: "/admin/reports/moderation",
                 label: "Moderation",
-                active: pathname === "admin/reports/moderation",
+                active: pathname === "/admin/reports/moderation",
               },
             ],
           },

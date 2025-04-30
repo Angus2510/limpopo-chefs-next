@@ -12,13 +12,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -32,9 +26,6 @@ import { Input } from "@/components/ui/input";
 import {
   CalendarIcon,
   ArrowLeft,
-  ClipboardCheck,
-  Clock,
-  Filter,
   Loader2,
   Search,
   AlertCircle,
@@ -61,30 +52,39 @@ interface Assignment {
 interface AssignmentResult {
   id: string;
   assignment: string;
-  assignmentData?: {
+  assignmentData: {
+    id: string;
     title: string;
     type: string;
     outcome: string[];
-  };
-  student: string;
-  studentData?: {
+    outcomes: {
+      id: string;
+      title: string;
+      type: string;
+      hidden: boolean;
+      campus: string[];
+    }[];
+  } | null;
+  studentData: {
     admissionNumber: string;
     profile: {
       firstName: string;
       lastName: string;
     };
-  };
+  } | null;
   status: string;
   dateTaken: string;
-  scores?: number;
-  percent?: number;
-  markedBy?: string;
+  testScore: number | null;
+  taskScore: number | null;
+  scores: number | null;
+  percent: number | null;
+  markedBy: string | null;
 }
 
 export default function GroupAssignmentMarkPage() {
   const router = useRouter();
   const params = useParams();
-  const groupId = params.groupId as string;
+  const groupId = params["groupId"] as string;
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
