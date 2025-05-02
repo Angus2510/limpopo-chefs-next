@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { ContentLayout } from "@/components/layout/content-layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -25,13 +26,11 @@ import { FileText, Plus, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 
-// Define report types
 const REPORT_TYPES = {
-  internal: "Internal Moderation Report",
+  practical: "Internal Moderation Practical Cooking",
+  theory: "Internal Moderation Report Theory",
   verification: "Internal Verification Report",
-  post: "Post-Moderation Report",
-  qa: "QA Report by Ass Centres",
-  occupational: "Internal Moderation Report (Occupational) REVIEWED v3 of 2022",
+  sampling: "Sampling plan 2024",
 } as const;
 
 interface Report {
@@ -45,14 +44,28 @@ interface Report {
 }
 
 export default function ModerationReportsPage() {
-  const [selectedType, setSelectedType] = useState<string>("internal");
+  const router = useRouter();
+  const [selectedType, setSelectedType] = useState<string>("practical");
   const [searchQuery, setSearchQuery] = useState("");
-  const [reports, setReports] = useState<Report[]>([]); // This would be populated from your API
+  const [reports, setReports] = useState<Report[]>([]);
 
   const handleCreateNew = (type: string) => {
-    // Navigate to create new report page with type
-    console.log("Creating new report of type:", type);
-    // router.push(`/admin/reports/moderation/create/${type}`);
+    switch (type) {
+      case "practical":
+        router.push("/admin/reports/moderation/practical");
+        break;
+      case "theory":
+        router.push("/admin/reports/moderation/theory");
+        break;
+      case "verification":
+        router.push("/admin/reports/moderation/verification");
+        break;
+      case "sampling":
+        router.push("/admin/reports/moderation/sampling");
+        break;
+      default:
+        console.error("Invalid report type");
+    }
   };
 
   return (
