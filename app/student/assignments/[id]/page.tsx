@@ -1,44 +1,25 @@
 "use client";
 
-import { useEffect, useState, useCallback, useMemo, useRef } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/use-toast";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ContentLayout } from "@/components/layout/content-layout";
-import { format } from "date-fns";
 import { getAssignmentById } from "@/lib/actions/assignments/getAssignmentById";
 import { submitAssignment } from "@/lib/actions/assignments/assignmentSubmission";
 import { RulesDialog } from "@/components/dialogs/assignments/RulesDialog";
+import { QuestionNavigation } from "@/components/assignments/QuestionNavigation/QuestionNavigation";
+import { QuestionView } from "@/components/assignments/QuestionView/QuestionView";
+import { TestHeader } from "@/components/assignments/TestHeader/TestHeader";
+import { TestControls } from "@/components/assignments/TestControls/TestControls";
 import { usePasswordValidation } from "@/hooks/usePasswordValidation";
+import { Card, CardContent } from "@/components/ui/card";
+import {
+  Assignment,
+  Question,
+  QuestionState,
+  Answer,
+} from "@/types/assignments/assignments";
 import { use } from "react";
-
-interface Question {
-  id: string;
-  text: string;
-  type: "short-answer" | "long-answer" | "multiple-choice" | "true-false";
-  mark: string;
-  options: {
-    id: string;
-    value?: string;
-    columnA?: string;
-    columnB?: string;
-  }[];
-}
-
-interface Assignment {
-  id: string;
-  title: string;
-  type: string;
-  duration: number;
-  availableFrom: Date;
-  questions: Question[];
-}
-
-interface Answer {
-  questionId: string;
-  answer: string | { [key: string]: string };
-}
 
 const requestFullScreen = () => {
   const element = document.documentElement;
@@ -74,22 +55,29 @@ export default function AssignmentTestPage({
   const router = useRouter();
   const { toast } = useToast();
 
+  // Base states
   const [showRules, setShowRules] = useState(true);
   const [assignment, setAssignment] = useState<Assignment | null>(null);
   const [answers, setAnswers] = useState<Answer[]>([]);
   const [loading, setLoading] = useState(true);
   const [timeRemaining, setTimeRemaining] = useState<number>(0);
+  const [testStarted, setTestStarted] = useState(false);
+
+  // Navigation states
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [questionStates, setQuestionStates] = useState<QuestionState[]>([]);
+
+  // Security states
   const [isTabVisible, setIsTabVisible] = useState(true);
   const [tabHiddenTime, setTabHiddenTime] = useState<number | null>(null);
   const [windowFocused, setWindowFocused] = useState(true);
   const [blurStartTime, setBlurStartTime] = useState<number | null>(null);
-  const [testStarted, setTestStarted] = useState(false);
+
+  // Constants
   const TAB_HIDDEN_LIMIT = 10000;
   const BLUR_TIME_LIMIT = 10000;
-  const isPasswordValid = usePasswordValidation(resolvedParams.id);
 
-  // Timer and refs
-  const [timeDisplay, setTimeDisplay] = useState(0);
+  // Refs
   const timeRef = useRef(0);
   const startTimeRef = useRef<number | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
@@ -97,28 +85,52 @@ export default function AssignmentTestPage({
   const hasStartedRef = useRef(false);
   const isTestActiveRef = useRef(false);
 
+  const isPasswordValid = usePasswordValidation(resolvedParams.id);
+
   const preventCopyPaste = (e: React.ClipboardEvent) => {
     e.preventDefault();
     return false;
   };
 
+  const handleAnswerChange = useCallback(
+    (questionId: string, value: string) => {
+      setAnswers((prev) =>
+        prev.map((a) =>
+          a.questionId === questionId ? { ...a, answer: value } : a
+        )
+      );
+
+      setQuestionStates((prev) =>
+        prev.map((state) =>
+          state.id === questionId ? { ...state, isAnswered: true } : state
+        )
+      );
+    },
+    []
+  );
+
+  const handleFlagQuestion = useCallback(() => {
+    if (!assignment) return;
+    const currentQuestionId = assignment.questions[currentQuestionIndex].id;
+
+    setQuestionStates((prev) =>
+      prev.map((state) =>
+        state.id === currentQuestionId
+          ? { ...state, isFlagged: !state.isFlagged }
+          : state
+      )
+    );
+  }, [currentQuestionIndex, assignment]);
+
   const handleSubmitTest = useCallback(async () => {
     if (!assignment) return;
 
     try {
-      console.log("Submitting test with data:", {
-        assignmentId: assignment.id,
-        answers: answers,
-        timeSpent: assignment.duration * 60 - timeRemaining,
-      });
-
       await submitAssignment(assignment.id, answers);
-
       toast({
         title: "Success",
         description: "Test submitted successfully!",
       });
-
       router.push("/student/dashboard");
     } catch (error) {
       console.error("Error submitting test:", error);
@@ -128,33 +140,61 @@ export default function AssignmentTestPage({
         description: "Failed to submit test. Please try again.",
       });
     }
-  }, [assignment, answers, timeRemaining, router, toast]);
+  }, [assignment, answers, router, toast]);
 
-  const handleAnswerChange = useCallback(
-    (questionId: string, value: string | { [key: string]: string }) => {
-      setAnswers((prev) =>
-        prev.map((a) =>
-          a.questionId === questionId ? { ...a, answer: value } : a
-        )
+  const handlePreviousQuestion = useCallback(() => {
+    if (currentQuestionIndex > 0) {
+      setCurrentQuestionIndex((prev) => prev - 1);
+    }
+  }, [currentQuestionIndex]);
+
+  const handleNextQuestion = useCallback(() => {
+    if (assignment && currentQuestionIndex < assignment.questions.length - 1) {
+      setCurrentQuestionIndex((prev) => prev + 1);
+    }
+  }, [currentQuestionIndex, assignment]);
+
+  const handleStartTest = useCallback(() => {
+    if (!assignment) return;
+
+    setShowRules(false);
+    requestFullScreen();
+    setTestStarted(true);
+    startTimeRef.current = Date.now();
+    isTestActiveRef.current = true;
+    hasStartedRef.current = true;
+    setTimeRemaining(assignment.duration * 60);
+    handleSubmitRef.current = handleSubmitTest;
+
+    // Initialize question states if not already done
+    if (questionStates.length === 0) {
+      setQuestionStates(
+        assignment.questions.map((q) => ({
+          id: q.id,
+          isFlagged: false,
+          isAnswered: false,
+        }))
       );
-    },
-    []
-  );
+    }
+
+    // Initialize answers if not already done
+    if (answers.length === 0) {
+      setAnswers(
+        assignment.questions.map((q) => ({
+          questionId: q.id,
+          answer: "",
+        }))
+      );
+    }
+  }, [assignment, questionStates.length, answers.length, handleSubmitTest]);
 
   const loadAssignment = useCallback(async () => {
     try {
-      console.log("📚 Fetching assignment details...");
       const data = await getAssignmentById(resolvedParams.id);
       setAssignment(data);
-
-      const initialAnswers = data.questions.map((q) => ({
-        questionId: q.id,
-        answer: q.type === "multiple-choice" ? "" : "",
-      }));
-      setAnswers(initialAnswers);
       setLoading(false);
     } catch (error) {
-      console.error("❌ Failed to load assignment:", error);
+      console.error("Failed to load assignment:", error);
       toast({
         title: "Error",
         description: "Could not load assignment",
@@ -164,184 +204,82 @@ export default function AssignmentTestPage({
     }
   }, [resolvedParams.id, router, toast]);
 
+  // Initialize test
+  useEffect(() => {
+    if (!showRules && assignment && !testStarted) {
+      handleStartTest();
+    }
+  }, [showRules, assignment, testStarted, handleStartTest]);
+
+  // Timer effect
+  useEffect(() => {
+    if (!testStarted || !assignment) return;
+
+    const timer = setInterval(() => {
+      setTimeRemaining((prev) => {
+        if (prev <= 0) {
+          if (handleSubmitRef.current) {
+            handleSubmitRef.current();
+          }
+          clearInterval(timer);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    timerRef.current = timer;
+
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+    };
+  }, [testStarted, assignment]);
+
+  // Password validation effect
+  // Password validation effect
+  useEffect(() => {
+    const checkPassword = async () => {
+      if (!isPasswordValid) {
+        // Only redirect if we're not in the process of loading
+        if (!loading) {
+          toast({
+            title: "Access Denied",
+            description: "Invalid or missing test password",
+            variant: "destructive",
+          });
+          router.push("/student/assignments");
+        }
+      }
+    };
+
+    checkPassword();
+  }, [isPasswordValid, loading, router, toast]);
+
+  // Load assignment effect - modify to check password first
+  useEffect(() => {
+    if (isPasswordValid) {
+      loadAssignment();
+    }
+  }, [isPasswordValid, loadAssignment]);
+
   // Load assignment effect
   useEffect(() => {
     loadAssignment();
   }, [loadAssignment]);
 
-  // Password validation effect with localStorage
-  useEffect(() => {
-    if (isPasswordValid && !testStarted) {
-      const testStatus = localStorage.getItem(
-        `test_started_${resolvedParams.id}`
-      );
-      if (testStatus === "true" || hasStartedRef.current) {
-        router.push("/student/dashboard");
-        toast({
-          title: "Access Denied",
-          description:
-            "You cannot rejoin a test that has already been started.",
-          variant: "destructive",
-        });
-        return;
-      }
-      hasStartedRef.current = true;
-      localStorage.setItem(`test_started_${resolvedParams.id}`, "true");
-      setTestStarted(true);
-      isTestActiveRef.current = true;
-    }
-  }, [isPasswordValid, testStarted, router, toast, resolvedParams.id]);
-
-  // Timer effect
-  useEffect(() => {
-    handleSubmitRef.current = handleSubmitTest;
-
-    if (testStarted && assignment) {
-      // Initialize timer only once when test starts
-      if (!startTimeRef.current) {
-        startTimeRef.current = Date.now();
-        timeRef.current = assignment.duration * 60;
-        setTimeDisplay(timeRef.current);
-      }
-
-      // Use performance.now() for more accurate timing
-      const timer = setInterval(() => {
-        const currentTime = Date.now();
-        const elapsedTime = Math.floor(
-          (currentTime - startTimeRef.current!) / 1000
-        );
-        const remainingTime = Math.max(
-          0,
-          assignment.duration * 60 - elapsedTime
-        );
-
-        setTimeDisplay(remainingTime);
-
-        if (remainingTime <= 0) {
-          clearInterval(timer);
-          handleSubmitRef.current?.();
-        }
-      }, 1000);
-
-      return () => clearInterval(timer);
-    }
-  }, [testStarted, assignment]);
-
-  useEffect(() => {
-    if (testStarted && assignment) {
-      // Request full screen when test starts
-      requestFullScreen();
-
-      // Attempt to prevent screenshots
-      const style = document.createElement("style");
-      style.innerHTML = `
-        .test-content {
-          -webkit-user-select: none;
-          -moz-user-select: none;
-          -ms-user-select: none;
-          user-select: none;
-          -webkit-touch-callout: none;
-        }
-        video::-webkit-media-controls-enclosure,
-        video::-webkit-media-controls {
-          display: none !important;
-        }
-      `;
-      document.head.appendChild(style);
-
-      // Handle full screen change
-      const handleFullScreenChange = () => {
-        if (!document.fullscreenElement) {
-          requestFullScreen();
-          toast({
-            title: "Warning",
-            description: "Full screen mode is required for this test",
-            variant: "destructive",
-          });
-        }
-      };
-
-      document.addEventListener("fullscreenchange", handleFullScreenChange);
-      document.addEventListener(
-        "webkitfullscreenchange",
-        handleFullScreenChange
-      );
-      document.addEventListener("mozfullscreenchange", handleFullScreenChange);
-      document.addEventListener("MSFullscreenChange", handleFullScreenChange);
-
-      return () => {
-        document.removeEventListener(
-          "fullscreenchange",
-          handleFullScreenChange
-        );
-        document.removeEventListener(
-          "webkitfullscreenchange",
-          handleFullScreenChange
-        );
-        document.removeEventListener(
-          "mozfullscreenchange",
-          handleFullScreenChange
-        );
-        document.removeEventListener(
-          "MSFullscreenChange",
-          handleFullScreenChange
-        );
-        exitFullScreen();
-        document.head.removeChild(style);
-      };
-    }
-  }, [testStarted, assignment, toast]);
-
-  // Add this effect near your other useEffect hooks
-  useEffect(() => {
-    const preventContextMenu = (e: MouseEvent) => {
-      if (isTestActiveRef.current) {
-        e.preventDefault();
-        return false;
-      }
-    };
-
-    const preventKeyboardShortcuts = (e: KeyboardEvent) => {
-      if (isTestActiveRef.current) {
-        if (
-          (e.ctrlKey || e.metaKey) &&
-          (e.key === "c" || e.key === "v" || e.key === "x")
-        ) {
-          e.preventDefault();
-          return false;
-        }
-      }
-    };
-
-    window.addEventListener("contextmenu", preventContextMenu);
-    window.addEventListener("keydown", preventKeyboardShortcuts);
-
-    return () => {
-      window.removeEventListener("contextmenu", preventContextMenu);
-      window.removeEventListener("keydown", preventKeyboardShortcuts);
-    };
-  }, []);
-
   // Tab visibility effect
   useEffect(() => {
     const handleVisibilityChange = () => {
-      if (!isTestActiveRef.current) return;
-
       if (document.hidden) {
         setIsTabVisible(false);
         setTabHiddenTime(Date.now());
-        toast({
-          title: "Warning",
-          description:
-            "Leaving the test page will result in automatic submission after 10 seconds",
-          variant: "destructive",
-        });
       } else {
         setIsTabVisible(true);
-        if (tabHiddenTime) {
-          const timeHidden = Date.now() - tabHiddenTime;
-          if (timeHidden > TAB_HIDDEN_LIMIT) {
-            handleSubmitRef.current?.();
+        if (tabHiddenTime && Date.now() - tabHiddenTime > TAB_HIDDEN_LIMIT) {
+          if (handleSubmitRef.current) {
+            handleSubmitRef.current();
           }
         }
         setTabHiddenTime(null);
@@ -352,59 +290,36 @@ export default function AssignmentTestPage({
     return () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [tabHiddenTime, toast]);
+  }, [tabHiddenTime]);
 
-  // Window blur/focus effect
+  // Window focus effect
   useEffect(() => {
-    const handleBlur = () => {
-      if (!isTestActiveRef.current) return;
-
-      setWindowFocused(false);
-      setBlurStartTime(Date.now());
-      toast({
-        title: "Warning",
-        description:
-          "Test will auto-submit if you don't return within 10 seconds",
-        variant: "destructive",
-      });
-    };
-
     const handleFocus = () => {
-      if (!isTestActiveRef.current) return;
-
       setWindowFocused(true);
-      if (blurStartTime) {
-        const timeUnfocused = Date.now() - blurStartTime;
-        if (timeUnfocused > BLUR_TIME_LIMIT) {
-          handleSubmitRef.current?.();
+      if (blurStartTime && Date.now() - blurStartTime > BLUR_TIME_LIMIT) {
+        if (handleSubmitRef.current) {
+          handleSubmitRef.current();
         }
       }
       setBlurStartTime(null);
     };
 
-    window.addEventListener("blur", handleBlur);
+    const handleBlur = () => {
+      setWindowFocused(false);
+      setBlurStartTime(Date.now());
+    };
+
     window.addEventListener("focus", handleFocus);
+    window.addEventListener("blur", handleBlur);
 
     return () => {
-      window.removeEventListener("blur", handleBlur);
       window.removeEventListener("focus", handleFocus);
+      window.removeEventListener("blur", handleBlur);
     };
-  }, [blurStartTime, toast]);
+  }, [blurStartTime]);
 
   // Navigation prevention effect
   useEffect(() => {
-    const preventNavigation = (e: PopStateEvent) => {
-      if (isTestActiveRef.current) {
-        e.preventDefault();
-        history.pushState(null, "", location.href);
-        toast({
-          title: "Warning",
-          description: "Navigation is disabled during the test",
-          variant: "destructive",
-        });
-      }
-    };
-
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       if (isTestActiveRef.current) {
         e.preventDefault();
@@ -412,121 +327,25 @@ export default function AssignmentTestPage({
       }
     };
 
-    if (testStarted) {
-      window.history.pushState(null, "", location.href);
-      window.addEventListener("popstate", preventNavigation);
-      window.addEventListener("beforeunload", handleBeforeUnload);
-    }
-
+    window.addEventListener("beforeunload", handleBeforeUnload);
     return () => {
-      window.removeEventListener("popstate", preventNavigation);
       window.removeEventListener("beforeunload", handleBeforeUnload);
     };
-  }, [testStarted, toast]);
+  }, []);
 
-  const renderQuestion = useCallback(
-    (question: Question) => {
-      const currentAnswer = answers.find(
-        (a) => a.questionId === question.id
-      )?.answer;
-
-      switch (question.type) {
-        case "multiple-choice":
-          return (
-            <div className="space-y-2">
-              {question.options.map((option) => (
-                <label key={option.id} className="flex items-center space-x-2">
-                  <input
-                    type="radio"
-                    name={question.id}
-                    value={option.value}
-                    checked={currentAnswer === option.value}
-                    onChange={(e) =>
-                      handleAnswerChange(question.id, e.target.value)
-                    }
-                    className="h-4 w-4 border-gray-300 text-primary focus:ring-primary"
-                  />
-                  <span>{option.value}</span>
-                </label>
-              ))}
-            </div>
-          );
-
-        case "true-false":
-          return (
-            <div className="space-x-4">
-              <label className="inline-flex items-center">
-                <input
-                  type="radio"
-                  name={question.id}
-                  value="true"
-                  checked={currentAnswer === "true"}
-                  onChange={(e) =>
-                    handleAnswerChange(question.id, e.target.value)
-                  }
-                  className="h-4 w-4 border-gray-300 text-primary focus:ring-primary"
-                />
-                <span className="ml-2">True</span>
-              </label>
-              <label className="inline-flex items-center">
-                <input
-                  type="radio"
-                  name={question.id}
-                  value="false"
-                  checked={currentAnswer === "false"}
-                  onChange={(e) =>
-                    handleAnswerChange(question.id, e.target.value)
-                  }
-                  className="h-4 w-4 border-gray-300 text-primary focus:ring-primary"
-                />
-                <span className="ml-2">False</span>
-              </label>
-            </div>
-          );
-
-        case "short-answer":
-        case "long-answer":
-          return (
-            <textarea
-              value={currentAnswer as string}
-              onChange={(e) => handleAnswerChange(question.id, e.target.value)}
-              className="w-full p-2 border rounded"
-              placeholder="Enter your answer here..."
-              rows={question.type === "long-answer" ? 6 : 2}
-              onCopy={preventCopyPaste}
-              onPaste={preventCopyPaste}
-              onCut={preventCopyPaste}
-              autoComplete="off"
-              spellCheck="false"
-              data-form-type="other"
-            />
-          );
-
-        default:
-          return null;
+  // Full screen effect
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      if (!document.fullscreenElement && hasStartedRef.current) {
+        requestFullScreen();
       }
-    },
-    [answers, handleAnswerChange]
-  );
+    };
 
-  const renderedQuestions = useMemo(() => {
-    return assignment?.questions.map((question, index) => (
-      <Card key={question.id}>
-        <CardHeader>
-          <CardTitle className="flex justify-between">
-            <span>Question {index + 1}</span>
-            <span className="text-sm text-muted-foreground">
-              {question.mark} marks
-            </span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <p className="text-lg">{question.text}</p>
-          {renderQuestion(question)}
-        </CardContent>
-      </Card>
-    ));
-  }, [assignment?.questions, renderQuestion]);
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    return () => {
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
+    };
+  }, []);
 
   if (loading) {
     return (
@@ -544,59 +363,70 @@ export default function AssignmentTestPage({
     <ContentLayout title={assignment.title}>
       <RulesDialog
         open={showRules}
-        onClose={() => setShowRules(false)}
+        onClose={handleStartTest}
         testInfo={{
           title: assignment.title,
-          lecturer: "Jim",
+          lecturer: assignment.lecturer || "Not specified",
           type: assignment.type,
           date: assignment.availableFrom,
           duration: assignment.duration,
         }}
       />
 
-      <div
-        className="container mx-auto py-6 space-y-6 test-content"
-        tabIndex={-1}
-      >
-        <Card className="bg-warning/10 border-warning">
-          <CardContent className="py-4">
-            <p className="text-sm text-warning font-medium">
-              ⚠️ Warning: Leaving this page or opening another window will
-              result in automatic submission after 10 seconds
-            </p>
-          </CardContent>
-        </Card>
+      {testStarted && (
+        <div className="flex h-screen test-content" tabIndex={-1}>
+          {/* Sidebar Navigation */}
+          <div className="w-64 border-r">
+            <QuestionNavigation
+              questions={assignment.questions}
+              currentIndex={currentQuestionIndex}
+              questionStates={questionStates}
+              onQuestionSelect={setCurrentQuestionIndex}
+            />
+          </div>
 
-        <Card className="bg-primary/5">
-          <CardContent className="py-4">
-            <div className="flex justify-between items-center">
-              <div>
-                <p className="text-sm font-medium">Time Remaining:</p>
-                <p className="text-2xl font-bold">
-                  {Math.floor(timeDisplay / 60)}:
-                  {(timeDisplay % 60).toString().padStart(2, "0")}
+          {/* Main Content */}
+          <div className="flex-1 flex flex-col p-6 space-y-6 overflow-y-auto">
+            <Card className="bg-warning/10 border-warning">
+              <CardContent className="py-4">
+                <p className="text-sm text-warning font-medium">
+                  ⚠️ Warning: Leaving this page or opening another window will
+                  result in automatic submission after 10 seconds
                 </p>
-              </div>
-              <Button onClick={handleSubmitTest} variant="destructive">
-                Submit Test
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+              </CardContent>
+            </Card>
 
-        {renderedQuestions}
+            <TestHeader
+              timeDisplay={timeRemaining}
+              onSubmit={handleSubmitTest}
+            />
 
-        <div className="flex flex-col items-center justify-center py-8">
-          <Button
-            onClick={handleSubmitTest}
-            variant="destructive"
-            className="mb-4"
-          >
-            Submit Test
-          </Button>
-          <h1 className="text-lg font-bold">---END OF TEST---</h1>
+            <QuestionView
+              question={assignment.questions[currentQuestionIndex]}
+              currentAnswer={
+                answers.find(
+                  (a) =>
+                    a.questionId ===
+                    assignment.questions[currentQuestionIndex].id
+                )?.answer as string
+              }
+              onAnswerChange={handleAnswerChange}
+              preventCopyPaste={preventCopyPaste}
+            />
+
+            <TestControls
+              onPrevious={handlePreviousQuestion}
+              onNext={handleNextQuestion}
+              onFlag={handleFlagQuestion}
+              isFirst={currentQuestionIndex === 0}
+              isLast={currentQuestionIndex === assignment.questions.length - 1}
+              isFlagged={
+                questionStates[currentQuestionIndex]?.isFlagged || false
+              }
+            />
+          </div>
         </div>
-      </div>
+      )}
     </ContentLayout>
   );
 }

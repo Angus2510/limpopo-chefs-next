@@ -98,13 +98,18 @@ export default function StudentAssignmentsPage() {
       if (validation.valid) {
         console.log("✅ Password validated successfully");
 
-        // Set the cookie
-        document.cookie = `assignment_password=${password.trim()}; path=/; max-age=3600; secure; samesite=lax`;
+        // Set cookie with longer expiration and proper path
+        document.cookie = `assignment_${
+          selectedAssignment.id
+        }_password=${password.trim()}; path=/; max-age=7200; secure; samesite=lax`;
 
+        // Close dialog first
         setPasswordDialog(false);
 
-        // Use router.push instead of window.location.href
-        router.push(`/student/assignments/${selectedAssignment.id}`);
+        // Add small delay to ensure cookie is set
+        setTimeout(() => {
+          router.push(`/student/assignments/${selectedAssignment.id}`);
+        }, 100);
       } else {
         throw new Error(validation.message || "Invalid password");
       }

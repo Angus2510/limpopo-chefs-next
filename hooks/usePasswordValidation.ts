@@ -1,33 +1,35 @@
 import { useState, useEffect } from "react";
 import { validateAssignmentPassword } from "@/lib/actions/assignments/validateAssignmentPassword";
-
 export function usePasswordValidation(assignmentId: string) {
   const [isValid, setIsValid] = useState(false);
 
   useEffect(() => {
     const checkPassword = async () => {
-      const assignmentPassword = document.cookie
-        .split("; ")
-        .find((row) => row.startsWith("assignment_password="))
-        ?.split("=")[1];
-
-      if (!assignmentPassword) {
-        setIsValid(false);
-        return;
-      }
-
       try {
+        // Get password from cookie specific to this assignment
+        const cookies = document.cookie.split(";");
+        const passwordCookie = cookies.find((c) =>
+          c.trim().startsWith(`assignment_${assignmentId}_password=`)
+        );
+
+        if (!passwordCookie) {
+          setIsValid(false);
+          return;
+        }
+
+        const password = passwordCookie.split("=")[1];
         const validation = await validateAssignmentPassword(
           assignmentId,
-          assignmentPassword
+          password
         );
+
         setIsValid(validation.valid);
       } catch (error) {
+        console.error("Password validation error:", error);
         setIsValid(false);
       }
     };
 
-    // Only check once when component mounts
     checkPassword();
   }, [assignmentId]);
 
