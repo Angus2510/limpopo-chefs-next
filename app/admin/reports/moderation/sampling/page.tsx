@@ -181,7 +181,7 @@ export default function SamplingPlan() {
 
         {filteredData.length === 0 && (
           <div className="text-center py-6 text-gray-500">
-            No results found for "{searchTerm}"
+            No results found for &quot;{searchTerm}&quot;
           </div>
         )}
 
