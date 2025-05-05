@@ -1,246 +1,247 @@
 "use client";
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardFooter,
-} from "@/components/ui/card";
+import { ContentLayout } from "@/components/layout/content-layout";
+import BackButton from "@/components/common/BackButton";
 
-export default function InternalModerationReport() {
-  const [students, setStudents] = useState([
-    { id: 1, name: "", marksObtained: "", moderatedMark: "" },
-    { id: 2, name: "", marksObtained: "", moderatedMark: "" },
-    { id: 3, name: "", marksObtained: "", moderatedMark: "" },
-    { id: 4, name: "", marksObtained: "", moderatedMark: "" },
-    { id: 5, name: "", marksObtained: "", moderatedMark: "" },
-    { id: 6, name: "", marksObtained: "", moderatedMark: "" },
-  ]);
-
-  const [campus, setCampus] = useState(null);
-
-  const updateStudent = (id, field, value) => {
-    setStudents(
-      students.map((student) =>
-        student.id === id ? { ...student, [field]: value } : student
-      )
-    );
-  };
+export default function ModerationReport() {
+  const [activeTab, setActiveTab] = useState("report");
 
   return (
-    <div className="max-w-4xl mx-auto p-6 bg-white rounded-lg shadow">
-      <div className="text-center mb-8">
-        <h1 className="text-2xl font-bold text-gray-800 mb-2">
-          LIMPOPO CHEFS ACADEMY
-        </h1>
-        <h2 className="text-xl font-semibold text-gray-700">
-          Internal Moderation Report
-        </h2>
-      </div>
+    <ContentLayout title="Moderation Report">
+      <BackButton />
+      <div className="max-w-5xl mx-auto bg-white p-6 rounded-lg shadow-lg">
+        <div className="flex mb-6 border-b">
+          <button
+            className={`px-4 py-2 ${
+              activeTab === "report"
+                ? "font-bold border-b-2 border-blue-500"
+                : "text-gray-600"
+            }`}
+            onClick={() => setActiveTab("report")}
+          >
+            Moderation Report
+          </button>
+        </div>
 
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle className="text-lg">
-            Registered Training Provider
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center space-x-4 mb-4">
-            <span className="font-medium">LIMPOPO CHEFS ACADEMY</span>
-          </div>
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-center mb-6">
+            LIMPOPO CHEFS ACADEMY Internal Moderation Report
+          </h1>
 
-          <div className="flex items-center space-x-4 mb-2">
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="mokopane"
-                checked={campus === "mokopane"}
-                onCheckedChange={() => setCampus("mokopane")}
-              />
-              <Label htmlFor="mokopane">Mokopane Campus</Label>
-            </div>
-
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="polokwane"
-                checked={campus === "polokwane"}
-                onCheckedChange={() => setCampus("polokwane")}
-              />
-              <Label htmlFor="polokwane">Polokwane Campus</Label>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle className="text-lg">Accreditation Information</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="cityGuildsNo" className="block mb-2">
-                City & Guilds Centre No:
-              </Label>
-              <Input id="cityGuildsNo" placeholder="848490 / 848490A" />
-            </div>
-            <div>
-              <Label htmlFor="qctoNo" className="block mb-2">
-                QCTO Accreditation No:
-              </Label>
-              <Input
-                id="qctoNo"
-                placeholder="QCTO: SDP/16/0080 / QCTOSDP01191205-1879"
-              />
-            </div>
-            <div>
-              <Label htmlFor="qualCode" className="block mb-2">
-                Internal Qualification Code:
-              </Label>
-              <Input id="qualCode" />
-            </div>
-            <div>
-              <Label htmlFor="assessmentType" className="block mb-2">
-                Assessment Type:
-              </Label>
-              <Input id="assessmentType" />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle className="text-lg">Verification Details</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="verificationDate" className="block mb-2">
-                Date of internal verification:
-              </Label>
-              <Input id="verificationDate" type="date" />
-            </div>
-            <div>
-              <Label htmlFor="moderatorName" className="block mb-2">
-                Moderated by – Name & Surname:
-              </Label>
-              <Input id="moderatorName" />
-            </div>
-            <div>
-              <Label htmlFor="moderatorRegNo" className="block mb-2">
-                Moderator Registration Number:
-              </Label>
-              <Input id="moderatorRegNo" />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle className="text-lg">Student Moderation</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse">
-              <thead>
+          <div className="border rounded-lg overflow-hidden">
+            <table className="w-full">
+              <tbody>
                 <tr className="border-b">
-                  <th className="py-2 px-4 text-left w-12 font-medium">No.</th>
-                  <th className="py-2 px-4 text-left font-medium">
+                  <td className="border-r p-3 bg-gray-50 font-medium w-1/3">
+                    Registered Training Provider:
+                  </td>
+                  <td className="p-3">
+                    LIMPOPO CHEFS ACADEMY
+                    <div className="flex mt-2 space-x-2">
+                      <div className="flex items-center">
+                        <div className="h-4 w-4 rounded-full border border-gray-500 flex items-center justify-center mr-1">
+                          <div className="h-2 w-2 rounded-full bg-blue-500"></div>
+                        </div>
+                        <span>Mokopane Campus</span>
+                      </div>
+                      <div className="flex items-center">
+                        <div className="h-4 w-4 rounded-full border border-gray-500 flex items-center justify-center mr-1">
+                          <div className="h-2 w-2 rounded-full"></div>
+                        </div>
+                        <span>Polokwane Campus</span>
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+
+                <tr className="border-b">
+                  <td className="border-r p-3 bg-gray-50 font-medium">
+                    Accreditation Numbers:
+                  </td>
+                  <td className="p-3">
+                    <div className="grid grid-cols-2">
+                      <div>
+                        <p className="font-medium">City & Guilds Centre No:</p>
+                        <p>848490</p>
+                        <p>848490A</p>
+                      </div>
+                      <div>
+                        <p className="font-medium">QCTO Accreditation No:</p>
+                        <p>QCTO: SDP/16/0080</p>
+                        <p>QCTO SDP01191205-1879</p>
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+
+                <tr className="border-b">
+                  <td className="border-r p-3 bg-gray-50 font-medium">
+                    Internal Qualification Code:
+                  </td>
+                  <td className="p-3">8064-06</td>
+                </tr>
+
+                <tr className="border-b">
+                  <td className="border-r p-3 bg-gray-50 font-medium">
+                    Assessment Type:
+                  </td>
+                  <td className="p-3">
+                    <div className="flex space-x-6">
+                      <div className="flex items-center">
+                        <div className="h-4 w-4 rounded-full border border-gray-500 flex items-center justify-center mr-1">
+                          <div className="h-2 w-2 rounded-full"></div>
+                        </div>
+                        <span>FORMATIVE</span>
+                      </div>
+                      <div className="flex items-center">
+                        <div className="h-4 w-4 rounded-full border border-gray-500 flex items-center justify-center mr-1">
+                          <div className="h-2 w-2 rounded-full bg-blue-500"></div>
+                        </div>
+                        <span>SUMMATIVE</span>
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+
+                <tr className="border-b">
+                  <td className="border-r p-3 bg-gray-50 font-medium">
+                    Date of internal verification:
+                  </td>
+                  <td className="p-3">26/07/2024</td>
+                </tr>
+
+                <tr className="border-b">
+                  <td className="border-r p-3 bg-gray-50 font-medium">
+                    Moderated by -- Name & Surname:
+                  </td>
+                  <td className="p-3">Kelly Fowlds</td>
+                </tr>
+
+                <tr>
+                  <td className="border-r p-3 bg-gray-50 font-medium">
+                    Moderator Registration Number:
+                  </td>
+                  <td className="p-3">613/A/00525/2020</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div className="my-8">
+            <table className="w-full border">
+              <thead className="bg-gray-100">
+                <tr>
+                  <th className="border p-2 text-left w-16">No.</th>
+                  <th className="border p-2 text-left">
                     Student Name & Surname
                   </th>
-                  <th className="py-2 px-4 text-left font-medium">
-                    Marks Obtained
+                  <th className="border p-2 text-center">Unit No:</th>
+                  <th className="border p-2 text-center">
+                    Combined Mark Obtained
                   </th>
-                  <th className="py-2 px-4 text-left font-medium">
-                    Moderated Mark
-                  </th>
-                  <th className="py-2 px-4 text-left font-medium">
-                    Moderator Signature
+                  <th className="border p-2 text-center">
+                    Combined Moderated Mark
                   </th>
                 </tr>
               </thead>
               <tbody>
-                {students.map((student) => (
-                  <tr key={student.id} className="border-b">
-                    <td className="py-2 px-4">{student.id}.</td>
-                    <td className="py-2 px-4">
-                      <Input
-                        value={student.name}
-                        onChange={(e) =>
-                          updateStudent(student.id, "name", e.target.value)
-                        }
-                      />
-                    </td>
-                    <td className="py-2 px-4">
-                      <Input
-                        value={student.marksObtained}
-                        onChange={(e) =>
-                          updateStudent(
-                            student.id,
-                            "marksObtained",
-                            e.target.value
-                          )
-                        }
-                      />
-                    </td>
-                    <td className="py-2 px-4">
-                      <Input
-                        value={student.moderatedMark}
-                        onChange={(e) =>
-                          updateStudent(
-                            student.id,
-                            "moderatedMark",
-                            e.target.value
-                          )
-                        }
-                      />
-                    </td>
-                    <td className="py-2 px-4">
-                      <div className="h-10 border border-gray-300 rounded-md bg-gray-50"></div>
-                    </td>
-                  </tr>
-                ))}
+                <tr>
+                  <td className="border p-2">1.</td>
+                  <td className="border p-2">Mamogale Junecah Mmediwane</td>
+                  <td className="border p-2 text-center">C1</td>
+                  <td className="border p-2 text-center">84</td>
+                  <td className="border p-2 text-center">84</td>
+                </tr>
+                <tr className="bg-gray-50">
+                  <td className="border p-2">2.</td>
+                  <td className="border p-2">Shirley Takatso Maepa</td>
+                  <td className="border p-2 text-center">C1</td>
+                  <td className="border p-2 text-center">92</td>
+                  <td className="border p-2 text-center">92</td>
+                </tr>
+                <tr>
+                  <td className="border p-2">3.</td>
+                  <td className="border p-2">Tshegofatso Rachel Nkgweng</td>
+                  <td className="border p-2 text-center">C2</td>
+                  <td className="border p-2 text-center">91</td>
+                  <td className="border p-2 text-center">91</td>
+                </tr>
+                <tr className="bg-gray-50">
+                  <td className="border p-2">4.</td>
+                  <td className="border p-2">Lesetja Jeaniffer Teffo</td>
+                  <td className="border p-2 text-center">C2</td>
+                  <td className="border p-2 text-center">98</td>
+                  <td className="border p-2 text-center">98</td>
+                </tr>
+                <tr>
+                  <td className="border p-2">5.</td>
+                  <td className="border p-2">Ntokozo Charmaine Banda</td>
+                  <td className="border p-2 text-center">C3</td>
+                  <td className="border p-2 text-center">91</td>
+                  <td className="border p-2 text-center">91</td>
+                </tr>
+                <tr className="bg-gray-50">
+                  <td className="border p-2">6.</td>
+                  <td className="border p-2">Diarora Ngoanamosadi Mashoene</td>
+                  <td className="border p-2 text-center">C3</td>
+                  <td className="border p-2 text-center">95</td>
+                  <td className="border p-2 text-center">95</td>
+                </tr>
+                <tr>
+                  <td className="border p-2">7.</td>
+                  <td className="border p-2">Tshegofatso Boshego</td>
+                  <td className="border p-2 text-center">C4</td>
+                  <td className="border p-2 text-center">89</td>
+                  <td className="border p-2 text-center">89</td>
+                </tr>
+                <tr className="bg-gray-50">
+                  <td className="border p-2">8.</td>
+                  <td className="border p-2">Padima Alfred Ramaano</td>
+                  <td className="border p-2 text-center">C4</td>
+                  <td className="border p-2 text-center">95</td>
+                  <td className="border p-2 text-center">95</td>
+                </tr>
+                <tr>
+                  <td className="border p-2">9.</td>
+                  <td className="border p-2">Tumisho Moshohli Shai</td>
+                  <td className="border p-2 text-center">C5</td>
+                  <td className="border p-2 text-center">79</td>
+                  <td className="border p-2 text-center">79</td>
+                </tr>
+                <tr className="bg-gray-50">
+                  <td className="border p-2">10.</td>
+                  <td className="border p-2">Phomelelo Antonette Mahlatji</td>
+                  <td className="border p-2 text-center">C5</td>
+                  <td className="border p-2 text-center">77</td>
+                  <td className="border p-2 text-center">77</td>
+                </tr>
               </tbody>
             </table>
           </div>
-        </CardContent>
-      </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Internal Moderator(s)</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <Label htmlFor="modName" className="block mb-2">
-                Name
-              </Label>
-              <Input id="modName" />
-            </div>
-            <div>
-              <Label className="block mb-2">Signature</Label>
-              <div className="h-10 border border-gray-300 rounded-md bg-gray-50"></div>
-            </div>
-            <div>
-              <Label htmlFor="modDate" className="block mb-2">
-                Date
-              </Label>
-              <Input id="modDate" type="date" />
+          <div className="mt-8 border rounded-lg p-4">
+            <h3 className="font-bold mb-4">Internal Moderator</h3>
+            <div className="flex flex-col md:flex-row justify-between items-start gap-4">
+              <div>
+                <p className="font-medium">Name:</p>
+                <p>Kelly Fowlds</p>
+              </div>
+              <div>
+                <p className="font-medium">Signature:</p>
+                <div className="bg-gray-100 p-4 rounded-lg h-16 w-32 flex items-center justify-center">
+                  <p className="text-gray-500 italic text-sm">
+                    Digital Signature
+                  </p>
+                </div>
+              </div>
+              <div>
+                <p className="font-medium">Date:</p>
+                <p>26/07/2024</p>
+              </div>
             </div>
           </div>
-        </CardContent>
-        <CardFooter className="flex justify-end space-x-4 mt-6">
-          <Button variant="outline">Reset</Button>
-          <Button>Submit</Button>
-        </CardFooter>
-      </Card>
-    </div>
+        </div>
+      </div>
+    </ContentLayout>
   );
 }
