@@ -72,25 +72,48 @@ export default function AssignmentTestPage({
   const [tabHiddenTime, setTabHiddenTime] = useState<number | null>(null);
   const [windowFocused, setWindowFocused] = useState(true);
   const [blurStartTime, setBlurStartTime] = useState<number | null>(null);
+  const [warningShown, setWarningShown] = useState(false);
 
   // Constants
-  const TAB_HIDDEN_LIMIT = 10000;
-  const BLUR_TIME_LIMIT = 10000;
+  const TAB_HIDDEN_LIMIT = 10000; // 10 seconds
+  const BLUR_TIME_LIMIT = 10000; // 10 seconds
+  const WARNING_DELAY = 5000; // 5 seconds warning before submission
 
   // Refs
   const timeRef = useRef(0);
   const startTimeRef = useRef<number | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const warningTimerRef = useRef<NodeJS.Timeout | null>(null);
   const handleSubmitRef = useRef<() => Promise<void>>();
   const hasStartedRef = useRef(false);
   const isTestActiveRef = useRef(false);
 
   const isPasswordValid = usePasswordValidation(resolvedParams.id);
 
-  const preventCopyPaste = (e: React.ClipboardEvent) => {
-    e.preventDefault();
-    return false;
-  };
+  const showWarningToast = useCallback(() => {
+    if (!warningShown) {
+      setWarningShown(true);
+      toast({
+        title: "Warning",
+        description:
+          "Test will be submitted in 5 seconds if you don't return to the test window",
+        variant: "destructive",
+      });
+    }
+  }, [toast, warningShown]);
+
+  const preventCopyPaste = useCallback(
+    (e: React.ClipboardEvent) => {
+      e.preventDefault();
+      toast({
+        title: "Not Allowed",
+        description: "Copy and paste are not allowed during the test",
+        variant: "destructive",
+      });
+      return false;
+    },
+    [toast]
+  );
 
   const handleAnswerChange = useCallback(
     (questionId: string, value: string) => {
@@ -238,75 +261,80 @@ export default function AssignmentTestPage({
   }, [testStarted, assignment]);
 
   // Password validation effect
-  // Password validation effect
   useEffect(() => {
-    const checkPassword = async () => {
-      if (!isPasswordValid) {
-        // Only redirect if we're not in the process of loading
-        if (!loading) {
-          toast({
-            title: "Access Denied",
-            description: "Invalid or missing test password",
-            variant: "destructive",
-          });
-          router.push("/student/assignments");
-        }
-      }
-    };
-
-    checkPassword();
+    if (!isPasswordValid && !loading) {
+      toast({
+        title: "Access Denied",
+        description: "Invalid or missing test password",
+        variant: "destructive",
+      });
+      router.push("/student/assignments");
+    }
   }, [isPasswordValid, loading, router, toast]);
 
-  // Load assignment effect - modify to check password first
+  // Load assignment effect
   useEffect(() => {
     if (isPasswordValid) {
       loadAssignment();
     }
   }, [isPasswordValid, loadAssignment]);
 
-  // Load assignment effect
-  useEffect(() => {
-    loadAssignment();
-  }, [loadAssignment]);
-
   // Tab visibility effect
   useEffect(() => {
+    if (!testStarted) return;
+
     const handleVisibilityChange = () => {
       if (document.hidden) {
         setIsTabVisible(false);
         setTabHiddenTime(Date.now());
-      } else {
-        setIsTabVisible(true);
-        if (tabHiddenTime && Date.now() - tabHiddenTime > TAB_HIDDEN_LIMIT) {
-          if (handleSubmitRef.current) {
+        showWarningToast();
+
+        // Set warning timer
+        warningTimerRef.current = setTimeout(() => {
+          if (document.hidden && handleSubmitRef.current) {
             handleSubmitRef.current();
           }
-        }
+        }, WARNING_DELAY);
+      } else {
+        setIsTabVisible(true);
         setTabHiddenTime(null);
+        setWarningShown(false);
+        if (warningTimerRef.current) {
+          clearTimeout(warningTimerRef.current);
+        }
       }
     };
 
     document.addEventListener("visibilitychange", handleVisibilityChange);
     return () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
+      if (warningTimerRef.current) {
+        clearTimeout(warningTimerRef.current);
+      }
     };
-  }, [tabHiddenTime]);
+  }, [testStarted, showWarningToast]);
 
   // Window focus effect
   useEffect(() => {
+    if (!testStarted) return;
+
     const handleFocus = () => {
       setWindowFocused(true);
-      if (blurStartTime && Date.now() - blurStartTime > BLUR_TIME_LIMIT) {
-        if (handleSubmitRef.current) {
-          handleSubmitRef.current();
-        }
+      setWarningShown(false);
+      if (warningTimerRef.current) {
+        clearTimeout(warningTimerRef.current);
       }
-      setBlurStartTime(null);
     };
 
     const handleBlur = () => {
       setWindowFocused(false);
-      setBlurStartTime(Date.now());
+      showWarningToast();
+
+      warningTimerRef.current = setTimeout(() => {
+        if (!document.hasFocus() && handleSubmitRef.current) {
+          handleSubmitRef.current();
+        }
+      }, WARNING_DELAY);
     };
 
     window.addEventListener("focus", handleFocus);
@@ -315,8 +343,11 @@ export default function AssignmentTestPage({
     return () => {
       window.removeEventListener("focus", handleFocus);
       window.removeEventListener("blur", handleBlur);
+      if (warningTimerRef.current) {
+        clearTimeout(warningTimerRef.current);
+      }
     };
-  }, [blurStartTime]);
+  }, [testStarted, showWarningToast]);
 
   // Navigation prevention effect
   useEffect(() => {
@@ -335,6 +366,8 @@ export default function AssignmentTestPage({
 
   // Full screen effect
   useEffect(() => {
+    if (!testStarted) return;
+
     const handleFullscreenChange = () => {
       if (!document.fullscreenElement && hasStartedRef.current) {
         requestFullScreen();
@@ -345,7 +378,7 @@ export default function AssignmentTestPage({
     return () => {
       document.removeEventListener("fullscreenchange", handleFullscreenChange);
     };
-  }, []);
+  }, [testStarted]);
 
   if (loading) {
     return (
@@ -375,7 +408,6 @@ export default function AssignmentTestPage({
 
       {testStarted && (
         <div className="flex h-screen test-content" tabIndex={-1}>
-          {/* Sidebar Navigation */}
           <div className="w-64 border-r">
             <QuestionNavigation
               questions={assignment.questions}
@@ -385,14 +417,20 @@ export default function AssignmentTestPage({
             />
           </div>
 
-          {/* Main Content */}
           <div className="flex-1 flex flex-col p-6 space-y-6 overflow-y-auto">
             <Card className="bg-warning/10 border-warning">
               <CardContent className="py-4">
-                <p className="text-sm text-warning font-medium">
-                  ⚠️ Warning: Leaving this page or opening another window will
-                  result in automatic submission after 10 seconds
-                </p>
+                <div className="space-y-2">
+                  <p className="text-sm text-warning font-medium">
+                    ⚠️ Important Test Rules:
+                  </p>
+                  <ul className="text-sm text-warning list-disc pl-5 space-y-1">
+                    <li>Leaving this page will trigger a warning</li>
+                    <li>You have 5 seconds to return before auto-submission</li>
+                    <li>Copy and paste are not allowed</li>
+                    <li>Test must remain in fullscreen mode</li>
+                  </ul>
+                </div>
               </CardContent>
             </Card>
 
