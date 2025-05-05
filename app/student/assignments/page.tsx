@@ -31,6 +31,9 @@ interface Assignment {
   duration: number;
   availableFrom: Date;
   completed?: boolean;
+  retake?: boolean;
+  attempts?: number;
+  maxAttempts?: number;
 }
 
 export default function StudentAssignmentsPage() {
@@ -48,17 +51,22 @@ export default function StudentAssignmentsPage() {
     loadAssignments();
   }, []);
 
+  // In your page.tsx file, update the loadAssignments function:
   const loadAssignments = async () => {
     try {
       console.log("📚 Fetching student assignments...");
       const data = await fetchStudentAssignments();
+      if (!data) {
+        throw new Error("No assignments data received");
+      }
       console.log("✅ Assignments loaded:", data.length);
       setAssignments(data);
     } catch (error) {
       console.error("❌ Failed to load assignments:", error);
       toast({
-        title: "Error",
-        description: "Could not load assignments",
+        title: "Error loading assignments",
+        description:
+          error instanceof Error ? error.message : "Unknown error occurred",
         variant: "destructive",
       });
     } finally {
@@ -67,10 +75,24 @@ export default function StudentAssignmentsPage() {
   };
 
   const handleStartAssignment = (assignment: Assignment) => {
-    if (assignment.completed) {
+    if (assignment.completed && !assignment.retake) {
       toast({
-        title: "Already Completed",
-        description: "You have already completed this assessment",
+        title: "Not Available",
+        description: "This assessment cannot be retaken",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (
+      assignment.maxAttempts &&
+      assignment.attempts &&
+      assignment.attempts >= assignment.maxAttempts
+    ) {
+      toast({
+        title: "Maximum Attempts Reached",
+        description:
+          "You have reached the maximum number of attempts for this assessment",
         variant: "destructive",
       });
       return;
@@ -98,15 +120,12 @@ export default function StudentAssignmentsPage() {
       if (validation.valid) {
         console.log("✅ Password validated successfully");
 
-        // Set cookie with longer expiration and proper path
         document.cookie = `assignment_${
           selectedAssignment.id
         }_password=${password.trim()}; path=/; max-age=7200; secure; samesite=lax`;
 
-        // Close dialog first
         setPasswordDialog(false);
 
-        // Add small delay to ensure cookie is set
         setTimeout(() => {
           router.push(`/student/assignments/${selectedAssignment.id}`);
         }, 100);
@@ -145,44 +164,106 @@ export default function StudentAssignmentsPage() {
               <TableHead>Type</TableHead>
               <TableHead>Available From</TableHead>
               <TableHead>Duration</TableHead>
+              <TableHead>Status</TableHead>
               <TableHead>Action</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {assignments.map((assignment) => (
-              <TableRow key={assignment.id}>
-                <TableCell>{assignment.title}</TableCell>
-                <TableCell>{assignment.type}</TableCell>
-                <TableCell>
-                  {format(new Date(assignment.availableFrom), "PPP")}
-                </TableCell>
-                <TableCell>
-                  {Math.floor(assignment.duration / 60)}h{" "}
-                  {assignment.duration % 60}m
-                </TableCell>
-                <TableCell>
-                  <Button
-                    onClick={() => handleStartAssignment(assignment)}
-                    disabled={
-                      assignment.completed ||
-                      (!isSameDay(
-                        new Date(assignment.availableFrom),
-                        new Date()
-                      ) &&
-                        new Date() < new Date(assignment.availableFrom))
-                    }
-                    variant={assignment.completed ? "secondary" : "default"}
-                    className={`${
-                      assignment.completed
-                        ? "opacity-50 cursor-not-allowed pointer-events-none"
-                        : ""
-                    }`}
-                  >
-                    {assignment.completed ? "Completed" : "Start"}
-                  </Button>
+            {assignments
+              .filter((assignment) => {
+                // Always show uncompleted assignments
+                if (!assignment.completed) return true;
+
+                // For completed assignments, check if retake is possible
+                if (assignment.completed && assignment.retake) {
+                  const currentAttempts = assignment.attempts || 0;
+                  const maxAttempts = assignment.maxAttempts || 3;
+                  return currentAttempts < maxAttempts;
+                }
+
+                return false;
+              })
+              .map((assignment) => (
+                <TableRow
+                  key={assignment.id}
+                  className={`${
+                    assignment.completed ? "bg-muted/50" : ""
+                  } hover:bg-muted/60 transition-colors`}
+                >
+                  <TableCell className="font-medium">
+                    {assignment.title}
+                  </TableCell>
+                  <TableCell>{assignment.type}</TableCell>
+                  <TableCell>
+                    {format(new Date(assignment.availableFrom), "PPP")}
+                  </TableCell>
+                  <TableCell>
+                    {Math.floor(assignment.duration / 60)}h{" "}
+                    {assignment.duration % 60}m
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex flex-col gap-1">
+                      <span className="text-sm font-medium">
+                        {assignment.completed ? "Completed" : "Not Started"}
+                      </span>
+                      {assignment.attempts !== undefined &&
+                        assignment.maxAttempts && (
+                          <span className="text-xs text-muted-foreground">
+                            Attempt {assignment.attempts} of{" "}
+                            {assignment.maxAttempts}
+                          </span>
+                        )}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <Button
+                      onClick={() => handleStartAssignment(assignment)}
+                      disabled={
+                        // Disable if not available yet
+                        (!isSameDay(
+                          new Date(assignment.availableFrom),
+                          new Date()
+                        ) &&
+                          new Date() < new Date(assignment.availableFrom)) ||
+                        // Or if max attempts reached
+                        (assignment.maxAttempts &&
+                          assignment.attempts &&
+                          assignment.attempts >= assignment.maxAttempts)
+                      }
+                      variant={assignment.completed ? "secondary" : "default"}
+                      className="min-w-[80px] relative"
+                    >
+                      {assignment.completed ? "Retake" : "Start"}
+                      {assignment.retake && !assignment.completed && (
+                        <span className="absolute -top-2 -right-2 bg-primary text-primary-foreground text-xs px-1 rounded-full">
+                          {assignment.maxAttempts}
+                        </span>
+                      )}
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+
+            {/* Empty state */}
+            {assignments.filter(
+              (a) =>
+                !a.completed ||
+                (a.retake && a.attempts && a.attempts < (a.maxAttempts || 3))
+            ).length === 0 && (
+              <TableRow>
+                <TableCell
+                  colSpan={6}
+                  className="h-24 text-center text-muted-foreground"
+                >
+                  <div className="flex flex-col items-center gap-2">
+                    <span>No available assignments found</span>
+                    <span className="text-sm">
+                      Check back later for new assignments
+                    </span>
+                  </div>
                 </TableCell>
               </TableRow>
-            ))}
+            )}
           </TableBody>
         </Table>
 

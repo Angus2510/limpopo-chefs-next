@@ -267,6 +267,8 @@ model assignments {
   title              String
   type               String
   updatedAt          DateTime @db.Date
+  retake      Boolean @default(false)
+  maxAttempts Int     @default(3)
 }
 
 model attendances {

@@ -28,25 +28,6 @@ export interface QuestionOption {
   columnB?: string;
 }
 
-export interface Assignment {
-  id: string;
-  title: string;
-  lecturer: string;
-  type: "test" | "task";
-  duration: number;
-  availableFrom: Date;
-  availableUntil: Date | null;
-  createdAt: Date;
-  updatedAt: Date;
-  campus: string[];
-  intakeGroups: string[];
-  outcome: string[];
-  questions: Question[];
-  individualStudents: string[];
-  password: string;
-  v: number;
-}
-
 export interface TestProgress {
   currentQuestionIndex: number;
   questionStates: QuestionState[];
@@ -65,4 +46,31 @@ export interface TestSubmission {
   answers: Answer[];
   timeSpent: number;
   submittedAt: Date;
+}
+
+export interface AssignmentResult {
+  id: string;
+  student: string;
+  assignment: string;
+  status: string;
+  createdAt: Date;
+}
+
+export interface Assignment {
+  id: string;
+  v: number;
+  campus: string[];
+  questions: string[];
+  createdAt: Date;
+  outcome: string[];
+  password: string;
+  updatedAt: Date;
+  availableFrom: Date;
+  title: string;
+  type: string;
+  duration: number;
+  intakeGroups: string[];
+  retake?: boolean;
+  maxAttempts?: number;
+  AssignmentResults: AssignmentResult[];
 }
