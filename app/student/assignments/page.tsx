@@ -171,17 +171,20 @@ export default function StudentAssignmentsPage() {
           <TableBody>
             {assignments
               .filter((assignment) => {
-                // Always show uncompleted assignments
-                if (!assignment.completed) return true;
+                const isAvailableToday = isSameDay(
+                  new Date(assignment.availableFrom),
+                  new Date()
+                );
 
-                // For completed assignments, check if retake is possible
-                if (assignment.completed && assignment.retake) {
-                  const currentAttempts = assignment.attempts || 0;
-                  const maxAttempts = assignment.maxAttempts || 3;
-                  return currentAttempts < maxAttempts;
-                }
+                const hasAttemptsLeft =
+                  !assignment.maxAttempts ||
+                  (assignment.attempts || 0) < assignment.maxAttempts;
 
-                return false;
+                return (
+                  !assignment.completed ||
+                  (isAvailableToday && hasAttemptsLeft) ||
+                  (assignment.completed && assignment.retake && hasAttemptsLeft)
+                );
               })
               .map((assignment) => (
                 <TableRow
@@ -197,46 +200,37 @@ export default function StudentAssignmentsPage() {
                   <TableCell>
                     {format(new Date(assignment.availableFrom), "PPP")}
                   </TableCell>
-                  <TableCell>
-                    {Math.floor(assignment.duration / 60)}h{" "}
-                    {assignment.duration % 60}m
-                  </TableCell>
+                  <TableCell>{assignment.duration} minutes</TableCell>
                   <TableCell>
                     <div className="flex flex-col gap-1">
                       <span className="text-sm font-medium">
                         {assignment.completed ? "Completed" : "Not Started"}
                       </span>
-                      {assignment.attempts !== undefined &&
-                        assignment.maxAttempts && (
-                          <span className="text-xs text-muted-foreground">
-                            Attempt {assignment.attempts} of{" "}
-                            {assignment.maxAttempts}
-                          </span>
-                        )}
+                      <span className="text-xs text-muted-foreground">
+                        Attempt {assignment.attempts || 0} of{" "}
+                        {assignment.maxAttempts}
+                      </span>
                     </div>
                   </TableCell>
                   <TableCell>
                     <Button
                       onClick={() => handleStartAssignment(assignment)}
                       disabled={
-                        // Disable if not available yet
-                        (!isSameDay(
+                        !isSameDay(
                           new Date(assignment.availableFrom),
                           new Date()
-                        ) &&
-                          new Date() < new Date(assignment.availableFrom)) ||
-                        // Or if max attempts reached
-                        (assignment.maxAttempts &&
-                          assignment.attempts &&
-                          assignment.attempts >= assignment.maxAttempts)
+                        ) ||
+                        (assignment.attempts || 0) >=
+                          (assignment.maxAttempts || 3)
                       }
                       variant={assignment.completed ? "secondary" : "default"}
                       className="min-w-[80px] relative"
                     >
                       {assignment.completed ? "Retake" : "Start"}
-                      {assignment.retake && !assignment.completed && (
+                      {assignment.retake && (
                         <span className="absolute -top-2 -right-2 bg-primary text-primary-foreground text-xs px-1 rounded-full">
-                          {assignment.maxAttempts}
+                          {(assignment.maxAttempts || 3) -
+                            (assignment.attempts || 0)}
                         </span>
                       )}
                     </Button>

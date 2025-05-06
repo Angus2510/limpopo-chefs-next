@@ -32,7 +32,7 @@ export async function fetchStudentAssignments() {
       throw new Error("Student not found");
     }
 
-    // Get assignments
+    // Get assignments with retake information
     const assignments = await prisma.assignments.findMany({
       where: {
         intakeGroups: {
@@ -42,12 +42,24 @@ export async function fetchStudentAssignments() {
       orderBy: {
         availableFrom: "desc",
       },
+      select: {
+        id: true,
+        title: true,
+        type: true,
+        duration: true,
+        availableFrom: true,
+        retake: true,
+        maxAttempts: true,
+      },
     });
 
-    // Check completion status separately
-    const completedAssignments = await prisma.assignmentresults.findMany({
+    // Get attempt counts for each assignment
+    const assignmentResults = await prisma.assignmentresults.findMany({
       where: {
         student: decoded.id,
+        assignment: {
+          in: assignments.map((a) => a.id),
+        },
         status: "submitted",
       },
       select: {
@@ -55,18 +67,19 @@ export async function fetchStudentAssignments() {
       },
     });
 
-    const completedAssignmentIds = new Set(
-      completedAssignments.map((result) => result.assignment)
-    );
+    // Count attempts per assignment
+    const attemptCounts = assignmentResults.reduce((acc, result) => {
+      acc[result.assignment] = (acc[result.assignment] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
 
-    // Add completion status to assignments
+    // Add completion status and attempt information to assignments
     return assignments.map((assignment) => ({
-      id: assignment.id,
-      title: assignment.title,
-      type: assignment.type,
-      duration: assignment.duration,
-      availableFrom: assignment.availableFrom,
-      completed: completedAssignmentIds.has(assignment.id),
+      ...assignment,
+      completed: attemptCounts[assignment.id] > 0,
+      attempts: attemptCounts[assignment.id] || 0,
+      maxAttempts: assignment.maxAttempts || 3,
+      retake: assignment.retake || false,
     }));
   } catch (error) {
     console.error("Assignment fetch error:", error);
