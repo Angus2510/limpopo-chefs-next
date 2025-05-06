@@ -29,8 +29,6 @@ export async function fetchStudentResults(studentId: string) {
       },
     });
 
-    console.log("Raw results from DB:", results);
-
     // Get outcomes for titles
     const outcomes = await prisma.outcomes.findMany({
       where: {
@@ -66,7 +64,6 @@ export async function fetchStudentResults(studentId: string) {
       status: result.status || "pending",
     }));
 
-    console.log("Processed results:", finalResults);
     return finalResults;
   } catch (error) {
     console.error("Error fetching student results:", error);

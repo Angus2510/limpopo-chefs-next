@@ -267,7 +267,7 @@ model assignments {
   title              String
   type               String
   updatedAt          DateTime @db.Date
-  retake      Boolean @default(false)
+  retake      Boolean @default(true)
   maxAttempts Int     @default(3)
 }
 

@@ -51,7 +51,6 @@ export default function StudentAssignmentsPage() {
     loadAssignments();
   }, []);
 
-  // In your page.tsx file, update the loadAssignments function:
   const loadAssignments = async () => {
     try {
       console.log("📚 Fetching student assignments...");
@@ -59,8 +58,17 @@ export default function StudentAssignmentsPage() {
       if (!data) {
         throw new Error("No assignments data received");
       }
-      console.log("✅ Assignments loaded:", data.length);
-      setAssignments(data);
+
+      // Process the assignments data to ensure retake properties are properly set
+      const processedData = data.map((assignment) => ({
+        ...assignment,
+        retake: assignment.retake ?? false,
+        maxAttempts: assignment.maxAttempts ?? 3,
+        attempts: assignment.attempts ?? 0,
+      }));
+
+      console.log("✅ Assignments loaded:", processedData.length);
+      setAssignments(processedData);
     } catch (error) {
       console.error("❌ Failed to load assignments:", error);
       toast({
@@ -74,31 +82,47 @@ export default function StudentAssignmentsPage() {
     }
   };
 
+  const canTakeAssignment = (assignment: Assignment) => {
+    const isAvailableToday = isSameDay(
+      new Date(assignment.availableFrom),
+      new Date()
+    );
+
+    const hasAttemptsLeft =
+      (assignment.attempts || 0) < (assignment.maxAttempts || 3);
+
+    // Can take if:
+    // 1. Not completed OR
+    // 2. Is retakeable AND has attempts left AND available today
+    return (
+      !assignment.completed ||
+      (assignment.retake && hasAttemptsLeft && isAvailableToday)
+    );
+  };
+
   const handleStartAssignment = (assignment: Assignment) => {
-    if (assignment.completed && !assignment.retake) {
+    console.log("🎯 Attempting to start assignment:", {
+      id: assignment.id,
+      completed: assignment.completed,
+      retake: assignment.retake,
+      attempts: assignment.attempts,
+      maxAttempts: assignment.maxAttempts,
+    });
+
+    if (!canTakeAssignment(assignment)) {
+      const reason =
+        assignment.attempts! >= assignment.maxAttempts!
+          ? "Maximum attempts reached"
+          : "Assignment cannot be retaken";
+
       toast({
         title: "Not Available",
-        description: "This assessment cannot be retaken",
+        description: reason,
         variant: "destructive",
       });
       return;
     }
 
-    if (
-      assignment.maxAttempts &&
-      assignment.attempts &&
-      assignment.attempts >= assignment.maxAttempts
-    ) {
-      toast({
-        title: "Maximum Attempts Reached",
-        description:
-          "You have reached the maximum number of attempts for this assessment",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    console.log("🎯 Starting assignment:", assignment.id);
     setSelectedAssignment(assignment);
     setPasswordDialog(true);
     setPassword("");
@@ -106,29 +130,38 @@ export default function StudentAssignmentsPage() {
 
   const handlePasswordSubmit = async () => {
     if (!selectedAssignment || !password) {
-      console.log("❌ Missing assignment or password");
+      console.log("❌ Missing data:", {
+        hasAssignment: !!selectedAssignment,
+        hasPassword: !!password,
+      });
       return;
     }
 
     try {
-      console.log("🔐 Validating password...");
+      console.log(
+        "🔑 Validating password for assignment:",
+        selectedAssignment.id
+      );
       const validation = await validateAssignmentPassword(
         selectedAssignment.id,
         password.trim()
       );
 
+      console.log("✅ Validation result:", validation);
+
       if (validation.valid) {
-        console.log("✅ Password validated successfully");
+        // Set the cookie with the correct name that middleware expects
+        document.cookie = `assignment_password=${password.trim()}; path=/`;
 
-        document.cookie = `assignment_${
-          selectedAssignment.id
-        }_password=${password.trim()}; path=/; max-age=7200; secure; samesite=lax`;
-
+        // Close dialog
         setPasswordDialog(false);
 
-        setTimeout(() => {
-          router.push(`/student/assignments/${selectedAssignment.id}`);
-        }, 100);
+        // Navigate to test
+        const testPath = `/student/assignments/${selectedAssignment.id}`;
+        console.log("🚀 Navigating to:", testPath);
+
+        // Force navigation
+        window.location.assign(testPath);
       } else {
         throw new Error(validation.message || "Invalid password");
       }
@@ -153,6 +186,10 @@ export default function StudentAssignmentsPage() {
     );
   }
 
+  const filteredAssignments = assignments.filter((assignment) =>
+    canTakeAssignment(assignment)
+  );
+
   return (
     <ContentLayout title="Assessments">
       <div className="container mx-auto py-6">
@@ -169,81 +206,50 @@ export default function StudentAssignmentsPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {assignments
-              .filter((assignment) => {
-                const isAvailableToday = isSameDay(
-                  new Date(assignment.availableFrom),
-                  new Date()
-                );
-
-                const hasAttemptsLeft =
-                  !assignment.maxAttempts ||
-                  (assignment.attempts || 0) < assignment.maxAttempts;
-
-                return (
-                  !assignment.completed ||
-                  (isAvailableToday && hasAttemptsLeft) ||
-                  (assignment.completed && assignment.retake && hasAttemptsLeft)
-                );
-              })
-              .map((assignment) => (
-                <TableRow
-                  key={assignment.id}
-                  className={`${
-                    assignment.completed ? "bg-muted/50" : ""
-                  } hover:bg-muted/60 transition-colors`}
-                >
-                  <TableCell className="font-medium">
-                    {assignment.title}
-                  </TableCell>
-                  <TableCell>{assignment.type}</TableCell>
-                  <TableCell>
-                    {format(new Date(assignment.availableFrom), "PPP")}
-                  </TableCell>
-                  <TableCell>{assignment.duration} minutes</TableCell>
-                  <TableCell>
-                    <div className="flex flex-col gap-1">
-                      <span className="text-sm font-medium">
-                        {assignment.completed ? "Completed" : "Not Started"}
+            {filteredAssignments.map((assignment) => (
+              <TableRow
+                key={assignment.id}
+                className={`${
+                  assignment.completed ? "bg-muted/50" : ""
+                } hover:bg-muted/60 transition-colors`}
+              >
+                <TableCell className="font-medium">
+                  {assignment.title}
+                </TableCell>
+                <TableCell>{assignment.type}</TableCell>
+                <TableCell>
+                  {format(new Date(assignment.availableFrom), "PPP")}
+                </TableCell>
+                <TableCell>{assignment.duration} minutes</TableCell>
+                <TableCell>
+                  <div className="flex flex-col gap-1">
+                    <span className="text-sm font-medium">
+                      {assignment.completed ? "Completed" : "Not Started"}
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      Attempt {assignment.attempts} of {assignment.maxAttempts}
+                    </span>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <Button
+                    onClick={() => handleStartAssignment(assignment)}
+                    disabled={!canTakeAssignment(assignment)}
+                    variant={assignment.completed ? "secondary" : "default"}
+                    className="min-w-[80px] relative"
+                  >
+                    {assignment.completed ? "Retake" : "Start"}
+                    {assignment.retake && (
+                      <span className="absolute -top-2 -right-2 bg-primary text-primary-foreground text-xs px-1 rounded-full">
+                        {assignment.maxAttempts! - assignment.attempts!}
                       </span>
-                      <span className="text-xs text-muted-foreground">
-                        Attempt {assignment.attempts || 0} of{" "}
-                        {assignment.maxAttempts}
-                      </span>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Button
-                      onClick={() => handleStartAssignment(assignment)}
-                      disabled={
-                        !isSameDay(
-                          new Date(assignment.availableFrom),
-                          new Date()
-                        ) ||
-                        (assignment.attempts || 0) >=
-                          (assignment.maxAttempts || 3)
-                      }
-                      variant={assignment.completed ? "secondary" : "default"}
-                      className="min-w-[80px] relative"
-                    >
-                      {assignment.completed ? "Retake" : "Start"}
-                      {assignment.retake && (
-                        <span className="absolute -top-2 -right-2 bg-primary text-primary-foreground text-xs px-1 rounded-full">
-                          {(assignment.maxAttempts || 3) -
-                            (assignment.attempts || 0)}
-                        </span>
-                      )}
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
+                    )}
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))}
 
-            {/* Empty state */}
-            {assignments.filter(
-              (a) =>
-                !a.completed ||
-                (a.retake && a.attempts && a.attempts < (a.maxAttempts || 3))
-            ).length === 0 && (
+            {filteredAssignments.length === 0 && (
               <TableRow>
                 <TableCell
                   colSpan={6}
