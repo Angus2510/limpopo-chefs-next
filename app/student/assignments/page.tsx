@@ -150,18 +150,15 @@ export default function StudentAssignmentsPage() {
       console.log("✅ Validation result:", validation);
 
       if (validation.valid) {
-        // Set the cookie with the correct name that middleware expects
-        document.cookie = `assignment_password=${password.trim()}; path=/`;
+        // Set the password cookie with proper attributes
+        document.cookie = `assignment_password=${password.trim()}; path=/; max-age=3600; SameSite=Strict`;
 
-        // Close dialog
+        // Close dialog and reset state
         setPasswordDialog(false);
+        setPassword("");
 
-        // Navigate to test
-        const testPath = `/student/assignments/${selectedAssignment.id}`;
-        console.log("🚀 Navigating to:", testPath);
-
-        // Force navigation
-        window.location.assign(testPath);
+        // Use router.push instead of window.location
+        router.push(`/student/assignments/${selectedAssignment.id}`);
       } else {
         throw new Error(validation.message || "Invalid password");
       }

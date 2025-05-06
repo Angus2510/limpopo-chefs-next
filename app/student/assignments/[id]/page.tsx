@@ -212,8 +212,16 @@ export default function AssignmentTestPage({
   }, [assignment, questionStates.length, answers.length, handleSubmitTest]);
 
   const loadAssignment = useCallback(async () => {
+    if (!isPasswordValid) return;
+
     try {
+      console.log("Loading assignment:", resolvedParams.id);
       const data = await getAssignmentById(resolvedParams.id);
+
+      if (!data) {
+        throw new Error("Assignment not found");
+      }
+
       setAssignment(data);
       setLoading(false);
     } catch (error) {
@@ -223,9 +231,9 @@ export default function AssignmentTestPage({
         description: "Could not load assignment",
         variant: "destructive",
       });
-      router.push("/student/assignments");
+      router.replace("/student/assignments");
     }
-  }, [resolvedParams.id, router, toast]);
+  }, [resolvedParams.id, router, toast, isPasswordValid]);
 
   // Initialize test
   useEffect(() => {
@@ -262,14 +270,18 @@ export default function AssignmentTestPage({
 
   // Password validation effect
   useEffect(() => {
-    if (!isPasswordValid && !loading) {
-      toast({
-        title: "Access Denied",
-        description: "Invalid or missing test password",
-        variant: "destructive",
-      });
-      router.push("/student/assignments");
-    }
+    const checkAccess = async () => {
+      if (!isPasswordValid && !loading) {
+        toast({
+          title: "Access Denied",
+          description: "Invalid or missing test password",
+          variant: "destructive",
+        });
+        router.replace("/student/assignments");
+      }
+    };
+
+    checkAccess();
   }, [isPasswordValid, loading, router, toast]);
 
   // Load assignment effect
@@ -382,9 +394,12 @@ export default function AssignmentTestPage({
 
   if (loading) {
     return (
-      <ContentLayout title="Loading...">
-        <div className="flex justify-center items-center h-48">
-          Loading test...
+      <ContentLayout title="Loading Test">
+        <div className="flex flex-col justify-center items-center h-48 space-y-4">
+          <div className="text-lg">Loading test content...</div>
+          <div className="text-sm text-muted-foreground">
+            Please wait while we prepare your test
+          </div>
         </div>
       </ContentLayout>
     );
