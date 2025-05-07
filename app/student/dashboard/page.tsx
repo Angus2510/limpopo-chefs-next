@@ -12,6 +12,7 @@ import WelHoursCard from "@/components/students/wel-card";
 import StudentMaterialsCard from "@/components/students/student-learning-materials-card";
 import { TermsDialog } from "@/components/dialogs/popi/popiDialog";
 import { useTermsDialog } from "@/hooks/use-dialog";
+import Image from "next/image";
 
 export default function ProtectedStudentDashboard() {
   const router = useRouter();
@@ -98,7 +99,7 @@ export default function ProtectedStudentDashboard() {
     const { student, wellnessRecords, events, finances } = studentData;
 
     return (
-      <div className="min-h-screen bg-primary-200">
+      <div className="min-h-screen">
         <ContentLayout title="Student Dashboard">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 auto-rows-min gap-4">
             {/* First row */}
@@ -137,8 +138,20 @@ export default function ProtectedStudentDashboard() {
 
   return (
     <>
-      <TermsDialog />
-      {!hasAccepted ? null : renderDashboardContent()}
+      <div className="fixed inset-0 z-0">
+        <Image
+          src="/img/student-background.jpeg"
+          alt="Limpopo Chefs Academy Background"
+          fill
+          className="object-cover opacity-15"
+          priority
+          quality={100}
+        />
+      </div>
+      <div className="relative z-10">
+        <TermsDialog />
+        {!hasAccepted ? null : renderDashboardContent()}
+      </div>
     </>
   );
 }
