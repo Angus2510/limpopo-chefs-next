@@ -16,6 +16,12 @@ export const MENU_OUTCOMES = [
   "1st Year- Final Theory Exam",
   "2nd Year- Final Exam Theory",
   "Menu A18- Final Summative Practical Exam",
+  "C&G Evolve (7107-22): Food Safety 1st Year",
+  "C&G Evolve (8064-01): Food Prep 2nd Year",
+  "C&G Evolve (8064-01): Food Safety 2nd Year",
+  "C&G Evolve (8064-01): Hospitality Principles 2nd Year",
+  "C&G Evolve (8064-06): Culinary arts and supervision 3rd Year",
+  "C&G Evolve (8064-06): Monitoring and supervision of food safety 3rd Year",
 ];
 
 export const isMenuOutcome = (outcomeTitle: string): boolean => {
