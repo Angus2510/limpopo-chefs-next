@@ -107,15 +107,27 @@ export default function GroupAssignmentMarkPage() {
       setLoading(true);
       setError(null);
 
-      const groupData = await fetchWithRetry(`/api/intake-groups/${groupId}`);
-      setGroupName(groupData.title || "Unknown Group");
+      // First fetch the group info
+      try {
+        const groupData = await fetchWithRetry(`/api/intake-groups/${groupId}`);
+        setGroupName(groupData.title || "Unknown Group");
+      } catch (error) {
+        console.error("Error fetching group data:", error);
+        // Continue execution to try fetching the assignments anyway
+      }
 
+      // Then fetch assignment results
       const resultsData = await fetchWithRetry(
         `/api/assignments/results?groupId=${groupId}`
       );
       setAssignments(resultsData.results || []);
     } catch (error) {
-      setError(error instanceof Error ? error.message : "Failed to load data");
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "Failed to load assignment data";
+
+      setError(errorMessage);
       console.error("Error fetching data:", error);
     } finally {
       setLoading(false);
@@ -127,28 +139,67 @@ export default function GroupAssignmentMarkPage() {
 
     while (attempts < maxRetries) {
       try {
-        const response = await fetch(url, options);
+        console.log(`Attempt ${attempts + 1}/${maxRetries}: Fetching ${url}`);
+
+        // Use AbortController to set a timeout
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
+        const response = await fetch(url, {
+          ...options,
+          signal: controller.signal,
+        });
+
+        // Clear the timeout since we got a response
+        clearTimeout(timeoutId);
 
         if (!response.ok) {
-          throw new Error(`HTTP error! Status: ${response.status}`);
+          const statusText = response.statusText || "Unknown error";
+          throw new Error(
+            `HTTP error! Status: ${response.status} (${statusText})`
+          );
         }
 
-        return await response.json();
+        const data = await response.json();
+        console.log(`Success fetching ${url}`);
+        return data;
       } catch (error) {
         attempts++;
-        console.log(`Attempt ${attempts} failed: ${error}`);
 
+        // Special handling for timeout errors
+        const isTimeout =
+          (error instanceof DOMException && error.name === "AbortError") ||
+          (error instanceof Error && error.message.includes("504"));
+
+        const errorMessage = isTimeout
+          ? "Request timed out"
+          : error instanceof Error
+          ? error.message
+          : "Unknown error";
+
+        console.log(`Attempt ${attempts} failed: ${errorMessage}`);
+
+        // If this is our last attempt, throw the error
         if (attempts === maxRetries) {
+          if (isTimeout) {
+            throw new Error(
+              `The server is taking too long to respond. This might be due to a large amount of data or high server load. Please try again later or contact support if the problem persists.`
+            );
+          }
           throw error;
         }
 
-        // Exponential backoff
-        await new Promise((resolve) => setTimeout(resolve, 1000 * attempts));
+        // Exponential backoff with a bit more time for timeouts
+        const delay = isTimeout ? 2000 * attempts : 1000 * attempts;
+
+        console.log(`Waiting ${delay}ms before retry...`);
+        await new Promise((resolve) => setTimeout(resolve, delay));
       }
     }
-  };
 
-  // Then update fetchGroupData to use this function
+    // This shouldn't be reached due to the throw in the loop
+    throw new Error(`Failed after ${maxRetries} attempts`);
+  };
 
   // Filter and sort assignments
   const filteredAssignments = assignments
