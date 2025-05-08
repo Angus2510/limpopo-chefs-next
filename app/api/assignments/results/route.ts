@@ -13,9 +13,7 @@ export async function GET(request: Request) {
       );
     }
 
-    // Debug log
-    console.log("Fetching results for group:", groupId);
-
+    // Get all results first
     const results = await prisma.assignmentresults.findMany({
       where: {
         intakeGroup: groupId,
@@ -37,101 +35,45 @@ export async function GET(request: Request) {
       },
     });
 
-    // Debug log
-    console.log("Found results:", results.length);
+    // Get unique IDs
+    const assignmentIds = [...new Set(results.map((r) => r.assignment))];
+    const studentIds = [...new Set(results.map((r) => r.student))];
 
-    const enhancedResults = await Promise.all(
-      results.map(async (result) => {
-        try {
-          // Get assignment with outcomes
-          const assignment = await prisma.assignments.findUnique({
-            where: {
-              id: result.assignment,
-            },
-            select: {
-              id: true,
-              title: true,
-              type: true,
-              outcome: true,
-            },
-          });
+    // Batch fetch related data
+    const [assignments, students] = await Promise.all([
+      prisma.assignments.findMany({
+        where: { id: { in: assignmentIds } },
+        select: {
+          id: true,
+          title: true,
+          type: true,
+          outcome: true,
+        },
+      }),
+      prisma.students.findMany({
+        where: { id: { in: studentIds } },
+        select: {
+          id: true,
+          admissionNumber: true,
+          profile: true,
+        },
+      }),
+    ]);
 
-          // Get student details
-          const student = await prisma.students.findUnique({
-            where: {
-              id: result.student,
-            },
-            select: {
-              admissionNumber: true,
-              profile: true,
-            },
-          });
+    // Create lookup maps for better performance
+    const assignmentMap = new Map(assignments.map((a) => [a.id, a]));
+    const studentMap = new Map(students.map((s) => [s.id, s]));
 
-          // Get outcomes
-          let outcomes = [];
-          if (assignment?.outcome?.length) {
-            outcomes = await prisma.outcomes.findMany({
-              where: {
-                id: {
-                  in: assignment.outcome,
-                },
-              },
-              select: {
-                id: true,
-                title: true,
-                type: true,
-                hidden: true,
-                campus: true,
-              },
-            });
-          }
-
-          // Debug log
-          console.log("Processing assignment:", assignment?.title);
-          console.log("Found outcomes:", outcomes.length);
-
-          return {
-            id: result.id,
-            assignment: result.assignment,
-            student: result.student,
-            status: result.status,
-            dateTaken: result.dateTaken.toISOString(),
-            scores: result.scores || null,
-            percent: result.percent || null,
-            testScore: result.testScore || null,
-            taskScore: result.taskScore || null,
-            markedBy: result.markedBy || null,
-            assignmentData: assignment
-              ? {
-                  id: assignment.id,
-                  title: assignment.title,
-                  type: assignment.type,
-                  outcome: assignment.outcome,
-                  outcomes: outcomes,
-                }
-              : null,
-            studentData: student
-              ? {
-                  admissionNumber: student.admissionNumber,
-                  profile: student.profile,
-                }
-              : null,
-          };
-        } catch (error) {
-          console.error("Error processing result:", error);
-          return null;
-        }
-      })
-    );
-
-    // Filter out any null results from errors
-    const validResults = enhancedResults.filter(Boolean);
-
-    // Debug log
-    console.log("Sending enhanced results:", validResults.length);
+    // Enhance results with related data
+    const enhancedResults = results.map((result) => ({
+      ...result,
+      assignmentData: assignmentMap.get(result.assignment) || null,
+      studentData: studentMap.get(result.student) || null,
+      dateTaken: result.dateTaken.toISOString(),
+    }));
 
     return NextResponse.json({
-      results: validResults,
+      results: enhancedResults,
     });
   } catch (error) {
     console.error("Error fetching assignment results:", error);
