@@ -5,18 +5,17 @@ export async function GET(
   request: Request,
   { params }: { params: { groupId: string } }
 ) {
-  // Fix: Access groupId directly from params without assigning to variable
-  if (!params.groupId) {
-    return NextResponse.json(
-      { error: "Group ID is required" },
-      { status: 400 }
-    );
-  }
-
   try {
+    if (!params.groupId) {
+      return NextResponse.json(
+        { error: "Group ID is required" },
+        { status: 400 }
+      );
+    }
+
     const intakeGroup = await prisma.intakegroups.findUnique({
       where: {
-        id: params.groupId, // Use params.groupId directly here
+        id: params.groupId,
       },
     });
 

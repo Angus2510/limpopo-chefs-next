@@ -98,77 +98,57 @@ export default function GroupAssignmentMarkPage() {
     fetchGroupData();
   }, [groupId]);
 
+  // In your page.tsx file, modify the fetchGroupData function:
+
   const fetchGroupData = async () => {
     if (!groupId) return;
 
-    const MAX_RETRIES = 3;
-    let currentTry = 0;
+    try {
+      setLoading(true);
+      setError(null);
 
-    while (currentTry < MAX_RETRIES) {
+      const groupData = await fetchWithRetry(`/api/intake-groups/${groupId}`);
+      setGroupName(groupData.title || "Unknown Group");
+
+      const resultsData = await fetchWithRetry(
+        `/api/assignments/results?groupId=${groupId}`
+      );
+      setAssignments(resultsData.results || []);
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Failed to load data");
+      console.error("Error fetching data:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchWithRetry = async (url: string, options = {}, maxRetries = 3) => {
+    let attempts = 0;
+
+    while (attempts < maxRetries) {
       try {
-        setLoading(true);
-        setError(null);
+        const response = await fetch(url, options);
 
-        // First get the group name
-        const groupResponse = await fetch(`/api/intake-groups/${groupId}`, {
-          // Add timeout of 10 seconds
-          signal: AbortSignal.timeout(10000),
-        });
-
-        if (!groupResponse.ok) {
-          throw new Error(
-            `Failed to fetch group info: ${groupResponse.status}`
-          );
+        if (!response.ok) {
+          throw new Error(`HTTP error! Status: ${response.status}`);
         }
 
-        const groupData = await groupResponse.json();
-        setGroupName(groupData.title);
-
-        // Then get all assignments for this group
-        const resultsResponse = await fetch(
-          `/api/assignments/results?groupId=${groupId}`,
-          {
-            // Add timeout of 30 seconds for assignments
-            signal: AbortSignal.timeout(30000),
-          }
-        );
-
-        if (!resultsResponse.ok) {
-          throw new Error(
-            `Failed to fetch assignments: ${resultsResponse.status}`
-          );
-        }
-
-        const resultsData = await resultsResponse.json();
-        setAssignments(resultsData.results);
-        return; // Success, exit the retry loop
+        return await response.json();
       } catch (error) {
-        console.error(`Attempt ${currentTry + 1} failed:`, error);
+        attempts++;
+        console.log(`Attempt ${attempts} failed: ${error}`);
 
-        if (currentTry === MAX_RETRIES - 1) {
-          // Last attempt failed
-          setError(
-            "The request timed out. This could be due to a large number of assignments. Please try again or contact support if the issue persists."
-          );
-          toast({
-            title: "Error loading data",
-            description: "Request timed out. Please try again.",
-            variant: "destructive",
-          });
+        if (attempts === maxRetries) {
+          throw error;
         }
 
-        currentTry++;
-        // Wait before retrying (exponential backoff)
-        if (currentTry < MAX_RETRIES) {
-          await new Promise((resolve) =>
-            setTimeout(resolve, 1000 * currentTry)
-          );
-        }
-      } finally {
-        setLoading(false);
+        // Exponential backoff
+        await new Promise((resolve) => setTimeout(resolve, 1000 * attempts));
       }
     }
   };
+
+  // Then update fetchGroupData to use this function
 
   // Filter and sort assignments
   const filteredAssignments = assignments
