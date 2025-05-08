@@ -28,6 +28,8 @@ interface Student {
   name: string;
   surname: string;
   admissionNumber: string;
+  active: boolean;
+  inactiveReason?: string;
   existingMark?: number;
   existingTestScore?: number;
   existingTaskScore?: number;
@@ -38,7 +40,7 @@ interface StudentResultsTableProps {
   students: Student[];
   outcomeId: string;
   campusId: string;
-  intakeGroupId: string[]; // Changed from string to string[]
+  intakeGroupId: string[];
   outcomeTitle: string;
   isMenuAssessment: boolean;
   onSave: (results: StudentResult[]) => Promise<{
@@ -57,7 +59,7 @@ interface StudentResult {
   taskScore: number;
   competency: "competent" | "not_competent";
   campusId: string;
-  intakeGroupId: string[]; // Changed from string to string[]
+  intakeGroupId: string[];
 }
 
 export function StudentResultsTable({
@@ -74,8 +76,6 @@ export function StudentResultsTable({
   const [hasChanges, setHasChanges] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
 
-  // Initialize results when students prop changes
-  // In the StudentResultsTable component
   useEffect(() => {
     const initialResults: Record<string, StudentResult> = {};
     students.forEach((student) => {
@@ -83,7 +83,7 @@ export function StudentResultsTable({
         studentId: student.id,
         outcomeId,
         campusId,
-        intakeGroupId, // This now receives an array of intake group IDs
+        intakeGroupId,
         mark: student.existingMark ?? 0,
         testScore: isMenuAssessment
           ? student.existingMark ?? 0
@@ -131,7 +131,6 @@ export function StudentResultsTable({
         updated.mark = (updated.testScore + updated.taskScore) / 2;
       }
 
-      // Auto-set competency based on mark
       updated.competency = updated.mark >= 50 ? "competent" : "not_competent";
 
       return { ...prev, [studentId]: updated };
@@ -178,7 +177,7 @@ export function StudentResultsTable({
             variant: "default",
           });
           setHasChanges(false);
-          break; // Success, exit retry loop
+          break;
         } else {
           throw new Error(response.error || "Failed to save results");
         }
@@ -194,7 +193,6 @@ export function StudentResultsTable({
             variant: "destructive",
           });
         } else {
-          // Wait before retrying
           await new Promise((resolve) => setTimeout(resolve, 1000 * attempt));
           toast({
             title: "Retrying",
@@ -239,12 +237,27 @@ export function StudentResultsTable({
           </TableHeader>
           <TableBody>
             {students.map((student) => (
-              <TableRow key={student.id}>
+              <TableRow
+                key={student.id}
+                className={!student.active ? "bg-muted/50" : ""}
+              >
                 <TableCell className="font-medium">
                   {student.admissionNumber}
                 </TableCell>
                 <TableCell>
-                  {student.name} {student.surname}
+                  <div className="flex flex-col">
+                    <span>
+                      {student.name} {student.surname}
+                    </span>
+                    {!student.active && (
+                      <span className="text-xs text-muted-foreground">
+                        Inactive
+                        {student.inactiveReason
+                          ? `: ${student.inactiveReason}`
+                          : ""}
+                      </span>
+                    )}
+                  </div>
                 </TableCell>
                 {!isMenuAssessment && (
                   <>

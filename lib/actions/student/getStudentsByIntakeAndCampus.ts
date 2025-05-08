@@ -8,6 +8,8 @@ export interface StudentWithResults {
   surname: string;
   admissionNumber: string;
   alumni: boolean;
+  active: boolean;
+  inactiveReason?: string;
   existingMark?: number;
   existingTestScore?: number;
   existingTaskScore?: number;
@@ -25,7 +27,7 @@ export async function getStudentsByIntakeAndCampus(
 
   try {
     console.log(
-      `Fetching students for intake groups ${intakeGroupId.join(
+      `Fetching all students for intake groups ${intakeGroupId.join(
         ", "
       )} and campus ${campusId}`
     );
@@ -38,12 +40,14 @@ export async function getStudentsByIntakeAndCampus(
         campus: {
           hasSome: [campusId],
         },
-        active: true,
+        // Removed active: true to get all students
       },
       select: {
         id: true,
         admissionNumber: true,
         alumni: true,
+        active: true,
+        inactiveReason: true,
         profile: {
           select: {
             firstName: true,
@@ -65,7 +69,11 @@ export async function getStudentsByIntakeAndCampus(
       ],
     });
 
-    console.log(`Found ${students.length} students`);
+    console.log(
+      `Found ${students.length} total students (${
+        students.filter((s) => !s.active).length
+      } inactive)`
+    );
 
     let studentResults: Record<
       string,
@@ -123,6 +131,8 @@ export async function getStudentsByIntakeAndCampus(
       surname: student.profile?.lastName || "",
       admissionNumber: student.admissionNumber || "",
       alumni: student.alumni || false,
+      active: student.active ?? true,
+      inactiveReason: student.inactiveReason || "",
       existingMark: studentResults[student.id]?.mark,
       existingTestScore: studentResults[student.id]?.testScore,
       existingTaskScore: studentResults[student.id]?.taskScore,
