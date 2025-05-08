@@ -101,39 +101,72 @@ export default function GroupAssignmentMarkPage() {
   const fetchGroupData = async () => {
     if (!groupId) return;
 
-    try {
-      setLoading(true);
-      setError(null);
+    const MAX_RETRIES = 3;
+    let currentTry = 0;
 
-      // First get the group name
-      const groupResponse = await fetch(`/api/intake-groups/${groupId}`);
-      if (!groupResponse.ok) {
-        throw new Error(`Failed to fetch group info: ${groupResponse.status}`);
-      }
+    while (currentTry < MAX_RETRIES) {
+      try {
+        setLoading(true);
+        setError(null);
 
-      const groupData = await groupResponse.json();
-      setGroupName(groupData.title);
+        // First get the group name
+        const groupResponse = await fetch(`/api/intake-groups/${groupId}`, {
+          // Add timeout of 10 seconds
+          signal: AbortSignal.timeout(10000),
+        });
 
-      // Then get all assignments for this group
-      const resultsResponse = await fetch(
-        `/api/assignments/results?groupId=${groupId}`
-      );
-      if (!resultsResponse.ok) {
-        throw new Error(
-          `Failed to fetch assignments: ${resultsResponse.status}`
+        if (!groupResponse.ok) {
+          throw new Error(
+            `Failed to fetch group info: ${groupResponse.status}`
+          );
+        }
+
+        const groupData = await groupResponse.json();
+        setGroupName(groupData.title);
+
+        // Then get all assignments for this group
+        const resultsResponse = await fetch(
+          `/api/assignments/results?groupId=${groupId}`,
+          {
+            // Add timeout of 30 seconds for assignments
+            signal: AbortSignal.timeout(30000),
+          }
         );
-      }
 
-      const resultsData = await resultsResponse.json();
-      // Fix: Access the results array from the response
-      setAssignments(resultsData.results); // <-- This is the key change
-    } catch (error) {
-      console.error("Error loading assignment data:", error);
-      setError(
-        error instanceof Error ? error.message : "An unknown error occurred"
-      );
-    } finally {
-      setLoading(false);
+        if (!resultsResponse.ok) {
+          throw new Error(
+            `Failed to fetch assignments: ${resultsResponse.status}`
+          );
+        }
+
+        const resultsData = await resultsResponse.json();
+        setAssignments(resultsData.results);
+        return; // Success, exit the retry loop
+      } catch (error) {
+        console.error(`Attempt ${currentTry + 1} failed:`, error);
+
+        if (currentTry === MAX_RETRIES - 1) {
+          // Last attempt failed
+          setError(
+            "The request timed out. This could be due to a large number of assignments. Please try again or contact support if the issue persists."
+          );
+          toast({
+            title: "Error loading data",
+            description: "Request timed out. Please try again.",
+            variant: "destructive",
+          });
+        }
+
+        currentTry++;
+        // Wait before retrying (exponential backoff)
+        if (currentTry < MAX_RETRIES) {
+          await new Promise((resolve) =>
+            setTimeout(resolve, 1000 * currentTry)
+          );
+        }
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
