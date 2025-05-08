@@ -6,156 +6,91 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const groupId = searchParams.get("groupId");
 
-    // Add pagination parameters
-    const page = parseInt(searchParams.get("page") || "1");
-    const pageSize = parseInt(searchParams.get("pageSize") || "20");
-    const skip = (page - 1) * pageSize;
-
     if (!groupId) {
       return NextResponse.json(
-        { error: "Group ID is required", results: [] },
+        { error: "Group ID is required" },
         { status: 400 }
       );
     }
 
-    // Debug log
-    console.log(
-      `Fetching results for group: ${groupId}, page: ${page}, pageSize: ${pageSize}`
-    );
-
-    // Get total count for pagination info
-    const totalCount = await prisma.assignmentresults.count({
-      where: {
-        intakeGroup: groupId,
-      },
+    // First get a lightweight count
+    const count = await prisma.assignmentresults.count({
+      where: { intakeGroup: groupId },
     });
 
-    // Fetch paginated results
+    console.log(`Found ${count} results for group ${groupId}`);
+
+    // Then fetch the actual data with specific select fields
     const results = await prisma.assignmentresults.findMany({
-      where: {
-        intakeGroup: groupId,
-      },
+      where: { intakeGroup: groupId },
       select: {
         id: true,
         assignment: true,
         student: true,
         status: true,
         dateTaken: true,
+        testScore: true,
+        taskScore: true,
         scores: true,
         percent: true,
         markedBy: true,
-        testScore: true,
-        taskScore: true,
       },
-      orderBy: {
-        dateTaken: "desc",
-      },
-      skip,
-      take: pageSize,
     });
 
-    console.log(
-      `Found ${results.length} results (page ${page} of ${Math.ceil(
-        totalCount / pageSize
-      )})`
-    );
+    // Batch fetch related data
+    const uniqueAssignmentIds = [...new Set(results.map((r) => r.assignment))];
+    const uniqueStudentIds = [...new Set(results.map((r) => r.student))];
 
-    const enhancedResults = await Promise.all(
-      results.map(async (result) => {
-        try {
-          // Get assignment with outcomes
-          const assignment = await prisma.assignments.findUnique({
-            where: {
-              id: result.assignment,
-            },
+    const [assignments, students] = await Promise.all([
+      prisma.assignments.findMany({
+        where: { id: { in: uniqueAssignmentIds } },
+        select: {
+          id: true,
+          title: true,
+          type: true,
+          outcome: true,
+        },
+      }),
+      prisma.students.findMany({
+        where: { id: { in: uniqueStudentIds } },
+        select: {
+          id: true,
+          admissionNumber: true,
+          profile: {
             select: {
-              id: true,
-              title: true,
-              type: true,
-              outcome: true,
+              firstName: true,
+              lastName: true,
             },
-          });
+          },
+        },
+      }),
+    ]);
 
-          // Get student details
-          const student = await prisma.students.findUnique({
-            where: {
-              id: result.student,
-            },
-            select: {
-              admissionNumber: true,
-              profile: true,
-            },
-          });
+    // Create lookup maps
+    const assignmentMap = new Map(assignments.map((a) => [a.id, a]));
+    const studentMap = new Map(students.map((s) => [s.id, s]));
 
-          // Get outcomes - but limit the query for performance
-          let outcomes = [];
-          if (assignment?.outcome?.length) {
-            outcomes = await prisma.outcomes.findMany({
-              where: {
-                id: {
-                  in: assignment.outcome,
-                },
-              },
-              select: {
-                id: true,
-                title: true,
-                type: true,
-                hidden: true,
-                campus: true,
-              },
-            });
-          }
+    // Combine data efficiently
+    const enhancedResults = results.map((result) => ({
+      ...result,
+      assignmentData: assignmentMap.get(result.assignment) || null,
+      studentData: studentMap.get(result.student) || null,
+      dateTaken: result.dateTaken.toISOString(),
+    }));
 
-          return {
-            id: result.id,
-            assignment: result.assignment,
-            student: result.student,
-            status: result.status,
-            dateTaken: result.dateTaken.toISOString(),
-            scores: result.scores || null,
-            percent: result.percent || null,
-            testScore: result.testScore || null,
-            taskScore: result.taskScore || null,
-            markedBy: result.markedBy || null,
-            assignmentData: assignment
-              ? {
-                  id: assignment.id,
-                  title: assignment.title,
-                  type: assignment.type,
-                  outcome: assignment.outcome,
-                  outcomes: outcomes,
-                }
-              : null,
-            studentData: student
-              ? {
-                  admissionNumber: student.admissionNumber,
-                  profile: student.profile,
-                }
-              : null,
-          };
-        } catch (error) {
-          console.error("Error processing result:", error);
-          return null;
-        }
-      })
-    );
-
-    // Filter out any null results from errors
-    const validResults = enhancedResults.filter(Boolean);
+    console.log(`Successfully processed ${enhancedResults.length} results`);
 
     return NextResponse.json({
-      results: validResults,
-      pagination: {
-        total: totalCount,
-        page,
-        pageSize,
-        totalPages: Math.ceil(totalCount / pageSize),
-      },
+      results: enhancedResults,
+      total: count,
     });
   } catch (error) {
-    console.error("Error fetching assignment results:", error);
+    console.error("Error in assignment results:", error);
     return NextResponse.json(
-      { error: "Failed to fetch assignment results", results: [] },
+      {
+        error: "Failed to fetch assignment results",
+        details: error instanceof Error ? error.message : "Unknown error",
+      },
       { status: 500 }
     );
   }
