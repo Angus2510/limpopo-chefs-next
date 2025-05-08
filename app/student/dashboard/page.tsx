@@ -138,19 +138,25 @@ export default function ProtectedStudentDashboard() {
 
   return (
     <>
-      <div className="fixed inset-0 z-0">
-        <Image
-          src="/img/student-background.jpeg"
-          alt="Limpopo Chefs Academy Background"
-          fill
-          className="object-cover opacity-15"
-          priority
-          quality={100}
-        />
-      </div>
-      <div className="relative z-10">
-        <TermsDialog />
-        {!hasAccepted ? null : renderDashboardContent()}
+      <div className="relative min-h-screen">
+        {" "}
+        {/* Changed from fixed to relative */}
+        <div className="absolute inset-0 z-0">
+          {" "}
+          {/* Changed from fixed to absolute */}
+          <Image
+            src="/img/student-background.jpeg"
+            alt="Limpopo Chefs Academy Background"
+            fill
+            className="object-cover opacity-15"
+            priority
+            quality={100}
+          />
+        </div>
+        <div className="relative z-10">
+          <TermsDialog />
+          {!hasAccepted ? null : renderDashboardContent()}
+        </div>
       </div>
     </>
   );
