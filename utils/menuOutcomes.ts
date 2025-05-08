@@ -15,6 +15,8 @@ export const MENU_OUTCOMES = [
   "1st Year Mid Year Theory Exam",
   "1st Year- Final Theory Exam",
   "2nd Year- Final Exam Theory",
+  "Mid Year Exam - Theory",
+  "Mid Year Exam - Practical",
   "Menu A18- Final Summative Practical Exam",
   "C&G Evolve (7107-22): Food Safety 1st Year",
   "C&G Evolve (8064-01): Food Prep 2nd Year",
