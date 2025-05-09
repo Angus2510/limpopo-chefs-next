@@ -63,20 +63,54 @@ const PayablePage = () => {
 
     setLoading(true);
     try {
-      const fetchedStudents = await getStudentsByIntakeAndCampus(
-        selection.intakeGroupId,
-        selection.campusId
+      // Create timeout promise for handling long requests
+      const timeoutDuration = 30000; // 30 seconds
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(
+          () => reject(new Error("Request timed out")),
+          timeoutDuration
+        )
       );
 
-      const financialData = await getPayableData({
-        page: 1,
-        per_page: 1000,
-        sort: "admissionNumber.asc",
-        campusTitles: [selection.campusId],
+      // Fetch students and financial data concurrently with timeout
+      const [fetchedStudents, financialData] = await Promise.all([
+        Promise.race([
+          getStudentsByIntakeAndCampus(
+            selection.intakeGroupId,
+            selection.campusId
+          ),
+          timeoutPromise,
+        ]),
+        Promise.race([
+          getPayableData({
+            page: 1,
+            per_page: 1000,
+            sort: "admissionNumber.asc",
+            campusTitles: [selection.campusId],
+          }),
+          timeoutPromise,
+        ]),
+      ]).catch((error) => {
+        throw new Error(
+          error.message === "Request timed out"
+            ? "The request took too long to respond. Please try again."
+            : "Failed to fetch data. Please try again."
+        );
       });
 
+      if (!fetchedStudents?.length) {
+        toast({
+          variant: "warning",
+          title: "No Students Found",
+          description: "No students found for the selected criteria.",
+        });
+        setStudents([]);
+        return;
+      }
+
+      // Create financial data map with error handling
       const financialMap = new Map(
-        financialData.students.map((student) => [
+        (financialData?.students || []).map((student) => [
           student.admissionNumber,
           {
             payableAmounts: student.payableAmounts || "0",
@@ -86,6 +120,7 @@ const PayablePage = () => {
         ])
       );
 
+      // Transform and combine student data with financials
       const transformedStudents = fetchedStudents.map((student) => {
         const financials = financialMap.get(student.admissionNumber);
         const campusTitle = campusMap.get(selection.campusId);
@@ -104,21 +139,24 @@ const PayablePage = () => {
         };
       });
 
+      // Sort students by amount due (highest first)
       const sortedStudents = transformedStudents.sort((a, b) => {
         const amountA = parseFloat(a.payableAmounts) || 0;
         const amountB = parseFloat(b.payableAmounts) || 0;
         return amountB - amountA;
       });
 
+      console.log(`Found ${sortedStudents.length} students`);
       setStudents(sortedStudents);
     } catch (error) {
-      console.error("Error fetching students:", error);
+      console.error("Error in handleSelectionComplete:", error);
       toast({
         variant: "destructive",
         title: "Error",
         description:
-          "Failed to fetch students. Please check the console for details.",
+          error.message || "Failed to fetch students. Please try again.",
       });
+      setStudents([]);
     } finally {
       setLoading(false);
     }
