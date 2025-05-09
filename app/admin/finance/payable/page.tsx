@@ -3,7 +3,7 @@
 import { ContentLayout } from "@/components/layout/content-layout";
 import { Card, CardContent } from "@/components/ui/card";
 import * as React from "react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import {
   Table,
@@ -17,6 +17,7 @@ import { Switch } from "@/components/ui/switch";
 import { SelectionForm } from "@/components/finance/SelectionFormFinance";
 import { getStudentsByIntakeAndCampus } from "@/lib/actions/student/getStudentsByIntakeAndCampus";
 import { getPayableData } from "@/lib/actions/finance/payableQuery";
+import { getAllCampuses } from "@/lib/actions/campus/campuses";
 import { toggleStudentPortal } from "@/lib/actions/student/toggleStudentPortal";
 import type { Student } from "@/types/finance/types";
 import { useToast } from "@/components/ui/use-toast";
@@ -25,6 +26,27 @@ const PayablePage = () => {
   const { toast } = useToast();
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(false);
+  const [campusMap, setCampusMap] = useState<Map<string, string>>(new Map());
+
+  useEffect(() => {
+    const fetchCampuses = async () => {
+      try {
+        const campuses = await getAllCampuses();
+        const map = new Map(
+          campuses.map((campus) => [campus.id, campus.title])
+        );
+        setCampusMap(map);
+      } catch (error) {
+        console.error("Error fetching campuses:", error);
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Failed to fetch campus information",
+        });
+      }
+    };
+    fetchCampuses();
+  }, [toast]);
 
   const handleSelectionComplete = async (selection: {
     intakeGroupId: string[];
@@ -41,13 +63,11 @@ const PayablePage = () => {
 
     setLoading(true);
     try {
-      // First get students from selected intake and campus
       const fetchedStudents = await getStudentsByIntakeAndCampus(
         selection.intakeGroupId,
         selection.campusId
       );
 
-      // Get financial data for the campus
       const financialData = await getPayableData({
         page: 1,
         per_page: 1000,
@@ -55,7 +75,6 @@ const PayablePage = () => {
         campusTitles: [selection.campusId],
       });
 
-      // Create a map of financial data using admission numbers as keys
       const financialMap = new Map(
         financialData.students.map((student) => [
           student.admissionNumber,
@@ -67,15 +86,17 @@ const PayablePage = () => {
         ])
       );
 
-      // Combine student data with their financial information
       const transformedStudents = fetchedStudents.map((student) => {
         const financials = financialMap.get(student.admissionNumber);
+        const campusTitle = campusMap.get(selection.campusId);
+
         return {
           id: student.id,
           firstName: student.name,
           lastName: student.surname,
           admissionNumber: student.admissionNumber,
           campuses: selection.campusId,
+          campusTitle: campusTitle || "Unknown Campus",
           payableAmounts: financials?.payableAmounts || "0",
           payableDueDates: financials?.payableDueDates || "",
           profileBlocked:
@@ -83,7 +104,6 @@ const PayablePage = () => {
         };
       });
 
-      // Sort students by amount due (highest first)
       const sortedStudents = transformedStudents.sort((a, b) => {
         const amountA = parseFloat(a.payableAmounts) || 0;
         const amountB = parseFloat(b.payableAmounts) || 0;
@@ -206,7 +226,7 @@ const PayablePage = () => {
                     <TableCell>
                       {student.firstName} {student.lastName}
                     </TableCell>
-                    <TableCell>{student.campuses}</TableCell>
+                    <TableCell>{student.campusTitle}</TableCell>
                     <TableCell>
                       <Input
                         type="number"
