@@ -7,6 +7,8 @@ const nextConfig: NextConfig = {
   experimental: {
     serverActions: {
       bodySizeLimit: "60mb",
+      allowedOrigins: ["*"],
+      maxDuration: 60, // 60 seconds timeout for server actions
     },
   },
   images: {
@@ -19,6 +21,9 @@ const nextConfig: NextConfig = {
             exclude: ["error", "warn"],
           }
         : false,
+  },
+  serverRuntimeConfig: {
+    timeoutMs: 60000, // 60 seconds server-side timeout
   },
 };
 
