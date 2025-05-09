@@ -63,8 +63,8 @@ const PayablePage = () => {
 
     setLoading(true);
     try {
-      // Create timeout promise for handling long requests
-      const timeoutDuration = 30000; // 30 seconds
+      // Increase timeout for production environment
+      const timeoutDuration = 60000; // 60 seconds
       const timeoutPromise = new Promise((_, reject) =>
         setTimeout(
           () => reject(new Error("Request timed out")),
@@ -72,29 +72,18 @@ const PayablePage = () => {
         )
       );
 
-      // Fetch students and financial data concurrently with timeout
-      const [fetchedStudents, financialData] = await Promise.all([
-        Promise.race([
-          getStudentsByIntakeAndCampus(
-            selection.intakeGroupId,
-            selection.campusId
-          ),
-          timeoutPromise,
-        ]),
-        Promise.race([
-          getPayableData({
-            page: 1,
-            per_page: 1000,
-            sort: "admissionNumber.asc",
-            campusTitles: [selection.campusId],
-          }),
-          timeoutPromise,
-        ]),
+      // Fetch students first
+      const fetchedStudents = await Promise.race([
+        getStudentsByIntakeAndCampus(
+          selection.intakeGroupId,
+          selection.campusId
+        ),
+        timeoutPromise,
       ]).catch((error) => {
         throw new Error(
           error.message === "Request timed out"
-            ? "The request took too long to respond. Please try again."
-            : "Failed to fetch data. Please try again."
+            ? "Student data request timed out. Please try again."
+            : "Failed to fetch students."
         );
       });
 
@@ -107,6 +96,21 @@ const PayablePage = () => {
         setStudents([]);
         return;
       }
+
+      // Then fetch financial data
+      const financialData = await Promise.race([
+        getPayableData({
+          page: 1,
+          per_page: 1000,
+          sort: "admissionNumber.asc",
+          campusTitles: [selection.campusId],
+        }),
+        timeoutPromise,
+      ]).catch((error) => {
+        console.error("Financial data fetch error:", error);
+        // Return empty financial data rather than failing completely
+        return { students: [] };
+      });
 
       // Create financial data map with error handling
       const financialMap = new Map(
@@ -146,15 +150,14 @@ const PayablePage = () => {
         return amountB - amountA;
       });
 
-      console.log(`Found ${sortedStudents.length} students`);
+      console.log(`Successfully processed ${sortedStudents.length} students`);
       setStudents(sortedStudents);
     } catch (error) {
       console.error("Error in handleSelectionComplete:", error);
       toast({
         variant: "destructive",
         title: "Error",
-        description:
-          error.message || "Failed to fetch students. Please try again.",
+        description: error.message || "Failed to fetch data. Please try again.",
       });
       setStudents([]);
     } finally {
