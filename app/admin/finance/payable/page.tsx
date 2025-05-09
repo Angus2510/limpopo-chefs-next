@@ -22,12 +22,23 @@ import { toggleStudentPortal } from "@/lib/actions/student/toggleStudentPortal";
 import type { Student } from "@/types/finance/types";
 import { useToast } from "@/components/ui/use-toast";
 
+// Helper functions
+const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const fetchWithTimeout = async (promise: Promise<any>, timeoutMs: number) => {
+  const timeoutPromise = new Promise((_, reject) =>
+    setTimeout(() => reject(new Error("Request timed out")), timeoutMs)
+  );
+  return Promise.race([promise, timeoutPromise]);
+};
+
 const PayablePage = () => {
   const { toast } = useToast();
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(false);
   const [campusMap, setCampusMap] = useState<Map<string, string>>(new Map());
 
+  // Fetch campuses on mount
   useEffect(() => {
     const fetchCampuses = async () => {
       try {
@@ -63,41 +74,24 @@ const PayablePage = () => {
 
     setLoading(true);
     try {
-      // Set longer timeout for production
-      const timeoutDuration = 120000; // 120 seconds
-      const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(
-          () => reject(new Error("Request timed out")),
-          timeoutDuration
-        )
-      );
-
-      // Add retries for student fetch
-      let retryCount = 0;
-      const maxRetries = 3;
+      // Fetch students with retries
       let fetchedStudents;
-
-      while (retryCount < maxRetries) {
+      for (let attempt = 1; attempt <= 3; attempt++) {
         try {
-          fetchedStudents = await Promise.race([
+          fetchedStudents = await fetchWithTimeout(
             getStudentsByIntakeAndCampus(
               selection.intakeGroupId,
               selection.campusId
             ),
-            timeoutPromise,
-          ]);
-          break; // Success, exit loop
+            30000 // 30 second timeout
+          );
+          break;
         } catch (error) {
-          retryCount++;
-          if (retryCount === maxRetries) {
-            throw new Error(
-              error.message === "Request timed out"
-                ? "Student data request timed out after multiple attempts."
-                : "Failed to fetch students after multiple attempts."
-            );
+          if (attempt === 3) {
+            throw new Error("Failed to fetch students after multiple attempts");
           }
-          // Wait before retrying
-          await new Promise((resolve) => setTimeout(resolve, 2000));
+          console.log(`Attempt ${attempt} failed, retrying...`);
+          await delay(2000);
         }
       }
 
@@ -111,42 +105,35 @@ const PayablePage = () => {
         return;
       }
 
-      // Fetch financial data with retry mechanism
+      // Fetch financial data with retries
       let financialData;
-      retryCount = 0;
-
-      while (retryCount < maxRetries) {
+      for (let attempt = 1; attempt <= 3; attempt++) {
         try {
-          financialData = await Promise.race([
+          financialData = await fetchWithTimeout(
             getPayableData({
               page: 1,
               per_page: 1000,
               sort: "admissionNumber.asc",
               campusTitles: [selection.campusId],
             }),
-            timeoutPromise,
-          ]);
-          break; // Success, exit loop
+            30000
+          );
+          break;
         } catch (error) {
-          retryCount++;
           console.error(
-            `Financial data fetch attempt ${retryCount} failed:`,
+            `Financial data fetch attempt ${attempt} failed:`,
             error
           );
-          if (retryCount === maxRetries) {
-            // Don't fail completely, just proceed with empty financial data
-            console.warn(
-              "Proceeding with empty financial data after failed attempts"
-            );
+          if (attempt === 3) {
+            console.warn("Using empty financial data after failed attempts");
             financialData = { students: [] };
-            break;
+          } else {
+            await delay(2000);
           }
-          // Wait before retrying
-          await new Promise((resolve) => setTimeout(resolve, 2000));
         }
       }
 
-      // Create financial data map with error handling
+      // Process and combine data
       const financialMap = new Map(
         (financialData?.students || []).map((student) => [
           student.admissionNumber,
@@ -158,7 +145,6 @@ const PayablePage = () => {
         ])
       );
 
-      // Transform and combine student data with financials
       const transformedStudents = fetchedStudents.map((student) => {
         const financials = financialMap.get(student.admissionNumber);
         const campusTitle = campusMap.get(selection.campusId);
@@ -177,14 +163,12 @@ const PayablePage = () => {
         };
       });
 
-      // Sort students by amount due (highest first)
       const sortedStudents = transformedStudents.sort((a, b) => {
         const amountA = parseFloat(a.payableAmounts) || 0;
         const amountB = parseFloat(b.payableAmounts) || 0;
         return amountB - amountA;
       });
 
-      console.log(`Successfully processed ${sortedStudents.length} students`);
       setStudents(sortedStudents);
     } catch (error) {
       console.error("Error in handleSelectionComplete:", error);
@@ -198,6 +182,7 @@ const PayablePage = () => {
       setLoading(false);
     }
   };
+
   const handleTogglePortalAccess = async (
     studentId: string,
     enabled: boolean
@@ -211,7 +196,6 @@ const PayablePage = () => {
             : student
         )
       );
-
       toast({
         title: "Success",
         description: `Portal access ${enabled ? "enabled" : "disabled"}`,
