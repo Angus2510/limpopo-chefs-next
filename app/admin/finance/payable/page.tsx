@@ -63,8 +63,8 @@ const PayablePage = () => {
 
     setLoading(true);
     try {
-      // Increase timeout for production environment
-      const timeoutDuration = 60000; // 60 seconds
+      // Set longer timeout for production
+      const timeoutDuration = 120000; // 120 seconds
       const timeoutPromise = new Promise((_, reject) =>
         setTimeout(
           () => reject(new Error("Request timed out")),
@@ -72,20 +72,34 @@ const PayablePage = () => {
         )
       );
 
-      // Fetch students first
-      const fetchedStudents = await Promise.race([
-        getStudentsByIntakeAndCampus(
-          selection.intakeGroupId,
-          selection.campusId
-        ),
-        timeoutPromise,
-      ]).catch((error) => {
-        throw new Error(
-          error.message === "Request timed out"
-            ? "Student data request timed out. Please try again."
-            : "Failed to fetch students."
-        );
-      });
+      // Add retries for student fetch
+      let retryCount = 0;
+      const maxRetries = 3;
+      let fetchedStudents;
+
+      while (retryCount < maxRetries) {
+        try {
+          fetchedStudents = await Promise.race([
+            getStudentsByIntakeAndCampus(
+              selection.intakeGroupId,
+              selection.campusId
+            ),
+            timeoutPromise,
+          ]);
+          break; // Success, exit loop
+        } catch (error) {
+          retryCount++;
+          if (retryCount === maxRetries) {
+            throw new Error(
+              error.message === "Request timed out"
+                ? "Student data request timed out after multiple attempts."
+                : "Failed to fetch students after multiple attempts."
+            );
+          }
+          // Wait before retrying
+          await new Promise((resolve) => setTimeout(resolve, 2000));
+        }
+      }
 
       if (!fetchedStudents?.length) {
         toast({
@@ -97,20 +111,40 @@ const PayablePage = () => {
         return;
       }
 
-      // Then fetch financial data
-      const financialData = await Promise.race([
-        getPayableData({
-          page: 1,
-          per_page: 1000,
-          sort: "admissionNumber.asc",
-          campusTitles: [selection.campusId],
-        }),
-        timeoutPromise,
-      ]).catch((error) => {
-        console.error("Financial data fetch error:", error);
-        // Return empty financial data rather than failing completely
-        return { students: [] };
-      });
+      // Fetch financial data with retry mechanism
+      let financialData;
+      retryCount = 0;
+
+      while (retryCount < maxRetries) {
+        try {
+          financialData = await Promise.race([
+            getPayableData({
+              page: 1,
+              per_page: 1000,
+              sort: "admissionNumber.asc",
+              campusTitles: [selection.campusId],
+            }),
+            timeoutPromise,
+          ]);
+          break; // Success, exit loop
+        } catch (error) {
+          retryCount++;
+          console.error(
+            `Financial data fetch attempt ${retryCount} failed:`,
+            error
+          );
+          if (retryCount === maxRetries) {
+            // Don't fail completely, just proceed with empty financial data
+            console.warn(
+              "Proceeding with empty financial data after failed attempts"
+            );
+            financialData = { students: [] };
+            break;
+          }
+          // Wait before retrying
+          await new Promise((resolve) => setTimeout(resolve, 2000));
+        }
+      }
 
       // Create financial data map with error handling
       const financialMap = new Map(
@@ -164,7 +198,6 @@ const PayablePage = () => {
       setLoading(false);
     }
   };
-
   const handleTogglePortalAccess = async (
     studentId: string,
     enabled: boolean
