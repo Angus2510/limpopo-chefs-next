@@ -14,11 +14,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Switch } from "@/components/ui/switch";
+import { Button } from "@/components/ui/button"; // Added Button import
 import { SelectionForm } from "@/components/finance/SelectionFormFinance";
 import { getStudentsByIntakeAndCampus } from "@/lib/actions/student/getStudentsByIntakeAndCampus";
 import { getPayableData } from "@/lib/actions/finance/payableQuery";
 import { getAllCampuses } from "@/lib/actions/campus/campuses";
 import { toggleStudentPortal } from "@/lib/actions/student/toggleStudentPortal";
+import { updatePayableFees } from "@/lib/actions/finance/updatePayableFees"; // Import the server action
 import type { Student } from "@/types/finance/types";
 import { useToast } from "@/components/ui/use-toast";
 
@@ -37,6 +39,8 @@ const PayablePage = () => {
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(false);
   const [campusMap, setCampusMap] = useState<Map<string, string>>(new Map());
+  const [unsavedChanges, setUnsavedChanges] = useState(false); // Track unsaved changes
+  const [isSaving, setIsSaving] = useState(false); // Track save operation
 
   // Fetch campuses on mount
   useEffect(() => {
@@ -72,6 +76,8 @@ const PayablePage = () => {
       return;
     }
 
+    // Reset unsaved changes when selecting new data
+    setUnsavedChanges(false);
     setLoading(true);
     try {
       // Fetch students with retries
@@ -219,6 +225,7 @@ const PayablePage = () => {
             : student
         )
       );
+      setUnsavedChanges(true); // Mark that changes need to be saved
     } catch (error) {
       toast({
         variant: "destructive",
@@ -237,12 +244,50 @@ const PayablePage = () => {
             : student
         )
       );
+      setUnsavedChanges(true); // Mark that changes need to be saved
     } catch (error) {
       toast({
         variant: "destructive",
         title: "Error",
         description: "Failed to update due date",
       });
+    }
+  };
+
+  // Add new function to handle saving all changes
+  const saveAllChanges = async () => {
+    setIsSaving(true);
+    try {
+      const updates = students.map((student) => ({
+        studentId: student.id,
+        amount: parseFloat(student.payableAmounts) || 0,
+        dueDate: student.payableDueDates || null,
+      }));
+
+      // Add debug logs
+      console.log("Submitting updates:", updates);
+
+      const response = await updatePayableFees(updates);
+      console.log("Server response:", response);
+
+      if (response.success) {
+        toast({
+          title: "Success",
+          description: `Successfully updated ${response.updatedCount} student financial records`,
+        });
+        setUnsavedChanges(false);
+      } else {
+        throw new Error(response.error || "Failed to save changes");
+      }
+    } catch (error) {
+      console.error("Error saving financial data:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to save changes to database",
+      });
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -259,65 +304,88 @@ const PayablePage = () => {
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900" />
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Student Number</TableHead>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Campus</TableHead>
-                  <TableHead>Amount Due</TableHead>
-                  <TableHead>Due Date</TableHead>
-                  <TableHead>Portal Access</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {students.map((student) => (
-                  <TableRow
-                    key={student.id}
-                    className={
-                      parseFloat(student.payableAmounts) > 0
-                        ? "text-red-600"
-                        : ""
-                    }
-                  >
-                    <TableCell>{student.admissionNumber}</TableCell>
-                    <TableCell>
-                      {student.firstName} {student.lastName}
-                    </TableCell>
-                    <TableCell>{student.campusTitle}</TableCell>
-                    <TableCell>
-                      <Input
-                        type="number"
-                        defaultValue={student.payableAmounts}
-                        onBlur={(e) =>
-                          handleAmountChange(student.id, e.target.value)
-                        }
-                        className="w-32"
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Input
-                        type="date"
-                        defaultValue={
-                          student.payableDueDates?.split("T")[0] || ""
-                        }
-                        onBlur={(e) =>
-                          handleDueDateChange(student.id, e.target.value)
-                        }
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Switch
-                        checked={student.profileBlocked === "No"}
-                        onCheckedChange={(checked) =>
-                          handleTogglePortalAccess(student.id, checked)
-                        }
-                      />
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            <>
+              {students.length > 0 && (
+                <>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Student Number</TableHead>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Campus</TableHead>
+                        <TableHead>Amount Due</TableHead>
+                        <TableHead>Due Date</TableHead>
+                        <TableHead>Portal Access</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {students.map((student) => (
+                        <TableRow
+                          key={student.id}
+                          className={
+                            parseFloat(student.payableAmounts) > 0
+                              ? "text-red-600"
+                              : ""
+                          }
+                        >
+                          <TableCell>{student.admissionNumber}</TableCell>
+                          <TableCell>
+                            {student.firstName} {student.lastName}
+                          </TableCell>
+                          <TableCell>{student.campusTitle}</TableCell>
+                          <TableCell>
+                            <Input
+                              type="number"
+                              defaultValue={student.payableAmounts}
+                              onBlur={(e) =>
+                                handleAmountChange(student.id, e.target.value)
+                              }
+                              className="w-32"
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Input
+                              type="date"
+                              defaultValue={
+                                student.payableDueDates?.split("T")[0] || ""
+                              }
+                              onBlur={(e) =>
+                                handleDueDateChange(student.id, e.target.value)
+                              }
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Switch
+                              checked={student.profileBlocked === "No"}
+                              onCheckedChange={(checked) =>
+                                handleTogglePortalAccess(student.id, checked)
+                              }
+                            />
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+
+                  {/* Save button */}
+                  <div className="mt-6 flex justify-end">
+                    <Button
+                      onClick={saveAllChanges}
+                      disabled={isSaving || !unsavedChanges}
+                    >
+                      {isSaving ? (
+                        <span className="flex items-center gap-2">
+                          <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+                          Saving...
+                        </span>
+                      ) : (
+                        "Save All Changes"
+                      )}
+                    </Button>
+                  </div>
+                </>
+              )}
+            </>
           )}
         </CardContent>
       </Card>

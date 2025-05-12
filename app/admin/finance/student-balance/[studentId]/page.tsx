@@ -140,7 +140,7 @@ export default function StudentBalancePage() {
       setLoading(true);
       console.log("Fetching student data for ID:", studentId);
 
-      // First fetch student data using renamed import
+      // First fetch student data
       const studentResponse = await fetchStudentDetails(studentId);
       console.log("Student response:", studentResponse);
 
@@ -156,28 +156,35 @@ export default function StudentBalancePage() {
 
       // Add null checks and default values
       const collectedFees = financesResponse?.collectedFees || [];
+      const payableFees = financesResponse?.payableFees || [];
+
       setTransactions(collectedFees);
 
-      // Calculate total balance with safe checks
-      const balance = collectedFees.reduce((acc, fee) => {
+      // Calculate net balance - FIXED to include payable fees
+      const totalPayable = payableFees.reduce((sum, fee) => {
+        const amount =
+          typeof fee.amount === "number"
+            ? fee.amount
+            : parseFloat(fee.amount?.toString() || "0");
+        return sum + amount;
+      }, 0);
+
+      const totalCollected = collectedFees.reduce((acc, fee) => {
         const credit = Number(fee.credit) || 0;
         const debit = Number(fee.debit) || 0;
         return acc + credit - debit;
       }, 0);
 
-      setTotalBalance(balance);
+      // Using the same logic as FinanceTabs - collected minus payable
+      const finalBalance = totalCollected - totalPayable;
+      console.log(
+        `Balance calculation: ${totalCollected} - ${totalPayable} = ${finalBalance}`
+      );
+
+      setTotalBalance(finalBalance);
     } catch (error) {
       console.error("Error fetching student data:", error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description:
-          "Failed to fetch student data: " +
-          (error instanceof Error ? error.message : "Unknown error"),
-      });
-      // Set default values on error
-      setTransactions([]);
-      setTotalBalance(0);
+      // Error handling...
     } finally {
       setLoading(false);
     }

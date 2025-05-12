@@ -2,7 +2,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatDate } from "@/utils/formatDate";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ExternalLink } from "lucide-react";
@@ -35,8 +35,8 @@ interface CollectedFee {
 
 interface PayableFee {
   id: string;
-  amount: number;
-  arrears: number;
+  amount: number | string;
+  arrears: number | string;
   dueDate?: Date;
   description?: string;
 }
@@ -47,7 +47,7 @@ interface FinancesTabProps {
     payableFees?: Array<PayableFee>;
   };
   studentId: string;
-  student: Student; // Added student prop
+  student: Student;
 }
 
 export function FinancesTab({
@@ -56,6 +56,21 @@ export function FinancesTab({
   student,
 }: FinancesTabProps) {
   const { collectedFees = [], payableFees = [] } = finances;
+  const [showDebug, setShowDebug] = useState(false);
+
+  // Calculate total payable (what student owes)
+  const totalPayable = useMemo(() => {
+    if (!payableFees || payableFees.length === 0) return 0;
+
+    return payableFees.reduce((sum, fee) => {
+      // Handle both number and string cases for amount
+      const amount =
+        typeof fee.amount === "number"
+          ? fee.amount
+          : parseFloat(fee.amount?.toString() || "0");
+      return sum + amount;
+    }, 0);
+  }, [payableFees]);
 
   // Calculate running balance and sort transactions by date
   const processedFees = useMemo(() => {
@@ -76,9 +91,17 @@ export function FinancesTab({
     // Calculate running balance
     let runningBalance = 0;
     return fees.map((fee) => {
-      // Add credits, subtract debits
-      const creditAmount = fee.credit ? Number(fee.credit) : 0;
-      const debitAmount = fee.debit ? Number(fee.debit) : 0;
+      // Add credits, subtract debits - safely handle string or number types
+      const creditAmount = fee.credit
+        ? typeof fee.credit === "number"
+          ? fee.credit
+          : parseFloat(fee.credit.toString() || "0")
+        : 0;
+      const debitAmount = fee.debit
+        ? typeof fee.debit === "number"
+          ? fee.debit
+          : parseFloat(fee.debit.toString() || "0")
+        : 0;
 
       runningBalance += creditAmount - debitAmount;
 
@@ -89,11 +112,31 @@ export function FinancesTab({
     });
   }, [collectedFees]);
 
-  // For total balance display
-  const currentBalance =
-    processedFees.length > 0
-      ? processedFees[processedFees.length - 1].calculatedBalance
-      : "0.00";
+  // Calculate total collected from transactions
+  const totalCollected = useMemo(() => {
+    return processedFees.reduce((sum, fee) => {
+      const creditAmount = fee.credit
+        ? typeof fee.credit === "number"
+          ? fee.credit
+          : parseFloat(fee.credit.toString() || "0")
+        : 0;
+      const debitAmount = fee.debit
+        ? typeof fee.debit === "number"
+          ? fee.debit
+          : parseFloat(fee.debit.toString() || "0")
+        : 0;
+
+      return sum + creditAmount - debitAmount;
+    }, 0);
+  }, [processedFees]);
+
+  // Calculate net balance (collected minus payable)
+  // Consistent with database update logic
+  const netBalance = totalCollected - totalPayable;
+  const formattedNetBalance = netBalance.toFixed(2);
+
+  // For backward compatibility with existing code
+  const currentBalance = formattedNetBalance;
 
   // New function to handle storing student data before navigation
   const handleViewBalance = () => {
@@ -139,6 +182,18 @@ export function FinancesTab({
               ? "Credit balance"
               : "Balanced account"}
           </p>
+
+          {/* Payable fee info - helps understand how balance is calculated */}
+          <div className="mt-4 pt-3 border-t border-gray-200">
+            <div className="flex justify-between text-sm">
+              <span>Total Fees Due:</span>
+              <span className="font-medium">R {totalPayable.toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between text-sm mt-1">
+              <span>Total Payments:</span>
+              <span className="font-medium">R {totalCollected.toFixed(2)}</span>
+            </div>
+          </div>
         </CardContent>
       </Card>
 
@@ -216,6 +271,57 @@ export function FinancesTab({
           </CardContent>
         </Card>
       </Link>
+
+      {/* Debug toggle button (only visible in development) */}
+      {process.env.NODE_ENV === "development" && (
+        <div className="mt-4">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowDebug(!showDebug)}
+            className="text-xs"
+          >
+            {showDebug ? "Hide Debug Data" : "Show Debug Data"}
+          </Button>
+
+          {showDebug && (
+            <div className="mt-2 p-4 bg-gray-100 rounded-md">
+              <details>
+                <summary className="cursor-pointer text-xs mb-1">
+                  Payable Fees ({payableFees.length})
+                </summary>
+                <pre className="text-xs overflow-auto max-h-40 bg-gray-200 p-2 rounded">
+                  {JSON.stringify(payableFees, null, 2)}
+                </pre>
+              </details>
+
+              <details>
+                <summary className="cursor-pointer text-xs mb-1 mt-2">
+                  Collected Fees ({collectedFees.length})
+                </summary>
+                <pre className="text-xs overflow-auto max-h-40 bg-gray-200 p-2 rounded">
+                  {JSON.stringify(collectedFees, null, 2)}
+                </pre>
+              </details>
+
+              <div className="mt-2 text-xs space-y-1">
+                <p>
+                  <strong>Total Payable:</strong> R{totalPayable.toFixed(2)}
+                </p>
+                <p>
+                  <strong>Total Collected:</strong> R{totalCollected.toFixed(2)}
+                </p>
+                <p>
+                  <strong>Net Balance:</strong> R{formattedNetBalance}
+                </p>
+                <p>
+                  <strong>Student ID:</strong> {studentId}
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
