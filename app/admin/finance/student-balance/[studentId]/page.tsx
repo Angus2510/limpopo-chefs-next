@@ -1,6 +1,5 @@
 "use client";
 
-import { use } from "react";
 import { ContentLayout } from "@/components/layout/content-layout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -18,6 +17,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { format } from "date-fns";
 import { fetchStudentFinances } from "@/lib/actions/student/fetchStudentFinances";
 import { fetchStudentData as fetchStudentDetails } from "@/lib/actions/student/fetchStudentData";
+import { useParams } from "next/navigation";
 
 import {
   updateStudentBalance,
@@ -77,13 +77,10 @@ const INITIAL_TRANSACTION = {
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 
-export default function StudentBalancePage({
-  params: paramsPromise,
-}: {
-  params: Promise<{ studentId: string }>;
-}) {
-  const params = use(paramsPromise);
-  const { studentId } = params;
+export default function StudentBalancePage() {
+  // Get params from the URL using the useParams hook
+  const params = useParams();
+  const studentId = params.studentId as string;
   const { toast } = useToast();
 
   // State Management
@@ -100,16 +97,62 @@ export default function StudentBalancePage({
   const [editForm, setEditForm] =
     useState<Partial<FinanceTransaction>>(INITIAL_TRANSACTION);
 
+  useEffect(() => {
+    // Try to get stored student details
+    if (loading && studentId) {
+      try {
+        const storedStudentJSON = sessionStorage.getItem(
+          "currentStudentDetails"
+        );
+        if (storedStudentJSON) {
+          const storedStudent = JSON.parse(storedStudentJSON);
+          if (storedStudent.id === studentId) {
+            console.log("Using stored student data:", storedStudent);
+            setStudent(storedStudent);
+
+            // If you also stored finance data, you could use that too
+            if (storedStudent.finances?.collectedFees) {
+              setTransactions(storedStudent.finances.collectedFees);
+
+              // Calculate total balance
+              const balance = storedStudent.finances.collectedFees.reduce(
+                (acc, fee) => {
+                  const credit = Number(fee.credit) || 0;
+                  const debit = Number(fee.debit) || 0;
+                  return acc + credit - debit;
+                },
+                0
+              );
+
+              setTotalBalance(balance);
+              setLoading(false); // Skip the API call entirely if we have complete data
+            }
+          }
+        }
+      } catch (error) {
+        console.error("Error retrieving stored student data:", error);
+      }
+    }
+  }, [studentId, loading]);
   // Fetch student data
   const fetchStudentData = useCallback(async () => {
     try {
       setLoading(true);
+      console.log("Fetching student data for ID:", studentId);
+
       // First fetch student data using renamed import
       const studentResponse = await fetchStudentDetails(studentId);
+      console.log("Student response:", studentResponse);
+
+      if (!studentResponse || !studentResponse.student) {
+        throw new Error("Failed to fetch student data");
+      }
+
       setStudent(studentResponse.student);
 
       // Then fetch finances
       const financesResponse = await fetchStudentFinances(studentId);
+      console.log("Finances response:", financesResponse);
 
       // Add null checks and default values
       const collectedFees = financesResponse?.collectedFees || [];
@@ -128,7 +171,9 @@ export default function StudentBalancePage({
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to fetch student data",
+        description:
+          "Failed to fetch student data: " +
+          (error instanceof Error ? error.message : "Unknown error"),
       });
       // Set default values on error
       setTransactions([]);
@@ -179,7 +224,7 @@ export default function StudentBalancePage({
         transactionDate: newTransaction.transactionDate || new Date(),
       };
 
-      console.log("Sending transaction data:", transactionData); // Debug log
+      console.log("Sending transaction data:", transactionData);
 
       const result = await updateStudentBalance(studentId, transactionData);
 
@@ -205,6 +250,7 @@ export default function StudentBalancePage({
       setIsSubmitting(false);
     }
   };
+
   // Initial data fetch
   useEffect(() => {
     fetchStudentData();
@@ -339,7 +385,7 @@ export default function StudentBalancePage({
     setPageIndex(0); // Reset to first page when changing page size
   }, []);
 
-  // Move this section before the table configuration
+  // Columns with debit and credit swapped
   const columns = useMemo<ColumnDef<FinanceTransaction>[]>(
     () => [
       {
@@ -385,29 +431,7 @@ export default function StudentBalancePage({
           return info.getValue() as string;
         },
       },
-      {
-        accessorKey: "credit",
-        header: "Credit",
-        cell: (info) => {
-          if (editingId === info.row.original.id) {
-            return (
-              <Input
-                type="number"
-                value={editForm.credit || ""}
-                onChange={(e) =>
-                  handleEditFormChange(
-                    "credit",
-                    e.target.value ? parseFloat(e.target.value) : 0
-                  )
-                }
-                placeholder="Enter credit amount"
-              />
-            );
-          }
-          const value = info.getValue();
-          return value ? formatCurrency(value as number) : "-";
-        },
-      },
+      // SWAPPED: Debit now comes before Credit
       {
         accessorKey: "debit",
         header: "Debit",
@@ -424,6 +448,29 @@ export default function StudentBalancePage({
                   )
                 }
                 placeholder="Enter debit amount"
+              />
+            );
+          }
+          const value = info.getValue();
+          return value ? formatCurrency(value as number) : "-";
+        },
+      },
+      {
+        accessorKey: "credit",
+        header: "Credit",
+        cell: (info) => {
+          if (editingId === info.row.original.id) {
+            return (
+              <Input
+                type="number"
+                value={editForm.credit || ""}
+                onChange={(e) =>
+                  handleEditFormChange(
+                    "credit",
+                    e.target.value ? parseFloat(e.target.value) : 0
+                  )
+                }
+                placeholder="Enter credit amount"
               />
             );
           }
@@ -492,7 +539,7 @@ export default function StudentBalancePage({
     ]
   );
 
-  // Then use the columns in your table configuration
+  // Table configuration
   const table = useReactTable({
     data: transactions,
     columns,
@@ -587,21 +634,7 @@ export default function StudentBalancePage({
                           }
                         />
                       </TableCell>
-                      <TableCell>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          placeholder="Credit amount"
-                          value={newTransaction.credit || ""}
-                          onChange={(e) => {
-                            const value = e.target.value
-                              ? parseFloat(e.target.value)
-                              : 0;
-                            handleNewTransactionChange("credit", value);
-                          }}
-                        />
-                      </TableCell>
+                      {/* Swapped order of debit and credit inputs */}
                       <TableCell>
                         <Input
                           type="number"
@@ -614,6 +647,21 @@ export default function StudentBalancePage({
                               ? parseFloat(e.target.value)
                               : 0;
                             handleNewTransactionChange("debit", value);
+                          }}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          placeholder="Credit amount"
+                          value={newTransaction.credit || ""}
+                          onChange={(e) => {
+                            const value = e.target.value
+                              ? parseFloat(e.target.value)
+                              : 0;
+                            handleNewTransactionChange("credit", value);
                           }}
                         />
                       </TableCell>

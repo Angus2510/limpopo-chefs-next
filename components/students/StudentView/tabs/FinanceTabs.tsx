@@ -3,6 +3,26 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatDate } from "@/utils/formatDate";
 import { useMemo } from "react";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { ExternalLink } from "lucide-react";
+
+interface Student {
+  id: string;
+  admissionNumber?: string;
+  email?: string;
+  idNumber?: string;
+  active?: boolean;
+  campusTitle?: string;
+  qualificationTitle?: string;
+  intakeGroupTitle?: string;
+  profile: {
+    firstName: string;
+    lastName: string;
+    cityAndGuildNumber?: string;
+    admissionDate?: string;
+  };
+}
 
 interface CollectedFee {
   id: string;
@@ -26,9 +46,15 @@ interface FinancesTabProps {
     collectedFees?: Array<CollectedFee>;
     payableFees?: Array<PayableFee>;
   };
+  studentId: string;
+  student: Student; // Added student prop
 }
 
-export function FinancesTab({ finances }: FinancesTabProps) {
+export function FinancesTab({
+  finances,
+  studentId,
+  student,
+}: FinancesTabProps) {
   const { collectedFees = [], payableFees = [] } = finances;
 
   // Calculate running balance and sort transactions by date
@@ -69,6 +95,24 @@ export function FinancesTab({ finances }: FinancesTabProps) {
       ? processedFees[processedFees.length - 1].calculatedBalance
       : "0.00";
 
+  // New function to handle storing student data before navigation
+  const handleViewBalance = () => {
+    // Store complete student data and finances in sessionStorage
+    const studentWithFinances = {
+      ...student,
+      finances: {
+        collectedFees,
+        processedFees, // Include the processed fees with calculated balances
+      },
+    };
+
+    sessionStorage.setItem(
+      "currentStudentDetails",
+      JSON.stringify(studentWithFinances)
+    );
+    console.log("Stored student data for navigation:", studentId);
+  };
+
   return (
     <div className="space-y-6">
       {/* Balance Summary */}
@@ -78,7 +122,7 @@ export function FinancesTab({ finances }: FinancesTabProps) {
         } border-2`}
       >
         <CardHeader>
-          <CardTitle>Current Balance</CardTitle>
+          <CardTitle>Outstanding Amount</CardTitle>
         </CardHeader>
         <CardContent>
           <p
@@ -98,119 +142,80 @@ export function FinancesTab({ finances }: FinancesTabProps) {
         </CardContent>
       </Card>
 
-      {/* Payable Fees Section */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Payable Fees</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {payableFees.length > 0 ? (
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                      Description
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                      Amount
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                      Arrears
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                      Due Date
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {payableFees.map((fee) => (
-                    <tr key={fee.id}>
-                      <td className="px-6 py-4 text-sm">
-                        {fee.description || "Fee"}
-                      </td>
-                      <td className="px-6 py-4 text-sm">
-                        R {fee.amount.toFixed(2)}
-                      </td>
-                      <td className="px-6 py-4 text-sm">
-                        R {fee.arrears.toFixed(2)}
-                      </td>
-                      <td className="px-6 py-4 text-sm">
-                        {formatDate(fee.dueDate)}
-                      </td>
+      {/* Collected Fees Section - Now Clickable with data storage */}
+      <Link
+        href={`/admin/finance/student-balance/${studentId}`}
+        onClick={handleViewBalance}
+        className="block"
+      >
+        <Card className="transition-all hover:shadow-md cursor-pointer">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle>Statement of Account</CardTitle>
+            <Button variant="ghost" size="sm" className="gap-1">
+              <span>View Details</span>
+              <ExternalLink className="h-4 w-4" />
+            </Button>
+          </CardHeader>
+          <CardContent>
+            {processedFees.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                        Date
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                        Description
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                        Credit
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                        Debit
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                        Balance
+                      </th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <p className="text-gray-500">No payable fees</p>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Collected Fees Section */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Payment History</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {processedFees.length > 0 ? (
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                      Date
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                      Description
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                      Credit
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                      Debit
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                      Balance
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {processedFees.map((fee) => (
-                    <tr key={fee.id}>
-                      <td className="px-6 py-4 text-sm">
-                        {formatDate(fee.transactionDate)}
-                      </td>
-                      <td className="px-6 py-4 text-sm">{fee.description}</td>
-                      <td className="px-6 py-4 text-sm text-green-600">
-                        {fee.credit
-                          ? `R ${Number(fee.credit).toFixed(2)}`
-                          : "-"}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-red-600">
-                        {fee.debit ? `R ${Number(fee.debit).toFixed(2)}` : "-"}
-                      </td>
-                      <td
-                        className={`px-6 py-4 text-sm font-medium ${
-                          Number(fee.calculatedBalance) < 0
-                            ? "text-red-600"
-                            : "text-green-600"
-                        }`}
-                      >
-                        R {fee.calculatedBalance}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <p className="text-gray-500">No payment history available</p>
-          )}
-        </CardContent>
-      </Card>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {processedFees.map((fee) => (
+                      <tr key={fee.id}>
+                        <td className="px-6 py-4 text-sm">
+                          {formatDate(fee.transactionDate)}
+                        </td>
+                        <td className="px-6 py-4 text-sm">{fee.description}</td>
+                        <td className="px-6 py-4 text-sm text-green-600">
+                          {fee.credit
+                            ? `R ${Number(fee.credit).toFixed(2)}`
+                            : "-"}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-red-600">
+                          {fee.debit
+                            ? `R ${Number(fee.debit).toFixed(2)}`
+                            : "-"}
+                        </td>
+                        <td
+                          className={`px-6 py-4 text-sm font-medium ${
+                            Number(fee.calculatedBalance) < 0
+                              ? "text-red-600"
+                              : "text-green-600"
+                          }`}
+                        >
+                          R {fee.calculatedBalance}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="text-gray-500">No payment history available</p>
+            )}
+          </CardContent>
+        </Card>
+      </Link>
     </div>
   );
 }

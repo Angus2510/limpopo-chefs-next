@@ -38,7 +38,11 @@ export function TabsContainer({
       </TabsContent>
 
       <TabsContent value="finances">
-        <FinancesTab finances={finances} />
+        <FinancesTab
+          finances={finances}
+          studentId={studentId}
+          // Pass the student data here
+        />
       </TabsContent>
 
       <TabsContent value="documents">
