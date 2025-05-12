@@ -205,21 +205,24 @@ export function UploadDialog({
             <FormField
               control={form.control}
               name="intakeGroup"
-              render={() => (
+              render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Intake Group</FormLabel>
+                  <FormLabel>Intake Groups</FormLabel>
                   <FormControl>
-                    <ScrollArea style={{ maxHeight: "10rem" }}>
-                      <MultiSelect
-                        options={intakeGroups.map((group) => ({
-                          value: group.id,
-                          label: group.title,
-                        }))}
-                        onValueChange={handleIntakeGroupChange}
-                        defaultValue={selectedIntakeGroups}
-                        placeholder="Select Intake Groups"
-                      />
-                    </ScrollArea>
+                    <MultiSelect
+                      options={intakeGroups.map((group) => ({
+                        value: group.id,
+                        label: group.title,
+                      }))}
+                      onValueChange={(values) => {
+                        handleIntakeGroupChange(values);
+                        field.onChange(values);
+                      }}
+                      defaultValue={selectedIntakeGroups}
+                      placeholder="Select Intake Groups"
+                      modalPopover={true}
+                      className="w-full"
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
