@@ -16,7 +16,7 @@ export const getPayableData = async (input: GetPayableSchema) => {
   const offset = (page - 1) * per_page;
   const [sortColumn, sortOrder] = sort.split(".") as [string, "asc" | "desc"];
 
-  // Base query conditions - removed active filter to show all students
+  // Base query conditions
   const whereConditions: any = {};
 
   // Split search query into terms and search across multiple fields
@@ -52,13 +52,7 @@ export const getPayableData = async (input: GetPayableSchema) => {
   }
 
   try {
-    // Fetch campuses first for mapping
-    const campuses = await getAllCampuses();
-    const campusMap = new Map(
-      campuses.map((campus) => [campus.id, campus.title])
-    );
-
-    // Fetch all students
+    // Get students first
     const students = await prisma.students.findMany({
       where: whereConditions,
       select: {
@@ -80,89 +74,97 @@ export const getPayableData = async (input: GetPayableSchema) => {
       where: whereConditions,
     });
 
-    // Get finances for these students
+    // Get campus data
+    const campuses = await getAllCampuses();
+    const campusMap = new Map(
+      campuses.map((campus) => [campus.id, campus.title])
+    );
+
+    // Process students with finances
     const studentsWithFinances = await Promise.all(
       students.map(async (student) => {
-        const finance = await prisma.finances.findFirst({
-          where: {
-            student: student.id,
-          },
-          select: {
-            payableFees: true,
-            collectedFees: true,
-          },
-        });
+        try {
+          // Get finances for each student
+          const finance = await prisma.finances.findFirst({
+            where: {
+              student: student.id,
+            },
+            select: {
+              payableFees: true,
+              collectedFees: true,
+            },
+          });
 
-        // Calculate financial data
-        const payableFees = finance?.payableFees || [];
-        const collectedFees = finance?.collectedFees || [];
+          // Calculate financial data
+          const payableFees = finance?.payableFees || [];
+          const collectedFees = finance?.collectedFees || [];
 
-        // Calculate total payable
-        const totalPayable = payableFees.reduce((sum, fee) => {
-          const amount =
-            typeof fee.amount === "number"
-              ? fee.amount
-              : parseFloat(fee.amount.toString() || "0");
-          return sum + amount;
-        }, 0);
+          // Calculate total payable
+          const totalPayable = payableFees.reduce((sum, fee) => {
+            const amount =
+              typeof fee.amount === "number"
+                ? fee.amount
+                : parseFloat(fee.amount.toString() || "0");
+            return sum + amount;
+          }, 0);
 
-        // Calculate total collected
-        const totalCollected = collectedFees.reduce((sum, fee) => {
-          const credit =
-            typeof fee.credit === "number"
-              ? fee.credit
-              : parseFloat(fee.credit?.toString() || "0");
-          const debit =
-            typeof fee.debit === "number"
-              ? fee.debit
-              : parseFloat(fee.debit?.toString() || "0");
-          return sum + credit - debit;
-        }, 0);
+          // Calculate total collected
+          const totalCollected = collectedFees.reduce((sum, fee) => {
+            const credit =
+              typeof fee.credit === "number"
+                ? fee.credit
+                : parseFloat(fee.credit?.toString() || "0");
+            const debit =
+              typeof fee.debit === "number"
+                ? fee.debit
+                : parseFloat(fee.debit?.toString() || "0");
+            return sum + credit - debit;
+          }, 0);
 
-        // Get overdue dates
-        const now = new Date();
-        const overdueFees = payableFees.filter((fee) => {
-          return fee.dueDate && new Date(fee.dueDate) < now;
-        });
+          // Get overdue dates
+          const now = new Date();
+          const overdueFees = payableFees.filter((fee) => {
+            return fee.dueDate && new Date(fee.dueDate) < now;
+          });
 
-        // Sort overdue dates
-        const dueDates = overdueFees
-          .map((fee) => fee.dueDate)
-          .filter(Boolean)
-          .sort((a, b) => a!.getTime() - b!.getTime());
+          const dueDates = overdueFees
+            .map((fee) => fee.dueDate)
+            .filter(Boolean)
+            .sort((a, b) => a!.getTime() - b!.getTime());
 
-        // Map campus IDs to titles
-        const campusList = student.campus.map(
-          (campusId) => campusMap.get(campusId) || "Unknown Campus"
-        );
+          const campusList = student.campus.map(
+            (campusId) => campusMap.get(campusId) || "Unknown Campus"
+          );
 
-        return {
-          id: student.id,
-          admissionNumber: student.admissionNumber,
-          firstName: student.profile?.firstName || "",
-          lastName: student.profile?.lastName || "",
-          email: student.email,
-          campuses: campusList.join(", "),
-          profileBlocked: student.inactiveReason ? "Yes" : "No",
-          payableAmounts: (totalPayable - totalCollected).toString(),
-          payableDueDates: dueDates[0] ? dueDates[0].toISOString() : "",
-          hasOverduePayments: dueDates.length > 0,
-        };
+          return {
+            id: student.id,
+            admissionNumber: student.admissionNumber,
+            firstName: student.profile?.firstName || "",
+            lastName: student.profile?.lastName || "",
+            email: student.email,
+            campuses: campusList.join(", "),
+            profileBlocked: student.inactiveReason ? "Yes" : "No",
+            payableAmounts: (totalPayable - totalCollected).toString(),
+            payableDueDates: dueDates[0] ? dueDates[0].toISOString() : "",
+            hasOverduePayments: dueDates.length > 0,
+          };
+        } catch (error) {
+          console.error(`Error processing student ${student.id}:`, error);
+          return null;
+        }
       })
     );
 
-    // Sort by overdue status and amount
-    const sortedStudents = studentsWithFinances.sort((a, b) => {
-      // First sort by overdue status
+    // Filter out failed records and sort
+    const validStudents = studentsWithFinances.filter(Boolean);
+    const sortedStudents = validStudents.sort((a, b) => {
       if (a.hasOverduePayments && !b.hasOverduePayments) return -1;
       if (!a.hasOverduePayments && b.hasOverduePayments) return 1;
 
-      // Then by amount due
       const amountA = parseFloat(a.payableAmounts) || 0;
       const amountB = parseFloat(b.payableAmounts) || 0;
       if (amountA !== amountB) return amountB - amountA;
 
-      // Finally by admission number
       return a.admissionNumber.localeCompare(b.admissionNumber);
     });
 
@@ -172,6 +174,9 @@ export const getPayableData = async (input: GetPayableSchema) => {
     };
   } catch (error) {
     console.error("Error in getPayableData:", error);
-    throw error;
+    return {
+      students: [],
+      pageCount: 0,
+    };
   }
 };
