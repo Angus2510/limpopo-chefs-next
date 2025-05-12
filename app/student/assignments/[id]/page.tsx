@@ -22,15 +22,24 @@ import {
 import { use } from "react";
 
 const requestFullScreen = () => {
-  const element = document.documentElement;
-  if (element.requestFullscreen) {
-    element.requestFullscreen();
-  } else if ((element as any).webkitRequestFullscreen) {
-    (element as any).webkitRequestFullscreen();
-  } else if ((element as any).mozRequestFullScreen) {
-    (element as any).mozRequestFullScreen();
-  } else if ((element as any).msRequestFullscreen) {
-    (element as any).msRequestFullscreen();
+  try {
+    const element = document.documentElement;
+    if (element.requestFullscreen) {
+      element
+        .requestFullscreen()
+        .catch((err) => console.log("Fullscreen error:", err));
+    } else if ((element as any).webkitRequestFullscreen) {
+      (element as any).webkitRequestFullscreen();
+    } else if ((element as any).mozRequestFullScreen) {
+      (element as any).mozRequestFullScreen();
+    } else if ((element as any).msRequestFullscreen) {
+      (element as any).msRequestFullscreen();
+    }
+    // If fullscreen fails, continue test anyway
+    console.log("Fullscreen requested");
+  } catch (error) {
+    console.error("Fullscreen API error:", error);
+    // Continue without fullscreen as fallback
   }
 };
 
@@ -117,21 +126,41 @@ export default function AssignmentTestPage({
 
   const handleAnswerChange = useCallback(
     (questionId: string, value: string) => {
-      setAnswers((prev) =>
-        prev.map((a) =>
-          a.questionId === questionId ? { ...a, answer: value } : a
-        )
-      );
+      // Track the time spent on this question
+      const now = Date.now();
+      const timeSpent = startTimeRef.current ? now - startTimeRef.current : 0;
+
+      setAnswers((prev) => {
+        // Find the answer to update
+        const answerExists = prev.some((a) => a.questionId === questionId);
+
+        if (answerExists) {
+          return prev.map((a) =>
+            a.questionId === questionId
+              ? {
+                  ...a,
+                  answer: value,
+                  timeSpent: (a.timeSpent || 0) + timeSpent,
+                }
+              : a
+          );
+        } else {
+          // If the answer doesn't exist yet (shouldn't happen but as safety)
+          return [...prev, { questionId, answer: value, timeSpent }];
+        }
+      });
 
       setQuestionStates((prev) =>
         prev.map((state) =>
           state.id === questionId ? { ...state, isAnswered: true } : state
         )
       );
-    },
-    []
-  );
 
+      // Reset start time for next tracking
+      startTimeRef.current = now;
+    },
+    [] // Empty because we use ref values and function doesn't depend on props/state directly
+  );
   const handleFlagQuestion = useCallback(() => {
     if (!assignment) return;
     const currentQuestionId = assignment.questions[currentQuestionIndex].id;
@@ -149,11 +178,29 @@ export default function AssignmentTestPage({
     if (!assignment) return;
 
     try {
-      await submitAssignment(assignment.id, answers);
+      // Exit fullscreen before submission to prevent issues
+      exitFullScreen();
+
+      // Make sure we're using the latest state
+      const finalAnswers = answers.map((answer) => ({
+        questionId: answer.questionId,
+        answer: answer.answer || "", // Ensure we have at least empty string
+        timeSpent: answer.timeSpent || 0,
+      }));
+
+      console.log("Submitting answers:", finalAnswers);
+
+      await submitAssignment(assignment.id, finalAnswers);
+
       toast({
         title: "Success",
         description: "Test submitted successfully!",
       });
+
+      // Clean up state before navigation to avoid memory leaks
+      setTestStarted(false);
+      isTestActiveRef.current = false;
+
       router.push("/student/dashboard");
     } catch (error) {
       console.error("Error submitting test:", error);
@@ -164,7 +211,6 @@ export default function AssignmentTestPage({
       });
     }
   }, [assignment, answers, router, toast]);
-
   const handlePreviousQuestion = useCallback(() => {
     if (currentQuestionIndex > 0) {
       setCurrentQuestionIndex((prev) => prev - 1);
