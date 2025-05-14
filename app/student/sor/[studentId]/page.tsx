@@ -76,8 +76,8 @@ const SORPage = async ({ params }: { params: { studentId: string } }) => {
               ) : (
                 <div className="text-center p-4 bg-gray-50 rounded-lg">
                   <p className="text-gray-600">
-                    No results available for this student's program category:{" "}
-                    {intakeCategory}
+                    No results available for this student&apos;s program
+                    category: {intakeCategory}
                   </p>
                 </div>
               )}
