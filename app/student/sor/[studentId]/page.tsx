@@ -4,24 +4,43 @@ import { ResultsTab } from "@/components/students/StudentView/tabs/ResultsTab";
 import { fetchStudentData } from "@/lib/actions/student/fetchStudentData";
 import { ContentLayout } from "@/components/layout/content-layout";
 import { DownloadSORButton } from "@/components/students/DownloadSORButton";
+import { filterAndSortResults, getIntakeCategory } from "@/utils/resultsSetup";
 
 const SORPage = async ({ params }: { params: { studentId: string } }) => {
-  if (!params.studentId) {
+  // Next.js expects params to be awaited in newer versions
+  const studentId = params.studentId;
+
+  if (!studentId) {
     console.error("Error: Missing student ID.");
     return notFound();
   }
 
   try {
-    const data = await fetchStudentData(params.studentId);
+    const data = await fetchStudentData(studentId);
 
     if (!data || !data.student) {
-      console.error("Error: No data found for student ID:", params.studentId);
+      console.error("Error: No data found for student ID:", studentId);
       return <div>No student data found.</div>;
     }
 
     const firstName = data.student.profile?.firstName || "Unknown";
     const lastName = data.student.profile?.lastName || "";
-    const studentNumber = data.student.studentNumber || params.studentId;
+    const studentNumber = data.student.studentNumber || studentId;
+
+    // Get the intake string from student data - ensure it's a string value
+    const rawIntakeValue =
+      data.student.intakeGroup || data.student.qualificationTitle || "OCG";
+    // Convert to string to ensure we can call string methods on it
+    const intakeString = String(rawIntakeValue);
+
+    // Get the standardized intake category
+    const intakeCategory = getIntakeCategory(intakeString);
+
+    // Filter and sort results based on the student's intake group
+    const filteredResults =
+      data.results && data.results.length > 0
+        ? filterAndSortResults(data.results, intakeString)
+        : [];
 
     return (
       <ContentLayout title="Statement of Results">
@@ -37,19 +56,28 @@ const SORPage = async ({ params }: { params: { studentId: string } }) => {
               <p className="text-muted-foreground">
                 Program: {data.student.qualificationTitle || "Not Specified"}
               </p>
+              <p className="text-muted-foreground">
+                Intake Group: {intakeString}
+              </p>
+              <p className="text-muted-foreground font-medium">
+                Category: {intakeCategory}
+              </p>
             </div>
 
-            <DownloadSORButton studentData={data} />
+            <DownloadSORButton
+              studentData={{ ...data, results: filteredResults }}
+            />
           </div>
 
           <Suspense fallback={<div>Loading results...</div>}>
             <div className="w-full overflow-x-auto">
-              {data.results && data.results.length > 0 ? (
-                <ResultsTab results={data.results} />
+              {filteredResults.length > 0 ? (
+                <ResultsTab results={filteredResults} />
               ) : (
                 <div className="text-center p-4 bg-gray-50 rounded-lg">
                   <p className="text-gray-600">
-                    No results available for this student.
+                    No results available for this student's program category:{" "}
+                    {intakeCategory}
                   </p>
                 </div>
               )}
