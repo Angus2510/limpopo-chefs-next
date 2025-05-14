@@ -24,7 +24,7 @@ const SORPage = async ({ params }: { params: { studentId: string } }) => {
 
     const firstName = data.student.profile?.firstName || "Unknown";
     const lastName = data.student.profile?.lastName || "";
-    const studentNumber = data.student.studentNumber || studentId;
+    const studentNumber = data.student.admissionNumber || studentId;
 
     // CRITICAL FIX: Match exactly how StudentView.tsx extracts intakeGroup
     // Use ONLY intakeGroupTitle which is what StudentView uses
@@ -64,7 +64,7 @@ const SORPage = async ({ params }: { params: { studentId: string } }) => {
                 {firstName} {lastName}
               </h2>
               <p className="text-muted-foreground">
-                Student Number: {studentNumber}
+                Admission Number: {studentNumber}
               </p>
               <p className="text-muted-foreground">
                 Program: {data.student.qualificationTitle || "Not Specified"}
