@@ -1,11 +1,10 @@
-import { NextResponse } from "next/server";
-import prisma from "@/lib/db";
-import { uploadFileToS3 } from "@/utils/uploadFiles";
-import { Buffer } from "buffer";
+"use server";
 
-export async function POST(req: Request) {
+import prisma from "@/lib/db";
+import { uploadAvatar } from "@/lib/actions/uploads/uploadAvatar";
+
+export async function updateStudent(formData: FormData) {
   try {
-    const formData = await req.formData();
     const studentId = formData.get("id") as string;
     const guardianString = formData.get("guardians");
 
@@ -14,46 +13,30 @@ export async function POST(req: Request) {
       ? JSON.parse(guardianString as string)
       : [];
 
-    // Handle avatar upload directly in this API route
+    // Handle avatar upload using the SAME function as add student
     let avatarUrl = null;
-    const avatarFile = formData.get("avatar");
+    const avatarFile = formData.get("avatar") as File;
 
-    // Check if avatarFile exists and is a file (not empty)
-    if (avatarFile instanceof Blob && avatarFile.size > 0) {
+    if (avatarFile && avatarFile.size > 0) {
       try {
-        console.log("Processing avatar file:", {
-          type: avatarFile.type,
-          size: avatarFile.size,
-        });
+        // Create a new FormData just for avatar upload
+        const avatarFormData = new FormData();
+        avatarFormData.append("avatar", avatarFile);
+        avatarFormData.append("userId", studentId);
 
-        // Convert the blob to buffer
-        const fileBuffer = Buffer.from(await avatarFile.arrayBuffer());
-        const fileName = `profile-pictures/${studentId}-${Date.now()}-avatar.${
-          avatarFile.type.split("/")[1] || "jpg"
-        }`;
-
-        // Upload to S3
-        const s3FilePath = await uploadFileToS3(
-          fileBuffer,
-          "limpopochefs-media",
-          avatarFile.type,
-          fileName
-        );
-
-        // Construct the full URL
-        avatarUrl = `https://limpopochefs-media.s3.eu-north-1.amazonaws.com/${s3FilePath}`;
-        console.log("Avatar uploaded successfully to S3:", avatarUrl);
+        // Use the same uploadAvatar function that works for add student
+        const result = await uploadAvatar(avatarFormData);
+        avatarUrl = result.avatarUrl;
+        console.log("Avatar uploaded successfully:", avatarUrl);
       } catch (uploadError) {
         console.error("Error uploading avatar:", uploadError);
       }
-    } else {
-      console.log("No valid avatar file found in request");
     }
 
     // Update in transaction
     await prisma.$transaction(async (tx) => {
-      // 1. Update student profile first
-      const updatedStudent = await tx.students.update({
+      // 1. Update student profile
+      await tx.students.update({
         where: { id: studentId },
         data: {
           email: formData.get("email") as string,
@@ -108,7 +91,7 @@ export async function POST(req: Request) {
             firstName: guardian.firstName,
             lastName: guardian.lastName,
             email: guardian.email,
-            mobileNumber: guardian.mobileNumber,
+            mobileNumber: guardian.phoneNumber || guardian.mobileNumber,
             relation: guardian.relation,
             userType: "Guardian",
             studentId: studentId,
@@ -126,21 +109,14 @@ export async function POST(req: Request) {
       });
     });
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        message: "Student and guardians updated successfully",
-      }),
-      { status: 200, headers: { "Content-Type": "application/json" } }
-    );
+    return { success: true, message: "Student updated successfully" };
   } catch (error) {
     console.error("Update failed:", error);
-    return new Response(
-      JSON.stringify({
-        success: false,
-        message: "Failed to update student",
-      }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
-    );
+    return {
+      success: false,
+      message: `Failed to update student: ${
+        error instanceof Error ? error.message : "Unknown error"
+      }`,
+    };
   }
 }

@@ -32,6 +32,7 @@ import {
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { useCallback } from "react";
+import { updateStudent } from "@/lib/actions/student/updateStudent";
 
 interface EditStudentFormProps {
   student: Student;
@@ -136,31 +137,27 @@ const EditStudentForm: React.FC<EditStudentFormProps> = ({
 
       // Add all other form fields
       Object.entries(values).forEach(([key, value]) => {
-        if (key !== "guardians") {
-          // Skip guardians as we've already handled them
+        if (key !== "guardians" && key !== "avatar") {
           formData.append(key, value?.toString() || "");
         }
       });
 
-      const response = await fetch("/api/students/updateStudent", {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      // Add the avatar file if it exists
+      if (avatarFile) {
+        formData.append("avatar", avatarFile);
       }
 
-      const data = await response.json();
+      // Use the server action directly instead of fetch
+      const result = await updateStudent(formData);
 
-      if (data.success) {
+      if (result.success) {
         toast({
           title: "Success",
           description: "Student updated successfully",
         });
         router.push(`/admin/student/studentView/${student.id}`);
       } else {
-        throw new Error(data.message || "Update failed");
+        throw new Error(result.message || "Update failed");
       }
     } catch (error) {
       console.error("Form submission error:", error);
@@ -173,7 +170,6 @@ const EditStudentForm: React.FC<EditStudentFormProps> = ({
       setIsSubmitting(false);
     }
   };
-
   return (
     <Card className="w-full">
       <Form {...form}>
