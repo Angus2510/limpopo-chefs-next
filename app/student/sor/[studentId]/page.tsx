@@ -7,7 +7,6 @@ import { DownloadSORButton } from "@/components/students/DownloadSORButton";
 import { filterAndSortResults, getIntakeCategory } from "@/utils/resultsSetup";
 
 const SORPage = async ({ params }: { params: { studentId: string } }) => {
-  // Next.js expects params to be awaited in newer versions
   const studentId = params.studentId;
 
   if (!studentId) {
@@ -27,25 +26,39 @@ const SORPage = async ({ params }: { params: { studentId: string } }) => {
     const lastName = data.student.profile?.lastName || "";
     const studentNumber = data.student.studentNumber || studentId;
 
-    // Get the intake string from student data - ensure it's a string value
-    const rawIntakeValue =
-      data.student.intakeGroup || data.student.qualificationTitle || "OCG";
-    // Convert to string to ensure we can call string methods on it
-    const intakeString = String(rawIntakeValue);
+    // CRITICAL FIX: Match exactly how StudentView.tsx extracts intakeGroup
+    // Use ONLY intakeGroupTitle which is what StudentView uses
+    const intakeGroup = data.student.intakeGroupTitle || "";
 
-    // Get the standardized intake category
-    const intakeCategory = getIntakeCategory(intakeString);
+    // Get the standardized intake category for display and filtering
+    const intakeCategory = getIntakeCategory(intakeGroup);
 
-    // Filter and sort results based on the student's intake group
+    // Debug logging
+    console.log(`Student ${studentId} intake mapping:`, {
+      intakeGroup, // This is the raw value we'll pass to ResultsTab
+      mappedCategory: intakeCategory,
+      studentData: {
+        intakeGroupTitle: data.student.intakeGroupTitle,
+        intakeGroup: data.student.intakeGroup,
+        qualification: data.student.qualificationTitle,
+      },
+    });
+
+    // Filter and sort results based on the intakeGroup
+    const totalResults = data.results?.length || 0;
     const filteredResults =
       data.results && data.results.length > 0
-        ? filterAndSortResults(data.results, intakeString)
+        ? filterAndSortResults(data.results, intakeGroup)
         : [];
+
+    console.log(
+      `Results filtered: ${totalResults} → ${filteredResults.length} for category ${intakeCategory}`
+    );
 
     return (
       <ContentLayout title="Statement of Results">
         <div className="w-full p-4">
-          <div className="mb-6 max-w-7xl mx-auto flex justify-between items-start">
+          <div className="mb-6 max-w-7xl mx-auto flex flex-col md:flex-row md:justify-between md:items-start">
             <div>
               <h2 className="text-2xl font-bold">
                 {firstName} {lastName}
@@ -57,28 +70,50 @@ const SORPage = async ({ params }: { params: { studentId: string } }) => {
                 Program: {data.student.qualificationTitle || "Not Specified"}
               </p>
               <p className="text-muted-foreground">
-                Intake Group: {intakeString}
+                Intake Group: {intakeGroup}
               </p>
               <p className="text-muted-foreground font-medium">
                 Category: {intakeCategory}
               </p>
             </div>
 
-            <DownloadSORButton
-              studentData={{ ...data, results: filteredResults }}
-            />
+            <div className="mt-4 md:mt-0">
+              <DownloadSORButton
+                studentData={{ ...data, results: filteredResults }}
+              />
+            </div>
+          </div>
+
+          <div className="mb-4">
+            <p className="text-sm text-muted-foreground">
+              Showing {filteredResults.length} results for {intakeCategory}{" "}
+              category
+              {filteredResults.length === 0 &&
+                totalResults > 0 &&
+                ` (${totalResults} total results were filtered)`}
+            </p>
           </div>
 
           <Suspense fallback={<div>Loading results...</div>}>
             <div className="w-full overflow-x-auto">
               {filteredResults.length > 0 ? (
-                <ResultsTab results={filteredResults} />
+                <ResultsTab
+                  results={filteredResults}
+                  intakeGroup={intakeGroup} // CRITICAL FIX: Pass the RAW intakeGroup, not the category!
+                />
               ) : (
                 <div className="text-center p-4 bg-gray-50 rounded-lg">
                   <p className="text-gray-600">
                     No results available for this student&apos;s program
                     category: {intakeCategory}
                   </p>
+                  {totalResults > 0 && (
+                    <p className="mt-2 text-sm text-gray-500">
+                      Note: {totalResults} results exist but don&apos;t match
+                      the {intakeCategory} curriculum. This may indicate the
+                      student&apos;s intake group needs to be updated.
+                    </p>
+                  )}
                 </div>
               )}
             </div>
@@ -93,7 +128,7 @@ const SORPage = async ({ params }: { params: { studentId: string } }) => {
         <h2 className="text-xl font-bold text-red-600">Error</h2>
         <p>Unable to load student results. Please try again later.</p>
         {process.env.NODE_ENV === "development" && (
-          <pre className="mt-2 text-left text-sm bg-gray-100 p-4 rounded">
+          <pre className="mt-2 text-left text-sm bg-gray-100 p-4 rounded overflow-auto">
             {JSON.stringify(error, null, 2)}
           </pre>
         )}
