@@ -96,6 +96,7 @@ export default function AssignmentTestPage({
   const handleSubmitRef = useRef<() => Promise<void>>();
   const hasStartedRef = useRef(false);
   const isTestActiveRef = useRef(false);
+  const answersRef = useRef<Answer[]>([]);
 
   const isPasswordValid = usePasswordValidation(resolvedParams.id);
 
@@ -134,8 +135,9 @@ export default function AssignmentTestPage({
         // Find the answer to update
         const answerExists = prev.some((a) => a.questionId === questionId);
 
+        let newAnswers;
         if (answerExists) {
-          return prev.map((a) =>
+          newAnswers = prev.map((a) =>
             a.questionId === questionId
               ? {
                   ...a,
@@ -145,9 +147,13 @@ export default function AssignmentTestPage({
               : a
           );
         } else {
-          // If the answer doesn't exist yet (shouldn't happen but as safety)
-          return [...prev, { questionId, answer: value, timeSpent }];
+          // If the answer doesn't exist yet
+          newAnswers = [...prev, { questionId, answer: value, timeSpent }];
         }
+
+        // Update the ref immediately for direct access
+        answersRef.current = newAnswers;
+        return newAnswers;
       });
 
       setQuestionStates((prev) =>
@@ -159,7 +165,7 @@ export default function AssignmentTestPage({
       // Reset start time for next tracking
       startTimeRef.current = now;
     },
-    [] // Empty because we use ref values and function doesn't depend on props/state directly
+    [] // Empty because we use ref values
   );
   const handleFlagQuestion = useCallback(() => {
     if (!assignment) return;
@@ -181,8 +187,8 @@ export default function AssignmentTestPage({
       // Exit fullscreen before submission to prevent issues
       exitFullScreen();
 
-      // Make sure we're using the latest state
-      const finalAnswers = answers.map((answer) => ({
+      // Use the ref for the most up-to-date answers
+      const finalAnswers = answersRef.current.map((answer) => ({
         questionId: answer.questionId,
         answer: answer.answer || "", // Ensure we have at least empty string
         timeSpent: answer.timeSpent || 0,
@@ -210,7 +216,8 @@ export default function AssignmentTestPage({
         description: "Failed to submit test. Please try again.",
       });
     }
-  }, [assignment, answers, router, toast]);
+  }, [assignment, router, toast]); // Remove 'answers' from dependencies
+
   const handlePreviousQuestion = useCallback(() => {
     if (currentQuestionIndex > 0) {
       setCurrentQuestionIndex((prev) => prev - 1);
@@ -248,12 +255,12 @@ export default function AssignmentTestPage({
 
     // Initialize answers if not already done
     if (answers.length === 0) {
-      setAnswers(
-        assignment.questions.map((q) => ({
-          questionId: q.id,
-          answer: "",
-        }))
-      );
+      const initialAnswers = assignment.questions.map((q) => ({
+        questionId: q.id,
+        answer: "",
+      }));
+      setAnswers(initialAnswers);
+      answersRef.current = initialAnswers; // Initialize ref as well
     }
   }, [assignment, questionStates.length, answers.length, handleSubmitTest]);
 
