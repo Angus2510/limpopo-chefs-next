@@ -24,6 +24,21 @@ import { use } from "react";
 const requestFullScreen = () => {
   try {
     const element = document.documentElement;
+    // Check if on iOS (iPad)
+    const isIOS =
+      /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+      (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+
+    if (isIOS) {
+      // iOS doesn't support true fullscreen - show a message instead
+      toast({
+        title: "Full Screen Limitation",
+        description: "Please keep this tab open and visible during the test.",
+      });
+      return; // Exit early for iOS devices
+    }
+
+    // For other browsers, try standard fullscreen
     if (element.requestFullscreen) {
       element
         .requestFullscreen()
@@ -35,23 +50,34 @@ const requestFullScreen = () => {
     } else if ((element as any).msRequestFullscreen) {
       (element as any).msRequestFullscreen();
     }
-    // If fullscreen fails, continue test anyway
     console.log("Fullscreen requested");
   } catch (error) {
     console.error("Fullscreen API error:", error);
-    // Continue without fullscreen as fallback
   }
 };
 
 const exitFullScreen = () => {
-  if (document.exitFullscreen) {
-    document.exitFullscreen();
-  } else if ((document as any).webkitExitFullscreen) {
-    (document as any).webkitExitFullscreen();
-  } else if ((document as any).mozCancelFullScreen) {
-    (document as any).mozCancelFullScreen();
-  } else if ((document as any).msExitFullscreen) {
-    (document as any).msExitFullscreen();
+  try {
+    // Check if we're actually in fullscreen mode before attempting to exit
+    if (
+      !document.fullscreenElement &&
+      !(document as any).webkitFullscreenElement &&
+      !(document as any).mozFullScreenElement
+    ) {
+      return; // Not in fullscreen, no need to exit
+    }
+
+    if (document.exitFullscreen) {
+      document.exitFullscreen();
+    } else if ((document as any).webkitExitFullscreen) {
+      (document as any).webkitExitFullscreen();
+    } else if ((document as any).mozCancelFullScreen) {
+      (document as any).mozCancelFullScreen();
+    } else if ((document as any).msExitFullscreen) {
+      (document as any).msExitFullscreen();
+    }
+  } catch (error) {
+    console.error("Exit fullscreen error:", error);
   }
 };
 
@@ -383,6 +409,11 @@ export default function AssignmentTestPage({
   useEffect(() => {
     if (!testStarted) return;
 
+    // Check if on iOS/iPadOS
+    const isIOS =
+      /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+      (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+
     const handleFocus = () => {
       setWindowFocused(true);
       setWarningShown(false);
@@ -392,6 +423,17 @@ export default function AssignmentTestPage({
     };
 
     const handleBlur = () => {
+      // For iOS/iPadOS Safari, be more lenient
+      if (isIOS) {
+        // Only show a gentle reminder without auto-submission
+        toast({
+          title: "Reminder",
+          description: "Please keep this test window active",
+          variant: "warning",
+        });
+        return;
+      }
+
       setWindowFocused(false);
       showWarningToast();
 
@@ -412,7 +454,7 @@ export default function AssignmentTestPage({
         clearTimeout(warningTimerRef.current);
       }
     };
-  }, [testStarted, showWarningToast]);
+  }, [testStarted, showWarningToast, toast]);
 
   // Navigation prevention effect
   useEffect(() => {
