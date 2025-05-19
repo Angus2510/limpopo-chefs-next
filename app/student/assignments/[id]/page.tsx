@@ -213,61 +213,67 @@ export default function AssignmentTestPage({
 
   const performSaveAnswers = useCallback(
     async (isAutoSave = false) => {
-      if (
-        !assignment ||
-        !answersRef.current ||
-        answersRef.current.length === 0
-      ) {
-        if (!isAutoSave) console.log("No assignment or answers to save.");
+      if (!assignment) {
+        console.log("No assignment loaded, cannot save/submit.");
         return false;
       }
 
-      try {
-        const finalAnswers = answersRef.current.map((answer) => ({
-          questionId: answer.questionId,
-          answer: answer.answer || "",
-          timeSpent: answer.timeSpent || 0,
-        }));
+      // Answers are continuously saved to localStorage by handleAnswerChange.
+      // answersRef.current will have the latest answers.
 
-        // Pass isAutoSave to submitAssignment if your backend handles it
-        await submitAssignment(assignment.id, finalAnswers /*, isAutoSave */);
-
+      if (isAutoSave) {
+        // For auto-save, we only update the "last saved" timestamp.
+        // The actual saving to localStorage happens in handleAnswerChange.
         setLastSaved(new Date());
-        if (!isAutoSave) {
+        console.log(
+          "Auto-save: UI updated. Data persists in localStorage. Time:",
+          new Date().toLocaleTimeString()
+        );
+        // No backend submission for auto-save.
+        // The TestHeader will show the updated lastSaved time.
+        return true; // Indicate that the auto-save "process" (updating timestamp) completed.
+      } else {
+        // This is a final submission.
+        if (!answersRef.current || answersRef.current.length === 0) {
+          console.log("No answers to submit for final submission.");
+          // Optionally, inform the user they haven't answered anything.
+          toast({
+            title: "No Answers",
+            description: "There are no answers to submit.",
+            variant: "warning",
+          });
+          return false;
+        }
+
+        try {
+          const finalAnswers = answersRef.current.map((answer) => ({
+            questionId: answer.questionId,
+            answer: answer.answer || "", // Ensure answer is always a string
+            timeSpent: answer.timeSpent || 0,
+          }));
+
+          console.log(
+            "Attempting final submission with answers:",
+            finalAnswers
+          );
+          // Only call submitAssignment on final, explicit submission
+          await submitAssignment(assignment.id, finalAnswers);
+
+          setLastSaved(new Date()); // Update last saved time on successful submission too
           toast({
             title: "Success",
             description: "Test submitted successfully!",
           });
-        } else {
-          console.log(
-            "Auto-save successful at",
-            new Date().toLocaleTimeString()
-          );
-          // Optional: toast({ title: "Progress Saved", duration: 2000 });
-        }
-        return true;
-      } catch (error) {
-        console.error(
-          `Error ${isAutoSave ? "auto-saving" : "submitting"} test:`,
-          error
-        );
-        if (!isAutoSave) {
+          return true;
+        } catch (error) {
+          console.error("Error submitting test:", error);
           toast({
             variant: "destructive",
             title: "Error",
-            description: `Failed to ${
-              isAutoSave ? "auto-save" : "submit"
-            } test. Please try again.`,
+            description: "Failed to submit test. Please try again.",
           });
-        } else {
-          toast({
-            variant: "destructive",
-            title: "Auto-save Failed",
-            description: "Could not save progress. Will retry.",
-            duration: 3000,
-          });
+          return false;
         }
-        return false;
       }
     },
     [assignment, toast]

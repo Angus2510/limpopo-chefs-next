@@ -22,6 +22,7 @@ import {
 import { useToast } from "@/components/ui/use-toast";
 import { ImageUpload } from "@/components/wels/ImageUpload";
 import { WELDetailDialog } from "@/components/wels/WELDetailDialog";
+import { ContentLayout } from "@/components/layout/content-layout";
 
 export interface WEL {
   id: string;
@@ -170,60 +171,64 @@ export default function WELPage() {
   };
 
   return (
-    <div className="container mx-auto py-6 space-y-8">
-      <h1 className="text-3xl font-bold">WEL Management</h1>
+    <ContentLayout title="WEL Management">
+      <div className="container mx-auto py-6 space-y-8">
+        <h1 className="text-3xl font-bold">WEL Management</h1>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>{editingId ? "Edit" : "Add New"} WEL Location</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Title</label>
-              <Input
-                name="title"
-                value={formData.title}
-                onChange={handleInputChange}
-                required
-              />
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Location</label>
-              <Input
-                name="location"
-                value={formData.location}
-                onChange={handleInputChange}
-                required
-              />
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Description</label>
-              <Textarea
-                name="description"
-                value={formData.description}
-                onChange={handleInputChange}
-                rows={3}
-              />
-            </div>
-
-            <div className="flex space-x-6">
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="accommodation"
-                  checked={formData.accommodation}
-                  onCheckedChange={(checked) =>
-                    handleCheckboxChange("accommodation", checked as boolean)
-                  }
+        <Card>
+          <CardHeader>
+            <CardTitle>{editingId ? "Edit" : "Add New"} WEL Location</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Title</label>
+                <Input
+                  name="title"
+                  value={formData.title}
+                  onChange={handleInputChange}
+                  required
                 />
-                <label htmlFor="accommodation" className="text-sm font-medium">
-                  Accommodation Available
-                </label>
               </div>
 
-              {/* <div className="flex items-center space-x-2">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Location</label>
+                <Input
+                  name="location"
+                  value={formData.location}
+                  onChange={handleInputChange}
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Description</label>
+                <Textarea
+                  name="description"
+                  value={formData.description}
+                  onChange={handleInputChange}
+                  rows={3}
+                />
+              </div>
+
+              <div className="flex space-x-6">
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="accommodation"
+                    checked={formData.accommodation}
+                    onCheckedChange={(checked) =>
+                      handleCheckboxChange("accommodation", checked as boolean)
+                    }
+                  />
+                  <label
+                    htmlFor="accommodation"
+                    className="text-sm font-medium"
+                  >
+                    Accommodation Available
+                  </label>
+                </div>
+
+                {/* <div className="flex items-center space-x-2">
                 <Checkbox
                   id="available"
                   checked={formData.available} // formData.available no longer exists
@@ -235,129 +240,129 @@ export default function WELPage() {
                   Currently Available
                 </label>
               </div> */}
-            </div>
+              </div>
 
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Notes</label>
-              <Textarea
-                name="note"
-                value={formData.note}
-                onChange={handleInputChange}
-                rows={2}
-              />
-            </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Notes</label>
+                <Textarea
+                  name="note"
+                  value={formData.note}
+                  onChange={handleInputChange}
+                  rows={2}
+                />
+              </div>
 
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Photos</label>
-              <ImageUpload
-                value={formData.photoPath}
-                onChange={(urls) =>
-                  setFormData((prev) => ({ ...prev, photoPath: urls }))
-                }
-                onRemove={(url) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    photoPath: prev.photoPath.filter((item) => item !== url),
-                  }))
-                }
-                welId={editingId || undefined}
-              />
-            </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Photos</label>
+                <ImageUpload
+                  value={formData.photoPath}
+                  onChange={(urls) =>
+                    setFormData((prev) => ({ ...prev, photoPath: urls }))
+                  }
+                  onRemove={(url) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      photoPath: prev.photoPath.filter((item) => item !== url),
+                    }))
+                  }
+                  welId={editingId || undefined}
+                />
+              </div>
 
-            <Button type="submit" className="w-full">
-              {editingId ? "Update" : "Add"} WEL Location
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
+              <Button type="submit" className="w-full">
+                {editingId ? "Update" : "Add"} WEL Location
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Existing WEL Locations</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-4">
-            {wels.map((wel) => (
-              <Card
-                key={wel.id}
-                className="cursor-pointer hover:shadow-md transition"
-              >
-                <CardContent
-                  className="pt-6"
-                  onClick={(e) => {
-                    if (!(e.target as HTMLElement).closest("button")) {
-                      handleCardClick(wel);
-                    }
-                  }}
+        <Card>
+          <CardHeader>
+            <CardTitle>Existing WEL Locations</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4">
+              {wels.map((wel) => (
+                <Card
+                  key={wel.id}
+                  className="cursor-pointer hover:shadow-md transition"
                 >
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h3 className="font-semibold text-lg">{wel.title}</h3>
-                      <p className="text-muted-foreground">{wel.location}</p>
-                      {wel.description && (
-                        <p className="mt-2 text-sm text-muted-foreground">
-                          {wel.description}
-                        </p>
-                      )}
-                    </div>
-                    <div className="flex space-x-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleEdit(wel);
-                        }}
-                      >
-                        Edit
-                      </Button>
-                      <Dialog
-                        open={isDeleteDialogOpen && welToDelete === wel.id}
-                        onOpenChange={(open) => {
-                          setIsDeleteDialogOpen(open);
-                          if (!open) setWelToDelete(null);
-                        }}
-                      >
-                        <DialogTrigger asChild>
-                          <Button
-                            variant="destructive"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setWelToDelete(wel.id);
-                            }}
-                          >
-                            Delete
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent>
-                          <DialogHeader>
-                            <DialogTitle>Confirm Deletion</DialogTitle>
-                            <DialogDescription>
-                              Are you sure you want to delete this WEL location?
-                              This action cannot be undone.
-                            </DialogDescription>
-                          </DialogHeader>
-                          <div className="flex justify-end space-x-2">
-                            <Button
-                              variant="outline"
-                              onClick={() => setIsDeleteDialogOpen(false)}
-                            >
-                              Cancel
-                            </Button>
+                  <CardContent
+                    className="pt-6"
+                    onClick={(e) => {
+                      if (!(e.target as HTMLElement).closest("button")) {
+                        handleCardClick(wel);
+                      }
+                    }}
+                  >
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h3 className="font-semibold text-lg">{wel.title}</h3>
+                        <p className="text-muted-foreground">{wel.location}</p>
+                        {wel.description && (
+                          <p className="mt-2 text-sm text-muted-foreground">
+                            {wel.description}
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex space-x-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEdit(wel);
+                          }}
+                        >
+                          Edit
+                        </Button>
+                        <Dialog
+                          open={isDeleteDialogOpen && welToDelete === wel.id}
+                          onOpenChange={(open) => {
+                            setIsDeleteDialogOpen(open);
+                            if (!open) setWelToDelete(null);
+                          }}
+                        >
+                          <DialogTrigger asChild>
                             <Button
                               variant="destructive"
-                              onClick={() => handleDelete(wel.id)}
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setWelToDelete(wel.id);
+                              }}
                             >
                               Delete
                             </Button>
-                          </div>
-                        </DialogContent>
-                      </Dialog>
+                          </DialogTrigger>
+                          <DialogContent>
+                            <DialogHeader>
+                              <DialogTitle>Confirm Deletion</DialogTitle>
+                              <DialogDescription>
+                                Are you sure you want to delete this WEL
+                                location? This action cannot be undone.
+                              </DialogDescription>
+                            </DialogHeader>
+                            <div className="flex justify-end space-x-2">
+                              <Button
+                                variant="outline"
+                                onClick={() => setIsDeleteDialogOpen(false)}
+                              >
+                                Cancel
+                              </Button>
+                              <Button
+                                variant="destructive"
+                                onClick={() => handleDelete(wel.id)}
+                              >
+                                Delete
+                              </Button>
+                            </div>
+                          </DialogContent>
+                        </Dialog>
+                      </div>
                     </div>
-                  </div>
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    {/* <span
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      {/* <span
                       className={`px-2 py-1 rounded-full text-xs font-medium ${
                         wel.available // wel.available no longer exists
                           ? "bg-green-100 text-green-800"
@@ -366,32 +371,33 @@ export default function WELPage() {
                     >
                       {wel.available ? "Available" : "Not Available"}
                     </span> */}
-                    {wel.accommodation && (
-                      <span className="px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                        Accommodation Available
-                      </span>
+                      {wel.accommodation && (
+                        <span className="px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                          Accommodation Available
+                        </span>
+                      )}
+                    </div>
+                    {wel.note && (
+                      <p className="mt-4 text-sm text-muted-foreground">
+                        {wel.note}
+                      </p>
                     )}
-                  </div>
-                  {wel.note && (
-                    <p className="mt-4 text-sm text-muted-foreground">
-                      {wel.note}
-                    </p>
-                  )}
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
 
-      <WELDetailDialog
-        wel={selectedWel}
-        isOpen={isDetailOpen}
-        onClose={() => {
-          setIsDetailOpen(false);
-          setSelectedWel(null);
-        }}
-      />
-    </div>
+        <WELDetailDialog
+          wel={selectedWel}
+          isOpen={isDetailOpen}
+          onClose={() => {
+            setIsDetailOpen(false);
+            setSelectedWel(null);
+          }}
+        />
+      </div>
+    </ContentLayout>
   );
 }
