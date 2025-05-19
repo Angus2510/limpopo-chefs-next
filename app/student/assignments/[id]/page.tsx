@@ -24,21 +24,19 @@ import { use } from "react";
 const requestFullScreen = () => {
   try {
     const element = document.documentElement;
-    // Check if on iOS (iPad)
     const isIOS =
       /iPad|iPhone|iPod/.test(navigator.userAgent) ||
       (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 
     if (isIOS) {
-      // iOS doesn't support true fullscreen - show a message instead
-      toast({
-        title: "Full Screen Limitation",
-        description: "Please keep this tab open and visible during the test.",
-      });
-      return; // Exit early for iOS devices
+      // toast({ // toast is not defined in this scope, consider passing it or using a global toast
+      //   title: "Full Screen Limitation",
+      //   description: "Please keep this tab open and visible during the test.",
+      // });
+      console.warn("Fullscreen not available on iOS. Showing reminder.");
+      return;
     }
 
-    // For other browsers, try standard fullscreen
     if (element.requestFullscreen) {
       element
         .requestFullscreen()
@@ -58,13 +56,12 @@ const requestFullScreen = () => {
 
 const exitFullScreen = () => {
   try {
-    // Check if we're actually in fullscreen mode before attempting to exit
     if (
       !document.fullscreenElement &&
       !(document as any).webkitFullscreenElement &&
       !(document as any).mozFullScreenElement
     ) {
-      return; // Not in fullscreen, no need to exit
+      return;
     }
 
     if (document.exitFullscreen) {
@@ -80,6 +77,8 @@ const exitFullScreen = () => {
     console.error("Exit fullscreen error:", error);
   }
 };
+
+const AUTO_SAVE_INTERVAL = 30000; // 30 seconds
 
 export default function AssignmentTestPage({
   params,
@@ -97,6 +96,7 @@ export default function AssignmentTestPage({
   const [loading, setLoading] = useState(true);
   const [timeRemaining, setTimeRemaining] = useState<number>(0);
   const [testStarted, setTestStarted] = useState(false);
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
 
   // Navigation states
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
@@ -120,6 +120,7 @@ export default function AssignmentTestPage({
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const warningTimerRef = useRef<NodeJS.Timeout | null>(null);
   const handleSubmitRef = useRef<() => Promise<void>>();
+  const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
   const hasStartedRef = useRef(false);
   const isTestActiveRef = useRef(false);
   const answersRef = useRef<Answer[]>([]);
@@ -153,14 +154,11 @@ export default function AssignmentTestPage({
 
   const handleAnswerChange = useCallback(
     (questionId: string, value: string) => {
-      // Track the time spent on this question
       const now = Date.now();
       const timeSpent = startTimeRef.current ? now - startTimeRef.current : 0;
 
       setAnswers((prev) => {
-        // Find the answer to update
         const answerExists = prev.some((a) => a.questionId === questionId);
-
         let newAnswers;
         if (answerExists) {
           newAnswers = prev.map((a) =>
@@ -173,12 +171,20 @@ export default function AssignmentTestPage({
               : a
           );
         } else {
-          // If the answer doesn't exist yet
           newAnswers = [...prev, { questionId, answer: value, timeSpent }];
         }
-
-        // Update the ref immediately for direct access
         answersRef.current = newAnswers;
+
+        if (assignment) {
+          try {
+            localStorage.setItem(
+              `assignment_answers_${assignment.id}`,
+              JSON.stringify(newAnswers)
+            );
+          } catch (error) {
+            console.error("Error saving answers to localStorage:", error);
+          }
+        }
         return newAnswers;
       });
 
@@ -187,12 +193,11 @@ export default function AssignmentTestPage({
           state.id === questionId ? { ...state, isAnswered: true } : state
         )
       );
-
-      // Reset start time for next tracking
       startTimeRef.current = now;
     },
-    [] // Empty because we use ref values
+    [assignment]
   );
+
   const handleFlagQuestion = useCallback(() => {
     if (!assignment) return;
     const currentQuestionId = assignment.questions[currentQuestionIndex].id;
@@ -206,43 +211,89 @@ export default function AssignmentTestPage({
     );
   }, [currentQuestionIndex, assignment]);
 
+  const performSaveAnswers = useCallback(
+    async (isAutoSave = false) => {
+      if (
+        !assignment ||
+        !answersRef.current ||
+        answersRef.current.length === 0
+      ) {
+        if (!isAutoSave) console.log("No assignment or answers to save.");
+        return false;
+      }
+
+      try {
+        const finalAnswers = answersRef.current.map((answer) => ({
+          questionId: answer.questionId,
+          answer: answer.answer || "",
+          timeSpent: answer.timeSpent || 0,
+        }));
+
+        // Pass isAutoSave to submitAssignment if your backend handles it
+        await submitAssignment(assignment.id, finalAnswers /*, isAutoSave */);
+
+        setLastSaved(new Date());
+        if (!isAutoSave) {
+          toast({
+            title: "Success",
+            description: "Test submitted successfully!",
+          });
+        } else {
+          console.log(
+            "Auto-save successful at",
+            new Date().toLocaleTimeString()
+          );
+          // Optional: toast({ title: "Progress Saved", duration: 2000 });
+        }
+        return true;
+      } catch (error) {
+        console.error(
+          `Error ${isAutoSave ? "auto-saving" : "submitting"} test:`,
+          error
+        );
+        if (!isAutoSave) {
+          toast({
+            variant: "destructive",
+            title: "Error",
+            description: `Failed to ${
+              isAutoSave ? "auto-save" : "submit"
+            } test. Please try again.`,
+          });
+        } else {
+          toast({
+            variant: "destructive",
+            title: "Auto-save Failed",
+            description: "Could not save progress. Will retry.",
+            duration: 3000,
+          });
+        }
+        return false;
+      }
+    },
+    [assignment, toast]
+  );
+
   const handleSubmitTest = useCallback(async () => {
     if (!assignment) return;
+    exitFullScreen();
 
-    try {
-      // Exit fullscreen before submission to prevent issues
-      exitFullScreen();
+    const success = await performSaveAnswers(false);
 
-      // Use the ref for the most up-to-date answers
-      const finalAnswers = answersRef.current.map((answer) => ({
-        questionId: answer.questionId,
-        answer: answer.answer || "", // Ensure we have at least empty string
-        timeSpent: answer.timeSpent || 0,
-      }));
+    if (success) {
+      try {
+        localStorage.removeItem(`assignment_answers_${assignment.id}`);
+      } catch (error) {
+        console.error("Error removing answers from localStorage:", error);
+      }
 
-      console.log("Submitting answers:", finalAnswers);
-
-      await submitAssignment(assignment.id, finalAnswers);
-
-      toast({
-        title: "Success",
-        description: "Test submitted successfully!",
-      });
-
-      // Clean up state before navigation to avoid memory leaks
       setTestStarted(false);
       isTestActiveRef.current = false;
-
+      if (autoSaveTimerRef.current) {
+        clearInterval(autoSaveTimerRef.current);
+      }
       router.push("/student/dashboard");
-    } catch (error) {
-      console.error("Error submitting test:", error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to submit test. Please try again.",
-      });
     }
-  }, [assignment, router, toast]); // Remove 'answers' from dependencies
+  }, [assignment, router, performSaveAnswers]);
 
   const handlePreviousQuestion = useCallback(() => {
     if (currentQuestionIndex > 0) {
@@ -268,27 +319,57 @@ export default function AssignmentTestPage({
     setTimeRemaining(assignment.duration * 60);
     handleSubmitRef.current = handleSubmitTest;
 
-    // Initialize question states if not already done
-    if (questionStates.length === 0) {
-      setQuestionStates(
-        assignment.questions.map((q) => ({
-          id: q.id,
-          isFlagged: false,
-          isAnswered: false,
-        }))
+    let initialAnswers: Answer[] = [];
+    let loadedQuestionStates = questionStates; // Keep existing flags if any
+
+    try {
+      const savedAnswersRaw = localStorage.getItem(
+        `assignment_answers_${assignment.id}`
       );
+      if (savedAnswersRaw) {
+        const parsedAnswers = JSON.parse(savedAnswersRaw) as Answer[];
+        if (
+          Array.isArray(parsedAnswers) &&
+          parsedAnswers.length === assignment.questions.length
+        ) {
+          initialAnswers = parsedAnswers;
+          loadedQuestionStates = assignment.questions.map((q, index) => ({
+            id: q.id,
+            isFlagged: questionStates[index]?.isFlagged || false, // Preserve existing flags
+            isAnswered: !!parsedAnswers.find(
+              (a) => a.questionId === q.id && a.answer
+            ),
+          }));
+          toast({
+            title: "Progress Restored",
+            description: "Your previous answers have been loaded.",
+          });
+        } else {
+          localStorage.removeItem(`assignment_answers_${assignment.id}`);
+        }
+      }
+    } catch (error) {
+      console.error("Error loading answers from localStorage:", error);
+      localStorage.removeItem(`assignment_answers_${assignment.id}`);
     }
 
-    // Initialize answers if not already done
-    if (answers.length === 0) {
-      const initialAnswers = assignment.questions.map((q) => ({
+    if (initialAnswers.length === 0) {
+      initialAnswers = assignment.questions.map((q) => ({
         questionId: q.id,
         answer: "",
+        timeSpent: 0,
       }));
-      setAnswers(initialAnswers);
-      answersRef.current = initialAnswers; // Initialize ref as well
+      loadedQuestionStates = assignment.questions.map((q) => ({
+        id: q.id,
+        isFlagged: false,
+        isAnswered: false,
+      }));
     }
-  }, [assignment, questionStates.length, answers.length, handleSubmitTest]);
+
+    setAnswers(initialAnswers);
+    answersRef.current = initialAnswers;
+    setQuestionStates(loadedQuestionStates);
+  }, [assignment, handleSubmitTest, toast, questionStates]); // Added questionStates
 
   const loadAssignment = useCallback(async () => {
     if (!isPasswordValid) return;
@@ -302,6 +383,14 @@ export default function AssignmentTestPage({
       }
 
       setAssignment(data);
+      // Initialize questionStates here after assignment is loaded
+      setQuestionStates(
+        data.questions.map((q) => ({
+          id: q.id,
+          isFlagged: false,
+          isAnswered: false,
+        }))
+      );
       setLoading(false);
     } catch (error) {
       console.error("Failed to load assignment:", error);
@@ -347,6 +436,21 @@ export default function AssignmentTestPage({
     };
   }, [testStarted, assignment]);
 
+  // Auto-save effect
+  useEffect(() => {
+    if (testStarted && assignment) {
+      autoSaveTimerRef.current = setInterval(() => {
+        performSaveAnswers(true);
+      }, AUTO_SAVE_INTERVAL);
+
+      return () => {
+        if (autoSaveTimerRef.current) {
+          clearInterval(autoSaveTimerRef.current);
+        }
+      };
+    }
+  }, [testStarted, assignment, performSaveAnswers]);
+
   // Password validation effect
   useEffect(() => {
     const checkAccess = async () => {
@@ -380,7 +484,6 @@ export default function AssignmentTestPage({
         setTabHiddenTime(Date.now());
         showWarningToast();
 
-        // Set warning timer
         warningTimerRef.current = setTimeout(() => {
           if (document.hidden && handleSubmitRef.current) {
             handleSubmitRef.current();
@@ -409,7 +512,6 @@ export default function AssignmentTestPage({
   useEffect(() => {
     if (!testStarted) return;
 
-    // Check if on iOS/iPadOS
     const isIOS =
       /iPad|iPhone|iPod/.test(navigator.userAgent) ||
       (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
@@ -423,13 +525,11 @@ export default function AssignmentTestPage({
     };
 
     const handleBlur = () => {
-      // For iOS/iPadOS Safari, be more lenient
       if (isIOS) {
-        // Only show a gentle reminder without auto-submission
         toast({
           title: "Reminder",
           description: "Please keep this test window active",
-          variant: "warning",
+          variant: "warning", // Changed from destructive to warning for iOS reminder
         });
         return;
       }
@@ -477,7 +577,13 @@ export default function AssignmentTestPage({
 
     const handleFullscreenChange = () => {
       if (!document.fullscreenElement && hasStartedRef.current) {
-        requestFullScreen();
+        // Avoid calling requestFullScreen if it's iOS, as it doesn't have true fullscreen
+        const isIOS =
+          /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+          (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+        if (!isIOS) {
+          requestFullScreen();
+        }
       }
     };
 
@@ -538,7 +644,9 @@ export default function AssignmentTestPage({
                     <li>Leaving this page will trigger a warning</li>
                     <li>You have 5 seconds to return before auto-submission</li>
                     <li>Copy and paste are not allowed</li>
-                    <li>Test must remain in fullscreen mode</li>
+                    <li>
+                      Test must remain in fullscreen mode (where supported)
+                    </li>
                   </ul>
                 </div>
               </CardContent>
@@ -547,6 +655,7 @@ export default function AssignmentTestPage({
             <TestHeader
               timeDisplay={timeRemaining}
               onSubmit={handleSubmitTest}
+              lastSaved={lastSaved} // Pass lastSaved to TestHeader
             />
 
             <QuestionView
@@ -556,7 +665,7 @@ export default function AssignmentTestPage({
                   (a) =>
                     a.questionId ===
                     assignment.questions[currentQuestionIndex].id
-                )?.answer as string
+                )?.answer || "" // Ensure string, even if undefined
               }
               onAnswerChange={handleAnswerChange}
               preventCopyPaste={preventCopyPaste}

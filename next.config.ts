@@ -8,11 +8,23 @@ const nextConfig: NextConfig = {
     serverActions: {
       bodySizeLimit: "60mb",
       allowedOrigins: ["*"],
-      maxDuration: 60, // 60 seconds timeout for server actions
+      maxDuration: 60,
     },
   },
   images: {
-    domains: ["limpopochefs-media.s3.eu-north-1.amazonaws.com"],
+    domains: [
+      "limpopochefs-media.s3.eu-north-1.amazonaws.com",
+      "localhost",
+      "127.0.0.1",
+    ],
+    remotePatterns: [
+      // {
+      //   protocol: "http",
+      //   hostname: "localhost",
+      //   port: "3000",
+      //   pathname: "/img/**",
+      // },
+    ],
   },
   compiler: {
     removeConsole:
@@ -23,7 +35,7 @@ const nextConfig: NextConfig = {
         : false,
   },
   serverRuntimeConfig: {
-    timeoutMs: 60000, // 60 seconds server-side timeout
+    timeoutMs: 60000,
   },
 };
 

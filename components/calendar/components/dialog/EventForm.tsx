@@ -52,6 +52,8 @@ const LECTURERS = [
   "Chef Valentine",
   "Chef Skhumbuzo",
   "Chef Thakgalo",
+  "Chef Chrizette",
+  "Chef Nelly",
   "Bonnie",
   "Thandi",
 ] as const;

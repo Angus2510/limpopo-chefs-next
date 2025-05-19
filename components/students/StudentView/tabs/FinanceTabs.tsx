@@ -26,11 +26,12 @@ interface Student {
 
 interface CollectedFee {
   id: string;
-  balance: string;
-  credit?: number | null;
-  debit?: number | null;
+  balance: string; // This seems to be the running balance from DB, we calculate our own
+  credit?: number | null | string; // Allow string for parsing flexibility
+  debit?: number | null | string; // Allow string for parsing flexibility
   description: string;
   transactionDate?: Date;
+  calculatedBalance?: string; // For our internally calculated running balance
 }
 
 interface PayableFee {
@@ -63,21 +64,36 @@ export function FinancesTab({
     if (!payableFees || payableFees.length === 0) return 0;
 
     return payableFees.reduce((sum, fee) => {
-      // Handle both number and string cases for amount
       const amount =
         typeof fee.amount === "number"
           ? fee.amount
-          : parseFloat(fee.amount?.toString() || "0");
+          : parseFloat(fee.amount?.toString().replace(/[^0-9.-]+/g, "") || "0");
       return sum + amount;
     }, 0);
   }, [payableFees]);
 
+  // Calculate the earliest due date from payable fees
+  const earliestDueDate = useMemo(() => {
+    if (!payableFees || payableFees.length === 0) {
+      return null;
+    }
+
+    let earliest: Date | null = null;
+    for (const fee of payableFees) {
+      if (fee.dueDate) {
+        const currentDueDate = new Date(fee.dueDate);
+        if (!earliest || currentDueDate < earliest) {
+          earliest = currentDueDate;
+        }
+      }
+    }
+    return earliest;
+  }, [payableFees]);
+
   // Calculate running balance and sort transactions by date
   const processedFees = useMemo(() => {
-    // Make a copy to avoid modifying the original data
     const fees = [...collectedFees];
 
-    // Sort by transaction date (oldest first)
     fees.sort((a, b) => {
       const dateA = a.transactionDate
         ? new Date(a.transactionDate).getTime()
@@ -88,19 +104,17 @@ export function FinancesTab({
       return dateA - dateB;
     });
 
-    // Calculate running balance
     let runningBalance = 0;
     return fees.map((fee) => {
-      // Add credits, subtract debits - safely handle string or number types
       const creditAmount = fee.credit
         ? typeof fee.credit === "number"
           ? fee.credit
-          : parseFloat(fee.credit.toString() || "0")
+          : parseFloat(fee.credit.toString().replace(/[^0-9.-]+/g, "") || "0")
         : 0;
       const debitAmount = fee.debit
         ? typeof fee.debit === "number"
           ? fee.debit
-          : parseFloat(fee.debit.toString() || "0")
+          : parseFloat(fee.debit.toString().replace(/[^0-9.-]+/g, "") || "0")
         : 0;
 
       runningBalance += creditAmount - debitAmount;
@@ -118,34 +132,38 @@ export function FinancesTab({
       const creditAmount = fee.credit
         ? typeof fee.credit === "number"
           ? fee.credit
-          : parseFloat(fee.credit.toString() || "0")
+          : parseFloat(fee.credit.toString().replace(/[^0-9.-]+/g, "") || "0")
         : 0;
+      // Assuming debits in collectedFees are charges against the student, reducing the "collected" amount if it's a refund or reversal.
+      // If debits are new charges that should *increase* what's effectively collected (e.g. shop purchases on account), this logic might differ.
+      // Standard interpretation: sum of credits (payments) - sum of debits (refunds/reversals of payments).
       const debitAmount = fee.debit
         ? typeof fee.debit === "number"
           ? fee.debit
-          : parseFloat(fee.debit.toString() || "0")
+          : parseFloat(fee.debit.toString().replace(/[^0-9.-]+/g, "") || "0")
         : 0;
-
       return sum + creditAmount - debitAmount;
     }, 0);
   }, [processedFees]);
 
-  // Calculate net balance (collected minus payable)
-  // Consistent with database update logic
-  const netBalance = totalCollected - totalPayable;
-  const formattedNetBalance = netBalance.toFixed(2);
+  // This is the actual net balance: what the student has paid vs what they owe overall.
+  const netOverallBalance = totalCollected - totalPayable;
+  const formattedNetOverallBalance = netOverallBalance.toFixed(2);
 
-  // For backward compatibility with existing code
-  const currentBalance = formattedNetBalance;
+  // outstandingAmountDisplay is the total amount of fees assigned to be paid
+  const outstandingAmountDisplay = totalPayable.toFixed(2);
 
-  // New function to handle storing student data before navigation
   const handleViewBalance = () => {
-    // Store complete student data and finances in sessionStorage
     const studentWithFinances = {
       ...student,
       finances: {
         collectedFees,
-        processedFees, // Include the processed fees with calculated balances
+        payableFees,
+        processedFees,
+        totalPayable: totalPayable.toFixed(2),
+        totalCollected: totalCollected.toFixed(2),
+        netOverallBalance: formattedNetOverallBalance,
+        outstandingAmountDisplay: outstandingAmountDisplay, // Add this for context on the next page if needed
       },
     };
 
@@ -153,15 +171,20 @@ export function FinancesTab({
       "currentStudentDetails",
       JSON.stringify(studentWithFinances)
     );
-    console.log("Stored student data for navigation:", studentId);
+    console.log(
+      "Stored student data for navigation (FinancesTab):",
+      studentWithFinances
+    );
   };
 
   return (
     <div className="space-y-6">
-      {/* Balance Summary */}
+      {/* Outstanding Amount Card */}
       <Card
         className={`${
-          Number(currentBalance) < 0 ? "border-red-500" : "border-green-500"
+          Number(outstandingAmountDisplay) > 0
+            ? "border-red-500"
+            : "border-green-500"
         } border-2`}
       >
         <CardHeader>
@@ -170,34 +193,45 @@ export function FinancesTab({
         <CardContent>
           <p
             className={`text-2xl font-bold ${
-              Number(currentBalance) < 0 ? "text-red-500" : "text-green-500"
+              Number(outstandingAmountDisplay) > 0
+                ? "text-red-500"
+                : "text-green-500"
             }`}
           >
-            R {currentBalance}
+            R {outstandingAmountDisplay}
           </p>
+          {earliestDueDate && (
+            <p className="text-sm text-gray-500 mt-1">
+              Earliest due by: {formatDate(earliestDueDate)}
+            </p>
+          )}
           <p className="text-sm text-gray-500 mt-2">
-            {Number(currentBalance) < 0
-              ? "Outstanding balance due"
-              : Number(currentBalance) > 0
-              ? "Credit balance"
-              : "Balanced account"}
+            {Number(outstandingAmountDisplay) > 0
+              ? "Total outstanding amount based on assigned fees."
+              : "All assigned fees are settled or no fees assigned."}
           </p>
 
-          {/* Payable fee info - helps understand how balance is calculated */}
           <div className="mt-4 pt-3 border-t border-gray-200">
-            <div className="flex justify-between text-sm">
-              <span>Total Fees Due:</span>
-              <span className="font-medium">R {totalPayable.toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between text-sm mt-1">
-              <span>Total Payments:</span>
-              <span className="font-medium">R {totalCollected.toFixed(2)}</span>
+            <div className="flex justify-between text-sm mt-1 font-semibold">
+              <span>Net Account Balance:</span>
+              <span
+                className={
+                  Number(formattedNetOverallBalance) < 0
+                    ? "text-red-600"
+                    : "text-green-600"
+                }
+              >
+                R {formattedNetOverallBalance}
+                {Number(formattedNetOverallBalance) < 0
+                  ? " (Owing)"
+                  : " (Credit)"}
+              </span>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Collected Fees Section - Now Clickable with data storage */}
+      {/* Collected Fees Section - Statement of Account */}
       <Link
         href={`/admin/finance/student-balance/${studentId}`}
         onClick={handleViewBalance}
@@ -207,7 +241,7 @@ export function FinancesTab({
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Statement of Account</CardTitle>
             <Button variant="ghost" size="sm" className="gap-1">
-              <span>View Details</span>
+              <span>View Details & Transactions</span>
               <ExternalLink className="h-4 w-4" />
             </Button>
           </CardHeader>
@@ -230,29 +264,33 @@ export function FinancesTab({
                         Debit
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                        Balance
+                        Running Balance
                       </th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {processedFees.map((fee) => (
                       <tr key={fee.id}>
-                        <td className="px-6 py-4 text-sm">
-                          {formatDate(fee.transactionDate)}
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {fee.transactionDate
+                            ? formatDate(fee.transactionDate)
+                            : "N/A"}
                         </td>
-                        <td className="px-6 py-4 text-sm">{fee.description}</td>
-                        <td className="px-6 py-4 text-sm text-green-600">
-                          {fee.credit
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {fee.description}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600">
+                          {fee.credit && Number(fee.credit) !== 0
                             ? `R ${Number(fee.credit).toFixed(2)}`
                             : "-"}
                         </td>
-                        <td className="px-6 py-4 text-sm text-red-600">
-                          {fee.debit
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-red-600">
+                          {fee.debit && Number(fee.debit) !== 0
                             ? `R ${Number(fee.debit).toFixed(2)}`
                             : "-"}
                         </td>
                         <td
-                          className={`px-6 py-4 text-sm font-medium ${
+                          className={`px-6 py-4 whitespace-nowrap text-sm font-medium ${
                             Number(fee.calculatedBalance) < 0
                               ? "text-red-600"
                               : "text-green-600"
@@ -266,7 +304,9 @@ export function FinancesTab({
                 </table>
               </div>
             ) : (
-              <p className="text-gray-500">No payment history available</p>
+              <p className="text-gray-500">
+                No payment history or transactions available.
+              </p>
             )}
           </CardContent>
         </Card>
@@ -286,33 +326,50 @@ export function FinancesTab({
 
           {showDebug && (
             <div className="mt-2 p-4 bg-gray-100 rounded-md">
-              <details>
-                <summary className="cursor-pointer text-xs mb-1">
-                  Payable Fees ({payableFees.length})
+              <details className="mb-2">
+                <summary className="cursor-pointer text-xs font-semibold">
+                  Payable Fees Data ({payableFees.length})
                 </summary>
-                <pre className="text-xs overflow-auto max-h-40 bg-gray-200 p-2 rounded">
+                <pre className="text-xs overflow-auto max-h-60 bg-gray-200 p-2 rounded mt-1">
                   {JSON.stringify(payableFees, null, 2)}
                 </pre>
               </details>
 
-              <details>
-                <summary className="cursor-pointer text-xs mb-1 mt-2">
-                  Collected Fees ({collectedFees.length})
+              <details className="mb-2">
+                <summary className="cursor-pointer text-xs font-semibold">
+                  Collected Fees Data (Raw) ({collectedFees.length})
                 </summary>
-                <pre className="text-xs overflow-auto max-h-40 bg-gray-200 p-2 rounded">
+                <pre className="text-xs overflow-auto max-h-60 bg-gray-200 p-2 rounded mt-1">
                   {JSON.stringify(collectedFees, null, 2)}
                 </pre>
               </details>
 
-              <div className="mt-2 text-xs space-y-1">
+              <details>
+                <summary className="cursor-pointer text-xs font-semibold">
+                  Processed Fees Data (with Running Balance) (
+                  {processedFees.length})
+                </summary>
+                <pre className="text-xs overflow-auto max-h-60 bg-gray-200 p-2 rounded mt-1">
+                  {JSON.stringify(processedFees, null, 2)}
+                </pre>
+              </details>
+
+              <div className="mt-3 pt-3 border-t border-gray-300 text-xs space-y-1">
                 <p>
-                  <strong>Total Payable:</strong> R{totalPayable.toFixed(2)}
+                  <strong>Total Fees Assigned (Payable):</strong> R{" "}
+                  {totalPayable.toFixed(2)}
                 </p>
                 <p>
-                  <strong>Total Collected:</strong> R{totalCollected.toFixed(2)}
+                  <strong>Total Payments Received (Collected):</strong> R{" "}
+                  {totalCollected.toFixed(2)}
                 </p>
                 <p>
-                  <strong>Net Balance:</strong> R{formattedNetBalance}
+                  <strong>Net Account Balance (Collected - Payable):</strong> R{" "}
+                  {formattedNetOverallBalance}
+                </p>
+                <p>
+                  <strong>Displaying as Outstanding Amount:</strong> R{" "}
+                  {outstandingAmountDisplay}
                 </p>
                 <p>
                   <strong>Student ID:</strong> {studentId}
