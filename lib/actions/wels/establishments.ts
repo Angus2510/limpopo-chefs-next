@@ -9,7 +9,7 @@ interface WelData {
   location: string;
   description?: string;
   accommodation: boolean;
-  available: boolean;
+  // 'available' field removed
   note?: string;
   photoPath: string[];
 }
@@ -19,6 +19,10 @@ export async function createWel(data: WelData) {
     const newWel = await prisma.wels.create({
       data: {
         ...data,
+        // If your Prisma schema for 'wels' has an 'available' field
+        // that is non-nullable and has no default, you might need to
+        // explicitly set a default value here, e.g., available: true,
+        // or modify your schema.
         dateUploaded: new Date(),
         v: 0,
       },
@@ -42,7 +46,7 @@ export async function getWels() {
         location: true,
         description: true,
         accommodation: true,
-        available: true,
+        // 'available' field removed from select
         note: true,
         photoPath: true,
         dateUploaded: true,
@@ -63,7 +67,7 @@ export async function getWels() {
       location: wel.location,
       description: wel.description ?? "",
       accommodation: Boolean(wel.accommodation),
-      available: Boolean(wel.available),
+      // 'available' field removed from returned object
       note: wel.note ?? "",
       photoPath: Array.isArray(wel.photoPath) ? wel.photoPath : [],
       dateUploaded: wel.dateUploaded,
@@ -81,6 +85,7 @@ export async function updateWel(id: string, data: Partial<WelData>) {
   if (!id) throw new Error("WEL ID is required");
 
   try {
+    // 'data' (Partial<WelData>) will no longer contain 'available'
     const updatedWel = await prisma.wels.update({
       where: { id },
       data: {
@@ -109,6 +114,7 @@ export async function deleteWel(id: string) {
     revalidatePath("/admin/wel");
     return { success: true, data: deleted };
   } catch (error) {
+    console.error("Failed to delete WEL:", error); // Added console.error for better debugging
     return { success: false, error: "Failed to delete WEL" };
   }
 }

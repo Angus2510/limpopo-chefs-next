@@ -21,6 +21,7 @@ interface Student {
     firstName: string;
     lastName: string;
   };
+  intakeGroupTitle?: string; // Updated to reflect the actual data property
 }
 
 interface WelHoursCardProps {
@@ -28,13 +29,76 @@ interface WelHoursCardProps {
   wellnessRecords: WelRecord[];
 }
 
+// This helper function is local to WelHoursCard and uses keyword checking
+// based on the student's intake string, mimicking resultsSetup.ts logic style.
+const getWelMaxHoursForIntake = (intakeString?: string): number => {
+  console.log(
+    "[WelHoursCard] getWelMaxHoursForIntake received intakeString:",
+    intakeString
+  );
+  if (!intakeString || intakeString.trim() === "") {
+    console.log(
+      "[WelHoursCard] Intake string is empty or undefined, returning 0 hours."
+    );
+    return 0;
+  }
+
+  const upperIntake = intakeString.trim().toUpperCase();
+  console.log(
+    "[WelHoursCard] Processing upperIntake for WEL hours:",
+    upperIntake
+  );
+
+  // Order of checks:
+  // OCG has specific hours (2700).
+  // Diploma and Pastry (900).
+  // Certificate or Cook (750).
+  // Award (200).
+
+  if (upperIntake.includes("OCG")) {
+    console.log("[WelHoursCard] Matched OCG, returning 2700 hours.");
+    return 2700;
+  }
+  // Note: If an intake could be "OCG Cook" and "Cook" alone means 750,
+  // the "OCG" check coming first ensures 2700 for "OCG Cook".
+
+  if (upperIntake.includes("DIPLOMA")) {
+    console.log("[WelHoursCard] Matched DIPLOMA, returning 900 hours.");
+    return 900;
+  }
+  if (upperIntake.includes("PASTRY")) {
+    console.log("[WelHoursCard] Matched PASTRY, returning 900 hours.");
+    return 900;
+  }
+  if (upperIntake.includes("CERTIFICATE") || upperIntake.includes("COOK")) {
+    console.log(
+      "[WelHoursCard] Matched CERTIFICATE or COOK, returning 750 hours."
+    );
+    return 750;
+  }
+  if (upperIntake.includes("AWARD")) {
+    console.log("[WelHoursCard] Matched AWARD, returning 200 hours.");
+    return 200;
+  }
+
+  console.log(
+    "[WelHoursCard] No WEL hour keywords matched for upperIntake:",
+    upperIntake,
+    "- returning 0 hours."
+  );
+  return 0; // Fallback default if no specific group is matched
+};
+
 export default function WelHoursCard({
   studentData,
   wellnessRecords,
 }: WelHoursCardProps) {
   const router = useRouter();
   const [totalHours, setTotalHours] = useState(0);
-  const maxHours = 2000;
+
+  // Determine maxHours based on the student's intake group using the local helper function
+  // CORRECTED: Using studentData?.intakeGroupTitle
+  const maxHours = getWelMaxHoursForIntake(studentData?.intakeGroupTitle);
 
   useEffect(() => {
     if (wellnessRecords && wellnessRecords.length > 0) {
@@ -43,10 +107,12 @@ export default function WelHoursCard({
         0
       );
       setTotalHours(total);
+    } else {
+      setTotalHours(0); // Reset if no records
     }
   }, [wellnessRecords]);
 
-  const progressPercentage = (totalHours / maxHours) * 100;
+  const progressPercentage = maxHours > 0 ? (totalHours / maxHours) * 100 : 0;
   const remainingHours = maxHours - totalHours;
 
   const evaluatedHours = wellnessRecords
@@ -58,10 +124,14 @@ export default function WelHoursCard({
     .reduce((sum, record) => sum + record.totalHours, 0);
 
   const handleDownloadSOR = async () => {
-    try {
-      router.push(`/student/sor/${studentData.id}`);
-    } catch (error) {
-      console.error("Error navigating to SOR:", error);
+    if (studentData?.id) {
+      try {
+        router.push(`/student/sor/${studentData.id}`);
+      } catch (error) {
+        console.error("Error navigating to SOR:", error);
+      }
+    } else {
+      console.error("Student ID is undefined, cannot navigate to SOR.");
     }
   };
 
@@ -78,7 +148,11 @@ export default function WelHoursCard({
           <Progress value={progressPercentage} className="h-4" />
           <div className="flex justify-between text-sm text-muted-foreground">
             <span>{totalHours} hours completed</span>
-            <span>{remainingHours} remaining</span>
+            <span>
+              {remainingHours >= 0
+                ? `${remainingHours} remaining`
+                : `0 remaining`}
+            </span>
           </div>
         </div>
 
@@ -112,6 +186,7 @@ export default function WelHoursCard({
         <Button
           className="w-full flex items-center gap-2"
           onClick={handleDownloadSOR}
+          disabled={!studentData?.id}
         >
           <Download className="h-4 w-4" />
           View SOR

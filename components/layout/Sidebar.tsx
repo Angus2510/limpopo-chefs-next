@@ -12,76 +12,70 @@ import { useEffect, useState } from "react";
 
 export function Sidebar() {
   const sidebar = useStore(useSidebarToggle, (state) => state);
-  const [isMobileView, setIsMobileView] = useState(false);
+
+  // Initialize isMobileView based on window.innerWidth if available on the client.
+  // This provides a more accurate initial value on the client's first render.
+  const [isMobileView, setIsMobileView] = useState(() => {
+    if (typeof window === "undefined") {
+      return false; // Default for SSR, will be corrected on client mount if different
+    }
+    return window.innerWidth < 768;
+  });
 
   useEffect(() => {
+    // This effect now only needs to handle resize events,
+    // as the initial state is set by useState's initializer on the client.
     const checkMobileView = () => {
       setIsMobileView(window.innerWidth < 768); // Adjust breakpoint as needed
     };
-    // Initial check + event listener
-    checkMobileView();
-    window.addEventListener("resize", checkMobileView);
-    return () => window.removeEventListener("resize", checkMobileView);
-  }, []);
 
+    window.addEventListener("resize", checkMobileView);
+    // Ensure the view is correctly set on mount if the initial useState was SSR default
+    // and client environment is now available.
+    checkMobileView();
+
+    return () => window.removeEventListener("resize", checkMobileView);
+  }, []); // Empty dependency array ensures this runs once on mount and cleans up on unmount
+
+  // Ensure these paths correctly point to your images in the `public` folder
   const lightLogos = {
     open: "/img/logo.png",
-    closed: "/img/logo-normal-simple.png",
+    closed: "/img/logo-normal-simple.png", // This is used for mobile and closed sidebar on desktop
   };
 
   let determinedLogoSrc;
-  let pathKeyUsed; // For debugging
   if (isMobileView) {
     // On smaller screens, always use the 'closed' (simple) logo
     determinedLogoSrc = lightLogos.closed;
-    pathKeyUsed = "lightLogos.closed (mobile)";
   } else {
     // Desktop view logic
-    if (sidebar?.isOpen) {
-      determinedLogoSrc = lightLogos.open;
-      pathKeyUsed = "lightLogos.open (desktop, sidebar open)";
-    } else {
-      determinedLogoSrc = lightLogos.closed;
-      pathKeyUsed = "lightLogos.closed (desktop, sidebar closed)";
-    }
+    determinedLogoSrc = sidebar?.isOpen ? lightLogos.open : lightLogos.closed;
   }
   const logoSrc = determinedLogoSrc;
 
+  // This console.log is helpful for debugging the paths:
   console.log("Sidebar State:", {
     isMobile: isMobileView,
     isOpen: sidebar?.isOpen,
-    pathKeyUsed: pathKeyUsed,
-    resolvedPath: logoSrc, // This is the critical value passed to <Image src={...} />
-    lightLogosObject: JSON.parse(JSON.stringify(lightLogos)), // See the definition at runtime
+    resolvedPath: logoSrc,
+    lightLogosDefinition: lightLogos,
   });
 
   if (!sidebar) return null;
 
   let logoWidth;
-  if (isMobileView && sidebar?.isOpen) {
-    // Note: if always simple logo on mobile, this width logic might also need adjustment
-    logoWidth = 100; // This was for the 'closed' logo when sidebar is open on mobile
-  } else if (isMobileView && !sidebar?.isOpen) {
-    logoWidth = 50; // Assuming simple logo (closed) should be 50px when sidebar is closed on mobile
-  } else if (sidebar?.isOpen) {
-    // Desktop open
-    logoWidth = 150;
-  } else {
-    // Desktop closed
-    logoWidth = 50;
-  }
-  // Simplified logoWidth logic if mobile always uses one type of logo:
+  // Simplified logoWidth logic
   if (isMobileView) {
-    logoWidth = 50; // Or whatever fixed size you want for the simple logo on mobile
+    logoWidth = 50; // Fixed size for the simple logo on mobile
   } else {
-    logoWidth = sidebar?.isOpen ? 150 : 50;
+    logoWidth = sidebar?.isOpen ? 150 : 50; // Desktop: 150px for open, 50px for closed
   }
 
   return (
     <aside
       className={cn(
         "fixed top-0 left-0 z-20 h-screen",
-        "transition-all ease-in-out duration-300", // Handles transitions for transform and width
+        "transition-all ease-in-out duration-300",
         sidebar?.isOpen
           ? "translate-x-0"
           : "-translate-x-full lg:translate-x-0",
@@ -104,11 +98,15 @@ export function Sidebar() {
                 src={logoSrc}
                 alt="Logo"
                 width={logoWidth}
-                height={50} // Consider if height also needs to be dynamic or if width constraint is enough
+                height={50}
                 priority
                 className={cn(
                   "mr-1 mt-4 transition-all duration-300 ease-in-out",
-                  sidebar?.isOpen ? "opacity-100" : "opacity-70" // Opacity might also need review based on mobile always showing simple logo
+                  isMobileView
+                    ? "opacity-100"
+                    : sidebar?.isOpen
+                    ? "opacity-100"
+                    : "opacity-70"
                 )}
               />
             )}

@@ -29,7 +29,7 @@ export interface WEL {
   location: string;
   description?: string;
   accommodation: boolean;
-  available: boolean;
+  // available: boolean; // Removed
   note?: string;
   photoPath: string[];
   dateUploaded: Date;
@@ -49,7 +49,7 @@ export default function WELPage() {
     location: "",
     description: "",
     accommodation: false,
-    available: true,
+    // available: true, // Removed
     note: "",
     photoPath: [] as string[],
   });
@@ -62,7 +62,11 @@ export default function WELPage() {
     try {
       const data = await getWels();
       if (data) {
-        setWels(data);
+        // Sort data alphabetically by title before setting state
+        const sortedData = [...data].sort((a, b) =>
+          a.title.localeCompare(b.title)
+        );
+        setWels(sortedData as WEL[]); // Cast as WEL[] as 'available' is removed from fetched data
       }
     } catch (error) {
       console.error("Error fetching WELs:", error);
@@ -114,7 +118,7 @@ export default function WELPage() {
         location: "",
         description: "",
         accommodation: false,
-        available: true,
+        // available: true, // Removed
         note: "",
         photoPath: [],
       });
@@ -135,7 +139,7 @@ export default function WELPage() {
       location: wel.location,
       description: wel.description || "",
       accommodation: wel.accommodation,
-      available: wel.available,
+      // available: wel.available, // Removed
       note: wel.note || "",
       photoPath: wel.photoPath,
     });
@@ -219,10 +223,10 @@ export default function WELPage() {
                 </label>
               </div>
 
-              <div className="flex items-center space-x-2">
+              {/* <div className="flex items-center space-x-2">
                 <Checkbox
                   id="available"
-                  checked={formData.available}
+                  checked={formData.available} // formData.available no longer exists
                   onCheckedChange={(checked) =>
                     handleCheckboxChange("available", checked as boolean)
                   }
@@ -230,7 +234,7 @@ export default function WELPage() {
                 <label htmlFor="available" className="text-sm font-medium">
                   Currently Available
                 </label>
-              </div>
+              </div> */}
             </div>
 
             <div className="space-y-2">
@@ -353,15 +357,15 @@ export default function WELPage() {
                     </div>
                   </div>
                   <div className="mt-4 flex flex-wrap gap-2">
-                    <span
+                    {/* <span
                       className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        wel.available
+                        wel.available // wel.available no longer exists
                           ? "bg-green-100 text-green-800"
                           : "bg-red-100 text-red-800"
                       }`}
                     >
                       {wel.available ? "Available" : "Not Available"}
-                    </span>
+                    </span> */}
                     {wel.accommodation && (
                       <span className="px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                         Accommodation Available
