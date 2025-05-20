@@ -6,7 +6,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import Image from "next/image";
-import { Badge } from "@/components/ui/badge";
+// import { Badge } from "@/components/ui/badge"; // Badge import removed as it's no longer used
 import { WEL } from "@/types/wel";
 import { useEffect } from "react";
 
@@ -50,14 +50,7 @@ export function WELDetailDialog({
         </DialogHeader>
 
         <div className="space-y-6">
-          <div className="flex flex-wrap gap-2">
-            <Badge variant={wel.available ? "default" : "secondary"}>
-              {wel.available ? "Available" : "Not Available"}
-            </Badge>
-            {wel.accommodation && (
-              <Badge variant="outline">Accommodation Available</Badge>
-            )}
-          </div>
+          {/* The section for badges has been removed */}
 
           {wel.description && (
             <div>

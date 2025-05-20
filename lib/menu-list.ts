@@ -303,6 +303,13 @@ export function getMenuList(pathname: string): Group[] {
               },
             ],
           },
+          {
+            href: "/student/wel/locations",
+            label: "W.E.L Locations",
+            active: pathname.includes("/student/wel/locations"),
+            icon: File, // Using File icon, similar to admin
+            submenus: [],
+          },
         ],
       },
       {
