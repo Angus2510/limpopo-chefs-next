@@ -9,7 +9,12 @@ interface SidebarToggleProps {
 
 export function SidebarToggle({ isOpen, setIsOpen }: SidebarToggleProps) {
   return (
-    <div className="invisible lg:visible absolute top-[12px] -right-[16px] z-20">
+    // Removed "invisible lg:visible" to make it always visible
+    // The button will be positioned relative to the sidebar.
+    // When the sidebar is open on mobile, this button should be visible.
+    // When the sidebar is fully closed and off-screen on mobile (-translate-x-full),
+    // this button will also be off-screen (which is expected).
+    <div className="absolute top-[12px] -right-[16px] z-20">
       <Button
         onClick={() => setIsOpen?.(!isOpen)} // Toggle the state when clicked
         className="rounded-md w-8 h-8"
