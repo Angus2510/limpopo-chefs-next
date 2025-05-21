@@ -19,7 +19,7 @@ export function Sidebar() {
     if (typeof window === "undefined") {
       return false; // Default for SSR, will be corrected on client mount if different
     }
-    return window.innerWidth < 768;
+    return window.innerWidth < 768; // md breakpoint
   });
 
   useEffect(() => {
@@ -32,7 +32,7 @@ export function Sidebar() {
     window.addEventListener("resize", checkMobileView);
     // Ensure the view is correctly set on mount if the initial useState was SSR default
     // and client environment is now available.
-    checkMobileView();
+    checkMobileView(); // Call on mount
 
     return () => window.removeEventListener("resize", checkMobileView);
   }, []); // Empty dependency array ensures this runs once on mount and cleans up on unmount
@@ -75,11 +75,11 @@ export function Sidebar() {
     <aside
       className={cn(
         "fixed top-0 left-0 z-20 h-screen",
-        "bg-background", // Add this line
+        "bg-background", // Ensures sidebar has a background color
         "transition-all ease-in-out duration-300",
         sidebar?.isOpen
-          ? "translate-x-0"
-          : "-translate-x-full lg:translate-x-0",
+          ? "translate-x-0" // Should be active when open
+          : "-translate-x-full md:translate-x-0", // Changed lg: to md:
         sidebar?.isOpen === false ? "w-[90px]" : "w-72"
       )}
     >
@@ -99,15 +99,15 @@ export function Sidebar() {
                 src={logoSrc}
                 alt="Logo"
                 width={logoWidth}
-                height={50}
+                height={50} // Assuming a fixed height or adjust as needed
                 priority
                 className={cn(
                   "mr-1 mt-4 transition-all duration-300 ease-in-out",
                   isMobileView
-                    ? "opacity-100"
+                    ? "opacity-100" // Simple logo always fully visible on mobile
                     : sidebar?.isOpen
-                    ? "opacity-100"
-                    : "opacity-70"
+                    ? "opacity-100" // Full logo visible when open on desktop
+                    : "opacity-70" // Simple logo slightly faded when closed on desktop
                 )}
               />
             )}
