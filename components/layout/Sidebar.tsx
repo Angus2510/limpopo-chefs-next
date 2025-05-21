@@ -75,6 +75,7 @@ export function Sidebar() {
     <aside
       className={cn(
         "fixed top-0 left-0 z-20 h-screen",
+        "bg-background", // Add this line
         "transition-all ease-in-out duration-300",
         sidebar?.isOpen
           ? "translate-x-0"
