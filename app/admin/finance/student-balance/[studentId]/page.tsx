@@ -138,53 +138,37 @@ export default function StudentBalancePage() {
   const fetchStudentData = useCallback(async () => {
     try {
       setLoading(true);
-      console.log("Fetching student data for ID:", studentId);
 
-      // First fetch student data
+      // Fetch student data
       const studentResponse = await fetchStudentDetails(studentId);
-      console.log("Student response:", studentResponse);
-
       if (!studentResponse || !studentResponse.student) {
         throw new Error("Failed to fetch student data");
       }
-
       setStudent(studentResponse.student);
 
-      // Then fetch finances
+      // Fetch finances
       const financesResponse = await fetchStudentFinances(studentId);
-      console.log("Finances response:", financesResponse);
 
-      // Add null checks and default values
+      // Only work with collectedFees, ignore payableFees for balance calculations
       const collectedFees = financesResponse?.collectedFees || [];
-      const payableFees = financesResponse?.payableFees || [];
-
       setTransactions(collectedFees);
 
-      // Calculate net balance - FIXED to include payable fees
-      const totalPayable = payableFees.reduce((sum, fee) => {
-        const amount =
-          typeof fee.amount === "number"
-            ? fee.amount
-            : parseFloat(fee.amount?.toString() || "0");
-        return sum + amount;
-      }, 0);
-
-      const totalCollected = collectedFees.reduce((acc, fee) => {
+      // Calculate running balance from transactions only
+      const runningBalance = collectedFees.reduce((acc, fee) => {
         const credit = Number(fee.credit) || 0;
         const debit = Number(fee.debit) || 0;
         return acc + credit - debit;
       }, 0);
 
-      // Using the same logic as FinanceTabs - collected minus payable
-      const finalBalance = totalCollected - totalPayable;
-      console.log(
-        `Balance calculation: ${totalCollected} - ${totalPayable} = ${finalBalance}`
-      );
-
-      setTotalBalance(finalBalance);
+      // Set total balance to just the running transaction balance
+      setTotalBalance(runningBalance);
     } catch (error) {
       console.error("Error fetching student data:", error);
-      // Error handling...
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to fetch student data",
+      });
     } finally {
       setLoading(false);
     }

@@ -151,8 +151,18 @@ export function FinancesTab({
   const formattedNetOverallBalance = netOverallBalance.toFixed(2);
 
   // outstandingAmountDisplay is the total amount of fees assigned to be paid
-  const outstandingAmountDisplay = totalPayable.toFixed(2);
+  const outstandingAmountDisplay = useMemo(() => {
+    // Calculate total payable
+    const totalPayable = payableFees.reduce((sum, fee) => {
+      const amount =
+        typeof fee.amount === "number"
+          ? fee.amount
+          : parseFloat(fee.amount?.toString() || "0");
+      return sum + amount;
+    }, 0);
 
+    return totalPayable.toFixed(2); // Just show the total payable amount
+  }, [payableFees]);
   const handleViewBalance = () => {
     const studentWithFinances = {
       ...student,
