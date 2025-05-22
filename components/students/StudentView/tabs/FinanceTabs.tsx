@@ -152,7 +152,7 @@ export function FinancesTab({
 
   // outstandingAmountDisplay is the total amount of fees assigned to be paid
   const outstandingAmountDisplay = useMemo(() => {
-    // Calculate total payable
+    // Calculate total payable - MAKE IT MATCH payableQuery.ts
     const totalPayable = payableFees.reduce((sum, fee) => {
       const amount =
         typeof fee.amount === "number"
@@ -163,6 +163,7 @@ export function FinancesTab({
 
     return totalPayable.toFixed(2); // Just show the total payable amount
   }, [payableFees]);
+
   const handleViewBalance = () => {
     const studentWithFinances = {
       ...student,
@@ -245,10 +246,10 @@ export function FinancesTab({
                         Description
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                        Credit
+                        Debit
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                        Debit
+                        Credit
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                         Running Balance
@@ -266,14 +267,14 @@ export function FinancesTab({
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           {fee.description}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600">
-                          {fee.credit && Number(fee.credit) !== 0
-                            ? `R ${Number(fee.credit).toFixed(2)}`
-                            : "-"}
-                        </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-red-600">
                           {fee.debit && Number(fee.debit) !== 0
                             ? `R ${Number(fee.debit).toFixed(2)}`
+                            : "-"}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600">
+                          {fee.credit && Number(fee.credit) !== 0
+                            ? `R ${Number(fee.credit).toFixed(2)}`
                             : "-"}
                         </td>
                         <td
@@ -298,74 +299,6 @@ export function FinancesTab({
           </CardContent>
         </Card>
       </Link>
-
-      {/* Debug toggle button (only visible in development) */}
-      {process.env.NODE_ENV === "development" && (
-        <div className="mt-4">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowDebug(!showDebug)}
-            className="text-xs"
-          >
-            {showDebug ? "Hide Debug Data" : "Show Debug Data"}
-          </Button>
-
-          {showDebug && (
-            <div className="mt-2 p-4 bg-gray-100 rounded-md">
-              <details className="mb-2">
-                <summary className="cursor-pointer text-xs font-semibold">
-                  Payable Fees Data ({payableFees.length})
-                </summary>
-                <pre className="text-xs overflow-auto max-h-60 bg-gray-200 p-2 rounded mt-1">
-                  {JSON.stringify(payableFees, null, 2)}
-                </pre>
-              </details>
-
-              <details className="mb-2">
-                <summary className="cursor-pointer text-xs font-semibold">
-                  Collected Fees Data (Raw) ({collectedFees.length})
-                </summary>
-                <pre className="text-xs overflow-auto max-h-60 bg-gray-200 p-2 rounded mt-1">
-                  {JSON.stringify(collectedFees, null, 2)}
-                </pre>
-              </details>
-
-              <details>
-                <summary className="cursor-pointer text-xs font-semibold">
-                  Processed Fees Data (with Running Balance) (
-                  {processedFees.length})
-                </summary>
-                <pre className="text-xs overflow-auto max-h-60 bg-gray-200 p-2 rounded mt-1">
-                  {JSON.stringify(processedFees, null, 2)}
-                </pre>
-              </details>
-
-              <div className="mt-3 pt-3 border-t border-gray-300 text-xs space-y-1">
-                <p>
-                  <strong>Total Fees Assigned (Payable):</strong> R{" "}
-                  {totalPayable.toFixed(2)}
-                </p>
-                <p>
-                  <strong>Total Payments Received (Collected):</strong> R{" "}
-                  {totalCollected.toFixed(2)}
-                </p>
-                <p>
-                  <strong>Net Account Balance (Collected - Payable):</strong> R{" "}
-                  {formattedNetOverallBalance}
-                </p>
-                <p>
-                  <strong>Displaying as Outstanding Amount:</strong> R{" "}
-                  {outstandingAmountDisplay}
-                </p>
-                <p>
-                  <strong>Student ID:</strong> {studentId}
-                </p>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
     </div>
   );
 }

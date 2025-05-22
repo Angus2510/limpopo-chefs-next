@@ -135,6 +135,7 @@ export default function StudentBalancePage() {
     }
   }, [studentId, loading]);
   // Fetch student data
+
   const fetchStudentData = useCallback(async () => {
     try {
       setLoading(true);
