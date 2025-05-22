@@ -202,32 +202,9 @@ export function FinancesTab({
           </p>
           {earliestDueDate && (
             <p className="text-sm text-gray-500 mt-1">
-              Earliest due by: {formatDate(earliestDueDate)}
+              Due by: {formatDate(earliestDueDate)}
             </p>
           )}
-          <p className="text-sm text-gray-500 mt-2">
-            {Number(outstandingAmountDisplay) > 0
-              ? "Total outstanding amount based on assigned fees."
-              : "All assigned fees are settled or no fees assigned."}
-          </p>
-
-          <div className="mt-4 pt-3 border-t border-gray-200">
-            <div className="flex justify-between text-sm mt-1 font-semibold">
-              <span>Net Account Balance:</span>
-              <span
-                className={
-                  Number(formattedNetOverallBalance) < 0
-                    ? "text-red-600"
-                    : "text-green-600"
-                }
-              >
-                R {formattedNetOverallBalance}
-                {Number(formattedNetOverallBalance) < 0
-                  ? " (Owing)"
-                  : " (Credit)"}
-              </span>
-            </div>
-          </div>
         </CardContent>
       </Card>
 
