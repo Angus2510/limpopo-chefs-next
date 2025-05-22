@@ -84,41 +84,26 @@ export const getPayableData = async (input: GetPayableSchema) => {
     const studentsWithFinances = await Promise.all(
       students.map(async (student) => {
         try {
-          // Get finances for each student
+          // Get ONLY payableFees for each student
           const finance = await prisma.finances.findFirst({
             where: {
               student: student.id,
             },
             select: {
-              payableFees: true,
-              collectedFees: true,
+              payableFees: true, // Only select payableFees
             },
           });
 
           // Calculate financial data
           const payableFees = finance?.payableFees || [];
-          const collectedFees = finance?.collectedFees || [];
 
-          // Calculate total payable
+          // Calculate total payable from payableFees only
           const totalPayable = payableFees.reduce((sum, fee) => {
             const amount =
               typeof fee.amount === "number"
                 ? fee.amount
                 : parseFloat(fee.amount.toString() || "0");
             return sum + amount;
-          }, 0);
-
-          // Calculate total collected
-          const totalCollected = collectedFees.reduce((sum, fee) => {
-            const credit =
-              typeof fee.credit === "number"
-                ? fee.credit
-                : parseFloat(fee.credit?.toString() || "0");
-            const debit =
-              typeof fee.debit === "number"
-                ? fee.debit
-                : parseFloat(fee.debit?.toString() || "0");
-            return sum + credit - debit;
           }, 0);
 
           // Get overdue dates
@@ -144,7 +129,7 @@ export const getPayableData = async (input: GetPayableSchema) => {
             email: student.email,
             campuses: campusList.join(", "),
             profileBlocked: student.inactiveReason ? "Yes" : "No",
-            payableAmounts: (totalPayable - totalCollected).toString(),
+            payableAmounts: totalPayable.toString(), // Direct amount from payableFees
             payableDueDates: dueDates[0] ? dueDates[0].toISOString() : "",
             hasOverduePayments: dueDates.length > 0,
           };

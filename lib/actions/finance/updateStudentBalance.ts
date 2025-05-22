@@ -11,7 +11,6 @@ interface TransactionData {
   transactionDate?: Date;
 }
 
-// Helper function to calculate running balance
 function calculateRunningBalance(transactions: any[]) {
   let balance = 0;
   return transactions.map((t) => {
@@ -29,13 +28,12 @@ export async function updateStudentBalance(
   try {
     const objectId = new ObjectId().toString();
 
-    // Find existing finance record, ONLY select collectedFees and preserve payableFees
+    // Only select collectedFees - ignore payableFees completely
     const finance = await prisma.finances.findFirst({
       where: { student: studentId },
       select: {
         id: true,
         collectedFees: true,
-        payableFees: true, // Select this to preserve it
       },
     });
 
@@ -45,11 +43,11 @@ export async function updateStudentBalance(
       credit: data.credit || 0,
       debit: data.debit || 0,
       transactionDate: data.transactionDate || new Date(),
-      balance: "0", // Will be calculated
+      balance: "0",
     };
 
     if (finance) {
-      // Update only collectedFees while preserving payableFees
+      // Update ONLY collectedFees
       await prisma.finances.update({
         where: { id: finance.id },
         data: {
@@ -58,17 +56,16 @@ export async function updateStudentBalance(
             newTransaction,
           ]),
           v: { increment: 1 },
-          payableFees: finance.payableFees, // Explicitly preserve existing payableFees
         },
       });
     } else {
-      // Create new finance record
+      // Create new finance record with ONLY collectedFees
       await prisma.finances.create({
         data: {
           student: studentId,
           v: 1,
           collectedFees: [newTransaction],
-          payableFees: [], // Initialize empty array
+          payableFees: [], // Initialize empty but don't touch it after
         },
       });
     }
@@ -87,12 +84,12 @@ export async function editTransaction(
   data: TransactionData
 ) {
   try {
+    // Only select collectedFees
     const finance = await prisma.finances.findFirst({
       where: { student: studentId },
       select: {
         id: true,
         collectedFees: true,
-        payableFees: true, // Select to preserve
       },
     });
 
@@ -100,7 +97,6 @@ export async function editTransaction(
       return { success: false, error: "Record not found" };
     }
 
-    // Update only the specific transaction while preserving payableFees
     const updatedTransactions = finance.collectedFees.map((fee) =>
       fee.id === transactionId
         ? {
@@ -113,12 +109,12 @@ export async function editTransaction(
         : fee
     );
 
+    // Update ONLY collectedFees
     await prisma.finances.update({
       where: { id: finance.id },
       data: {
         collectedFees: calculateRunningBalance(updatedTransactions),
         v: { increment: 1 },
-        payableFees: finance.payableFees, // Explicitly preserve payableFees
       },
     });
 
@@ -135,12 +131,12 @@ export async function deleteTransaction(
   transactionId: string
 ) {
   try {
+    // Only select collectedFees
     const finance = await prisma.finances.findFirst({
       where: { student: studentId },
       select: {
         id: true,
         collectedFees: true,
-        payableFees: true, // Select to preserve
       },
     });
 
@@ -148,17 +144,16 @@ export async function deleteTransaction(
       return { success: false, error: "Record not found" };
     }
 
-    // Remove transaction while preserving payableFees
     const filteredFees = finance.collectedFees.filter(
       (fee) => fee.id !== transactionId
     );
 
+    // Update ONLY collectedFees
     await prisma.finances.update({
       where: { id: finance.id },
       data: {
         collectedFees: calculateRunningBalance(filteredFees),
         v: { increment: 1 },
-        payableFees: finance.payableFees, // Explicitly preserve payableFees
       },
     });
 
