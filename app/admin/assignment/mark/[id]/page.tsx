@@ -381,9 +381,6 @@ export default async function AssignmentMarkingPage({ params }: PageProps) {
             <CardContent className="pt-6">
               <div className="flex justify-between items-center">
                 <div>
-                  <h3 className="text-lg font-semibold">
-                    Total Score: {totalScore}/{totalPossible} ({percentage}%)
-                  </h3>
                   <p className="text-sm text-muted-foreground">
                     Review all marks before submitting
                   </p>

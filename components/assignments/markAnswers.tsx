@@ -22,7 +22,6 @@ const noScrollInputStyles = `
   }
 `;
 
-// Rest of your component remains the same
 interface Question {
   id: string;
   text: string;
@@ -44,6 +43,20 @@ interface MarkAnswersProps {
   studentId: string;
   groupId: string;
   mode?: "input" | "submit"; // Added mode prop
+  onScoreChange?: () => void; // New callback to notify parent of score changes
+}
+
+// Create a custom event for score updates
+if (typeof window !== "undefined") {
+  window.markingScores = window.markingScores || {};
+}
+
+// Add to global types
+declare global {
+  interface Window {
+    markingScores: Record<string, number>;
+    updateTotalScore?: () => void; // Function to trigger total recalculation
+  }
 }
 
 export function MarkAnswers({
@@ -56,13 +69,62 @@ export function MarkAnswers({
   studentId,
   groupId,
   mode = "submit", // Default to full submit mode
+  onScoreChange,
 }: MarkAnswersProps) {
-  const [scores, setScores] = useState<Record<string, number>>(
-    initialScores || {}
-  );
+  // Initialize scores and reset window.markingScores to prevent accumulation
+  const [scores, setScores] = useState<Record<string, number>>(() => {
+    // Start with initial scores if provided, otherwise empty object
+    const startingScores = initialScores || {};
+
+    // Initialize window.markingScores with these values (don't accumulate)
+    if (typeof window !== "undefined") {
+      if (
+        !window.markingScores ||
+        Object.keys(window.markingScores).length === 0
+      ) {
+        window.markingScores = { ...startingScores };
+      }
+    }
+
+    return startingScores;
+  });
+
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [currentTotal, setCurrentTotal] = useState(0);
+  const [currentPercentage, setCurrentPercentage] = useState(0);
   const { toast } = useToast();
   const router = useRouter();
+
+  // Calculate total from global marking scores
+  useEffect(() => {
+    const calculateGlobalTotal = () => {
+      if (typeof window !== "undefined" && window.markingScores) {
+        const total = Object.values(window.markingScores).reduce(
+          (sum, score) => sum + (score || 0),
+          0
+        );
+        const percent = Math.round((total * 100) / totalPossible);
+
+        setCurrentTotal(total);
+        setCurrentPercentage(percent);
+      }
+    };
+
+    // Calculate initial total
+    calculateGlobalTotal();
+
+    // Setup global update function
+    if (typeof window !== "undefined" && mode === "submit") {
+      window.updateTotalScore = calculateGlobalTotal;
+    }
+
+    return () => {
+      // Cleanup
+      if (typeof window !== "undefined" && mode === "submit") {
+        window.updateTotalScore = undefined;
+      }
+    };
+  }, [totalPossible, mode]);
 
   // Add event handler to prevent scroll wheel from changing the input values
   useEffect(() => {
@@ -103,6 +165,16 @@ export function MarkAnswers({
       // Update the parent component's scores
       if (window && window.markingScores) {
         window.markingScores[questionId] = validScore;
+
+        // Trigger score update in parent component
+        if (window.updateTotalScore) {
+          window.updateTotalScore();
+        }
+
+        // Notify parent if callback provided
+        if (onScoreChange) {
+          onScoreChange();
+        }
       }
 
       return newScores;
@@ -115,8 +187,16 @@ export function MarkAnswers({
       return scores[questions[0].id] || 0;
     }
 
-    // Otherwise calculate total of all scores
-    return Object.values(scores).reduce((sum, score) => sum + score, 0);
+    // Otherwise calculate total of all scores from global object
+    if (typeof window !== "undefined" && window.markingScores) {
+      return Object.values(window.markingScores).reduce(
+        (sum, score) => sum + (score || 0),
+        0
+      );
+    }
+
+    // Fallback to local scores
+    return Object.values(scores).reduce((sum, score) => sum + (score || 0), 0);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -187,7 +267,8 @@ export function MarkAnswers({
   if (mode === "input" && questions.length === 1) {
     const question = questions[0];
     const answer = parsedAnswers.find((a) => a.question === question.id);
-    const score = scores[question.id] || 0;
+    const score =
+      window.markingScores?.[question.id] || scores[question.id] || 0;
     const maxMark = parseInt(question.mark);
 
     return (
@@ -209,14 +290,16 @@ export function MarkAnswers({
     );
   }
 
-  // In submit mode, just render the submit button and total
-  const totalScore = calculateTotal();
-  const percentage = Math.round((totalScore * 100) / totalPossible);
-
+  // In submit mode, use the current total from state
   return (
     <>
       <style jsx>{noScrollInputStyles}</style>
       <form onSubmit={handleSubmit} className="w-full">
+        <div className="mb-4 text-right">
+          <p className="font-medium">
+            Total Score: {currentTotal}/{totalPossible} ({currentPercentage}%)
+          </p>
+        </div>
         <div className="mt-6 flex justify-end">
           <Button type="submit" disabled={isSubmitting}>
             {isSubmitting ? "Submitting..." : "Submit All Marks"}
@@ -225,16 +308,4 @@ export function MarkAnswers({
       </form>
     </>
   );
-}
-
-// Add a global object to store all scores
-if (typeof window !== "undefined") {
-  window.markingScores = window.markingScores || {};
-}
-
-// Add to global types
-declare global {
-  interface Window {
-    markingScores: Record<string, number>;
-  }
 }
