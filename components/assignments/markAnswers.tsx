@@ -42,7 +42,8 @@ interface MarkAnswersProps {
   totalPossible: number;
   staffId: string;
   studentId: string;
-  groupId: string; // Add this prop
+  groupId: string;
+  mode?: "input" | "submit"; // Added mode prop
 }
 
 export function MarkAnswers({
@@ -53,7 +54,8 @@ export function MarkAnswers({
   totalPossible,
   staffId,
   studentId,
-  groupId, // Add this prop
+  groupId,
+  mode = "submit", // Default to full submit mode
 }: MarkAnswersProps) {
   const [scores, setScores] = useState<Record<string, number>>(
     initialScores || {}
@@ -92,13 +94,28 @@ export function MarkAnswers({
     // Ensure score doesn't exceed maximum marks
     const validScore = Math.min(Math.max(0, numValue), maxMark);
 
-    setScores((prev) => ({
-      ...prev,
-      [questionId]: validScore,
-    }));
+    setScores((prev) => {
+      const newScores = {
+        ...prev,
+        [questionId]: validScore,
+      };
+
+      // Update the parent component's scores
+      if (window && window.markingScores) {
+        window.markingScores[questionId] = validScore;
+      }
+
+      return newScores;
+    });
   };
 
   const calculateTotal = () => {
+    // When in input mode, just calculate for the current question
+    if (mode === "input" && questions.length === 1) {
+      return scores[questions[0].id] || 0;
+    }
+
+    // Otherwise calculate total of all scores
     return Object.values(scores).reduce((sum, score) => sum + score, 0);
   };
 
@@ -106,35 +123,31 @@ export function MarkAnswers({
     e.preventDefault();
     setIsSubmitting(true);
 
-    try {
-      const totalScore = calculateTotal();
-      const percentage = Math.round((totalScore * 100) / totalPossible);
+    // Get the global scores object that contains all scores
+    const allScores = window.markingScores || scores;
 
-      // Debug log
-      console.log("Starting submission:", {
-        resultId,
-        staffId,
-        totalScore,
-        percentage,
-        studentId,
-      });
+    try {
+      // Calculate the total from the global scores object
+      const allQuestionScores = Object.values(allScores);
+      const totalScore = allQuestionScores.reduce(
+        (sum, score) => sum + (score || 0),
+        0
+      );
+      const percentage = Math.round((totalScore * 100) / totalPossible);
 
       // Create an object with all scores and their corresponding answers
       const scoreData = {};
       questions.forEach((question) => {
         scoreData[question.id] = {
-          score: scores[question.id] || 0,
+          score: allScores[question.id] || 0,
           answer:
             parsedAnswers.find((a) => a.question === question.id)?.answer || "",
         };
       });
 
-      // Debug log
-      console.log("Score data prepared:", scoreData);
-
       const result = await submitScore(
         resultId,
-        scores,
+        allScores,
         staffId,
         "test",
         totalScore,
@@ -143,12 +156,8 @@ export function MarkAnswers({
       );
 
       if (!result.success) {
-        console.error("Submission failed:", result.error);
         throw new Error(result.error);
       }
-
-      // Debug log
-      console.log("Submission successful:", result.data);
 
       toast({
         title: "Scores submitted successfully",
@@ -173,90 +182,59 @@ export function MarkAnswers({
       setIsSubmitting(false);
     }
   };
+
+  // If in input mode, just render the score input for the single question
+  if (mode === "input" && questions.length === 1) {
+    const question = questions[0];
+    const answer = parsedAnswers.find((a) => a.question === question.id);
+    const score = scores[question.id] || 0;
+    const maxMark = parseInt(question.mark);
+
+    return (
+      <>
+        <style jsx>{noScrollInputStyles}</style>
+        <div className="flex items-center gap-2">
+          <Input
+            type="number"
+            min="0"
+            max={maxMark}
+            value={score}
+            onChange={(e) => handleScoreChange(question.id, e.target.value)}
+            className="w-16"
+            onWheel={(e) => e.currentTarget.blur()}
+          />
+          <span className="text-sm text-muted-foreground">/ {maxMark}</span>
+        </div>
+      </>
+    );
+  }
+
+  // In submit mode, just render the submit button and total
   const totalScore = calculateTotal();
   const percentage = Math.round((totalScore * 100) / totalPossible);
 
   return (
     <>
-      {/* Add the style tag to the component */}
       <style jsx>{noScrollInputStyles}</style>
-
-      <form onSubmit={handleSubmit} className="h-full flex flex-col">
-        <div className="flex-grow space-y-6">
-          {questions?.map((question, index) => {
-            // Find this student's answer for this question
-            const answer = parsedAnswers.find(
-              (a) => a.question === question.id
-            );
-            const score = scores[question.id] || 0;
-            const maxMark = parseInt(question.mark);
-
-            return (
-              <div key={question.id} className="border p-4 rounded-lg">
-                <h3 className="font-bold mb-2">
-                  Question {index + 1} ({question.mark} marks)
-                </h3>
-
-                {answer ? (
-                  <div className="space-y-4">
-                    <div className="bg-muted p-3 rounded-md">
-                      <h4 className="text-sm font-medium mb-2">
-                        Student Answer:
-                      </h4>
-                      <p className="text-sm">
-                        {typeof answer.answer === "string"
-                          ? answer.answer
-                          : JSON.stringify(answer.answer, null, 2)}
-                      </p>
-                    </div>
-
-                    <div className="flex items-center gap-3">
-                      <div className="text-sm font-medium">Score:</div>
-                      <div className="flex items-center gap-2">
-                        <Input
-                          type="number"
-                          min="0"
-                          max={maxMark}
-                          value={score}
-                          onChange={(e) =>
-                            handleScoreChange(question.id, e.target.value)
-                          }
-                          className="w-16"
-                          // Add onWheel event handler to prevent scroll
-                          onWheel={(e) => e.currentTarget.blur()}
-                        />
-                        <span className="text-sm text-muted-foreground">
-                          / {maxMark}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="text-sm text-muted-foreground italic p-3 bg-muted/50 rounded-md">
-                    No answer provided for this question
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Total score summary at bottom */}
-        <div className="mt-6 p-4 border rounded-lg bg-muted/10">
-          <div className="flex justify-between items-center">
-            <h3 className="font-semibold">Total Score</h3>
-            <div className="text-xl font-bold">
-              {totalScore}/{totalPossible} ({percentage}%)
-            </div>
-          </div>
-
-          <div className="mt-6 flex justify-end">
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? "Submitting..." : "Submit Marks"}
-            </Button>
-          </div>
+      <form onSubmit={handleSubmit} className="w-full">
+        <div className="mt-6 flex justify-end">
+          <Button type="submit" disabled={isSubmitting}>
+            {isSubmitting ? "Submitting..." : "Submit All Marks"}
+          </Button>
         </div>
       </form>
     </>
   );
+}
+
+// Add a global object to store all scores
+if (typeof window !== "undefined") {
+  window.markingScores = window.markingScores || {};
+}
+
+// Add to global types
+declare global {
+  interface Window {
+    markingScores: Record<string, number>;
+  }
 }

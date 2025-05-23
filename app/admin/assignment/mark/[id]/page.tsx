@@ -228,8 +228,8 @@ export default async function AssignmentMarkingPage({ params }: PageProps) {
       <ContentLayout
         title={`Marking: ${result.student.firstName} ${result.student.lastName}`}
       >
-        <div className="container mx-auto py-6 space-y-6 ">
-          {/* Student and Assignment Info */}
+        <div className="container mx-auto py-6 space-y-6">
+          {/* Student and Assignment Info Card */}
           <Card>
             <CardHeader>
               <CardTitle>Assessment Result Details</CardTitle>
@@ -310,130 +310,98 @@ export default async function AssignmentMarkingPage({ params }: PageProps) {
               </div>
             </CardContent>
           </Card>
+          {/* Questions Section */}
+          <div className="space-y-6">
+            {result.assignment.questions?.map((question, index) => {
+              const studentAnswer = parsedAnswers.find(
+                (answer) => answer.question === question.id
+              );
 
-          {/* Questions and Answers Side by Side */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-full">
-            {/* Left side - Questions and Correct Answers */}
-            <div className="flex flex-col h-full">
-              <Card className="w-full h-full flex flex-col">
-                <CardHeader className="flex-shrink-0">
-                  <CardTitle>Assessment Memo</CardTitle>
-                  <CardDescription>
-                    Total Questions: {result.assignment.questions?.length || 0}{" "}
-                    | Total Marks: {totalPossible}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="flex-grow flex flex-col">
-                  <div className="h-full">
-                    <div className="space-y-6">
-                      {result.assignment.questions?.map((question, index) => (
-                        <div
-                          key={question.id}
-                          className="border p-4 rounded-lg"
-                        >
-                          <h3 className="font-bold mb-2">
-                            Question {index + 1} ({question.mark} marks)
-                          </h3>
-                          <p className="mb-4">{question.text}</p>
-
-                          {question.options && question.options.length > 0 && (
-                            <div className="mb-4">
-                              <h4 className="font-semibold mb-2">Options:</h4>
-                              <div className="grid gap-2">
-                                {question.options.map((option) => (
-                                  <div key={option.id} className="flex gap-2">
-                                    {option.value && (
-                                      <span className="text-sm">
-                                        {option.value}
-                                      </span>
-                                    )}
-                                    {option.columnA && option.columnB && (
-                                      <span className="text-sm">
-                                        {option.columnA} ➔ {option.columnB}
-                                      </span>
-                                    )}
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Display the correct answer */}
-                          <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-md">
-                            <h4 className="font-semibold text-green-700 mb-2">
-                              Correct Answer:
-                            </h4>
-                            {question.correctAnswer ? (
-                              <div className="text-sm">
-                                {typeof question.correctAnswer === "string" ? (
-                                  <p>{question.correctAnswer}</p>
-                                ) : Array.isArray(question.correctAnswer) ? (
-                                  <ul className="list-disc ml-5">
-                                    {question.correctAnswer.map((item, idx) => (
-                                      <li key={idx}>
-                                        {typeof item === "string"
-                                          ? item
-                                          : item.columnA && item.columnB
-                                          ? `${item.columnA} ➔ ${item.columnB}`
-                                          : JSON.stringify(item)}
-                                      </li>
-                                    ))}
-                                  </ul>
-                                ) : question.correctAnswer &&
-                                  typeof question.correctAnswer === "object" ? (
-                                  <pre className="whitespace-pre-wrap bg-muted p-2 rounded text-xs">
-                                    {JSON.stringify(
-                                      question.correctAnswer,
-                                      null,
-                                      2
-                                    )}
-                                  </pre>
-                                ) : (
-                                  <p>
-                                    {JSON.stringify(question.correctAnswer)}
-                                  </p>
-                                )}
-                              </div>
-                            ) : (
-                              <p className="text-sm italic text-muted-foreground">
-                                No correct answer specified
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      ))}
+              return (
+                <Card key={question.id} className="w-full">
+                  <CardHeader>
+                    <CardTitle>
+                      Question {index + 1} ({question.mark} marks)
+                    </CardTitle>
+                    <CardDescription>{question.text}</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {/* Model Answer */}
+                    <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-md">
+                      <h4 className="font-semibold text-green-700 mb-2">
+                        Model Answer:
+                      </h4>
+                      <div className="text-sm">
+                        {question.correctAnswer || (
+                          <p className="italic text-muted-foreground">
+                            No model answer specified
+                          </p>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
 
-            {/* Right side - Student Answers */}
-            <div className="flex flex-col h-full">
-              <Card className="w-full h-full flex flex-col">
-                <CardHeader className="flex-shrink-0">
-                  <CardTitle>Student Answers</CardTitle>
-                  <CardDescription>
-                    Review and mark the student&apos;s responses
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="flex-grow items-stretch flex flex-col">
-                  <div className="h-full">
-                    <MarkAnswers
-                      resultId={id}
-                      questions={result.assignment.questions}
-                      parsedAnswers={parsedAnswers}
-                      initialScores={scoresMap}
-                      totalPossible={totalPossible}
-                      staffId={staffId || ""}
-                      studentId={result.student.id}
-                      groupId={result.assignment.intakeGroups[0]} // Add this line - assuming the first group is the relevant one
-                    />
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+                    {/* Student Answer */}
+                    <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-md">
+                      <h4 className="font-semibold text-blue-700 mb-2">
+                        Student&apos;s Answer:
+                      </h4>
+                      <div className="text-sm">
+                        {studentAnswer?.answer || "No answer provided"}
+                      </div>
+                    </div>
+
+                    {/* Score Input - INPUT MODE */}
+                    <div className="mt-6 pt-4 border-t">
+                      <div className="flex items-center justify-between">
+                        <div className="text-sm font-medium">
+                          Mark for Question {index + 1}: (out of {question.mark}
+                          )
+                        </div>
+                        <MarkAnswers
+                          resultId={id}
+                          questions={[question]}
+                          parsedAnswers={[studentAnswer]}
+                          initialScores={scoresMap}
+                          totalPossible={parseInt(question.mark)}
+                          staffId={staffId || ""}
+                          studentId={result.student.id}
+                          groupId={result.assignment.intakeGroups[0]}
+                          mode="input" // Set to input mode
+                        />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
+
+          {/* Final Submit Card - SUBMIT MODE */}
+          <Card className="w-full">
+            <CardContent className="pt-6">
+              <div className="flex justify-between items-center">
+                <div>
+                  <h3 className="text-lg font-semibold">
+                    Total Score: {totalScore}/{totalPossible} ({percentage}%)
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    Review all marks before submitting
+                  </p>
+                </div>
+                <MarkAnswers
+                  resultId={id}
+                  questions={result.assignment.questions}
+                  parsedAnswers={parsedAnswers}
+                  initialScores={scoresMap}
+                  totalPossible={totalPossible}
+                  staffId={staffId || ""}
+                  studentId={result.student.id}
+                  groupId={result.assignment.intakeGroups[0]}
+                  mode="submit" // Set to submit mode
+                />
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </ContentLayout>
     );
