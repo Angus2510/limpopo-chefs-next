@@ -247,10 +247,14 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
     const daysInMonth = getDaysInMonth(month, year);
     const firstDayOfWeek = getDayOfWeek(year, month, 1);
     const weeks: AttendanceDay[][] = [];
-    let currentWeek: AttendanceDay[] = Array(5).fill({
-      day: null,
-      attendance: null,
-    });
+
+    // Create a new array with separate objects for each position
+    let currentWeek: AttendanceDay[] = Array(5)
+      .fill(null)
+      .map(() => ({
+        day: null,
+        attendance: null,
+      }));
 
     for (let i = 0; i < firstDayOfWeek; i++) {
       currentWeek[i] = { day: null, attendance: null };
@@ -258,21 +262,28 @@ const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({
 
     for (let day = 1; day <= daysInMonth; day++) {
       const dayOfWeek = getDayOfWeek(year, month, day);
-      if (dayOfWeek >= 5) continue;
+      if (dayOfWeek >= 5) continue; // Skip weekends
 
       if (dayOfWeek === 0 && day > 1) {
         weeks.push([...currentWeek]);
-        currentWeek = Array(5).fill({ day: null, attendance: null });
+        // Create new week with separate objects
+        currentWeek = Array(5)
+          .fill(null)
+          .map(() => ({
+            day: null,
+            attendance: null,
+          }));
       }
 
       currentWeek[dayOfWeek] = {
         day,
         attendance: attendanceData[year][month][day],
       };
+    }
 
-      if (day === daysInMonth) {
-        weeks.push([...currentWeek]);
-      }
+    // Always push the final week to ensure we don't miss days at month end
+    if (currentWeek.some((day) => day.day !== null)) {
+      weeks.push([...currentWeek]);
     }
 
     return weeks;
