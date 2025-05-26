@@ -190,17 +190,25 @@ export default async function AssignmentMarkingPage({ params }: PageProps) {
 
     // Parse scores
     let scoresMap = {};
-    if (result.scores) {
+    if (result.scores && result.scores !== "{}") {
       try {
-        scoresMap = JSON.parse(result.scores);
-        console.log(
-          `🎯 Found scores for ${Object.keys(scoresMap).length} questions`
-        );
+        const parsedScores = JSON.parse(result.scores);
+        // Only use scores if they are valid for this test
+        if (Object.keys(parsedScores).length > 0) {
+          scoresMap = parsedScores;
+          console.log(
+            `🎯 Loading existing marks for ${
+              Object.keys(scoresMap).length
+            } questions`
+          );
+        }
       } catch (e) {
         console.error("Failed to parse scores:", e);
+        scoresMap = {}; // Reset to empty if parsing fails
       }
     } else {
-      console.log(`⚠️ No scores found for this submission`);
+      console.log(`📝 New marking session - starting with blank marks`);
+      scoresMap = {}; // Ensure empty object for new tests
     }
 
     // Calculate total score

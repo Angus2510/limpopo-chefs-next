@@ -68,22 +68,20 @@ export function MarkAnswers({
   staffId,
   studentId,
   groupId,
-  mode = "submit", // Default to full submit mode
+  mode = "submit",
   onScoreChange,
 }: MarkAnswersProps) {
-  // Initialize scores and reset window.markingScores to prevent accumulation
+  // Initialize scores with empty values unless there are valid initial scores
   const [scores, setScores] = useState<Record<string, number>>(() => {
-    // Start with initial scores if provided, otherwise empty object
-    const startingScores = initialScores || {};
+    // Only use initial scores if they exist and aren't empty
+    const startingScores =
+      initialScores && Object.keys(initialScores).length > 0
+        ? initialScores
+        : {};
 
-    // Initialize window.markingScores with these values (don't accumulate)
+    // Initialize window.markingScores
     if (typeof window !== "undefined") {
-      if (
-        !window.markingScores ||
-        Object.keys(window.markingScores).length === 0
-      ) {
-        window.markingScores = { ...startingScores };
-      }
+      window.markingScores = { ...startingScores };
     }
 
     return startingScores;
