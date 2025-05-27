@@ -50,12 +50,12 @@ export default function LoginPage() {
       {/* Right section: Background image, now proportional */}
       <div className="hidden md:block w-1/2 lg:w-2/3 rounded-bl-[250px] md:rounded-bl-[150px] lg:rounded-bl-[200px] overflow-hidden relative h-screen">
         <Image
-          src="/img/auth/Front-img-7.jpeg"
+          src="/img/auth/Front-img-8.jpeg"
           alt="Auth background"
           fill
           sizes="(max-width: 768px) 0vw, (max-width: 1024px) 50vw, 66vw"
           priority
-          className="object-cover"
+          className="object-cover object-left"
         />
       </div>
     </div>
