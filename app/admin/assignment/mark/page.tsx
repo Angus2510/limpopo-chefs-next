@@ -192,6 +192,13 @@ export default function MarkAssignmentsPage() {
 
   return (
     <ContentLayout title="Mark Assessments">
+      <div className="flex justify-between items-center mb-6">
+        <Button
+          onClick={() => router.push("/admin/assignment/mark/individual")}
+        >
+          Search Individual Student Marks
+        </Button>
+      </div>
       <div className="space-y-6">
         <div className="bg-white p-4 rounded-lg border">
           <h2 className="text-lg font-medium mb-4">Select Filters</h2>
