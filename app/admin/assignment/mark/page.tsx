@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/button";
 import { ContentLayout } from "@/components/layout/content-layout";
-import Link from "next/link";
 import { SelectionForm } from "@/components/results/SelectionForm";
 import {
   Table,
@@ -14,37 +14,84 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { getAllIntakeGroups } from "@/lib/actions/intakegroup/intakeGroups";
-import { Loader2, AlertCircle, Clock } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Loader2, AlertCircle, Search, CalendarIcon } from "lucide-react";
+import { format } from "date-fns";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
-interface AssignmentCounts {
-  total: number;
-  pending: number;
-  marked: number;
-  submitted: number;
-  byStatus: Record<string, number>;
-  newestDate?: string | Date | null;
-  groupTitle?: string;
-}
-
-interface IntakeGroup {
+interface AssignmentResult {
   id: string;
-  title: string;
-  pendingAssignmentsCount?: number;
-  assignmentCounts?: AssignmentCounts;
-  outcome?: string[];
+  assignment: string;
+  assignmentData: {
+    id: string;
+    title: string;
+    type: string;
+    outcome: string[];
+  } | null;
+  studentData: {
+    admissionNumber: string;
+    profile: {
+      firstName: string;
+      lastName: string;
+    };
+  } | null;
+  status: string;
+  dateTaken: string;
+  testScore: number | null;
+  taskScore: number | null;
+  scores: number | null;
+  percent: number | null;
+  markedBy: string | null;
 }
 
 export default function MarkAssignmentsPage() {
+  const router = useRouter();
   const { toast } = useToast();
-  const [intakeGroups, setIntakeGroups] = useState<IntakeGroup[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [assignments, setAssignments] = useState<AssignmentResult[]>([]);
+  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [sortBy, setSortBy] = useState<string>("dateTaken-desc");
   const [selectedFilters, setSelectedFilters] = useState<{
     intakeGroupId: string[];
     campusId: string;
     outcomeId: string;
   } | null>(null);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const groupId = params.get("groupId");
+    const campusId = params.get("campusId");
+    const outcomeId = params.get("outcomeId");
+    const search = params.get("search");
+    const sort = params.get("sort");
+
+    // If we have the required filter parameters
+    if (groupId && campusId && outcomeId) {
+      // Set the filters
+      const filters = {
+        intakeGroupId: [groupId],
+        campusId,
+        outcomeId,
+      };
+      setSelectedFilters(filters);
+
+      // Load the assignments with these filters
+      handleSelectionComplete(filters);
+    }
+
+    // Set search and sort if they exist
+    if (search) setSearchQuery(search);
+    if (sort) setSortBy(sort);
+  }, []);
 
   const handleSelectionComplete = async (selection: {
     intakeGroupId: string[];
@@ -56,131 +103,92 @@ export default function MarkAssignmentsPage() {
     setError(null);
 
     try {
-      const groups = await getAllIntakeGroups();
-      const filteredGroups = groups.filter((group) =>
-        selection.intakeGroupId.includes(group.id)
+      const response = await fetch(
+        `/api/assignments/results?groupId=${selection.intakeGroupId[0]}&outcomeId=${selection.outcomeId}&campusId=${selection.campusId}`
       );
+      const data = await response.json();
 
-      const groupsWithCounts = await Promise.all(
-        filteredGroups.map(async (group) => {
-          try {
-            const counts = await getAssignmentCounts(group.id);
-            return {
-              ...group,
-              pendingAssignmentsCount: counts.pending || 0,
-              assignmentCounts: counts,
-            };
-          } catch (error) {
-            console.error(`Error getting count for ${group.title}:`, error);
-            return {
-              ...group,
-              pendingAssignmentsCount: 0,
-              assignmentCounts: {
-                total: 0,
-                pending: 0,
-                marked: 0,
-                submitted: 0,
-                byStatus: {},
-              },
-            };
-          }
-        })
-      );
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to fetch assignments");
+      }
 
-      const sortedGroups = sortGroups(groupsWithCounts);
-      setIntakeGroups(sortedGroups);
+      console.log("API Response:", data);
+
+      if (data.results.length === 0) {
+        console.log("Debug info:", data.debug);
+        toast({
+          title: "No Results Found",
+          description: `No assignments found for ${
+            data.debug?.outcomeTitle || "selected outcome"
+          }`,
+          variant: "destructive",
+        });
+      }
+
+      setAssignments(data.results);
     } catch (error) {
-      console.error("Error loading filtered groups:", error);
-      setError("Failed to load filtered groups. Please try again.");
+      console.error("Error loading assignments:", error);
+      setError("Failed to load assignments. Please try again.");
       toast({
         title: "Error",
-        description: "Failed to load filtered groups",
+        description: "Failed to load assignments",
         variant: "destructive",
       });
     } finally {
       setLoading(false);
     }
   };
-
-  const sortGroups = (groups: IntakeGroup[]) => {
-    return [...groups].sort((a, b) => {
-      if (
-        (a.pendingAssignmentsCount || 0) > 0 &&
-        (b.pendingAssignmentsCount || 0) === 0
-      ) {
-        return -1;
+  // Filter and sort assignments
+  const filteredAssignments = assignments
+    .filter((assignment) => {
+      if (searchQuery) {
+        const searchLower = searchQuery.toLowerCase();
+        return (
+          assignment.assignmentData?.title
+            .toLowerCase()
+            .includes(searchLower) ||
+          assignment.studentData?.profile.firstName
+            .toLowerCase()
+            .includes(searchLower) ||
+          assignment.studentData?.profile.lastName
+            .toLowerCase()
+            .includes(searchLower) ||
+          assignment.studentData?.admissionNumber
+            .toLowerCase()
+            .includes(searchLower)
+        );
       }
-      if (
-        (a.pendingAssignmentsCount || 0) === 0 &&
-        (b.pendingAssignmentsCount || 0) > 0
-      ) {
-        return 1;
+      return true;
+    })
+    .sort((a, b) => {
+      const [field, direction] = sortBy.split("-");
+
+      if (field === "dateTaken") {
+        const dateA = new Date(a.dateTaken).getTime();
+        const dateB = new Date(b.dateTaken).getTime();
+        return direction === "desc" ? dateB - dateA : dateA - dateB;
       }
 
-      const aDate = a.assignmentCounts?.newestDate
-        ? new Date(a.assignmentCounts.newestDate)
-        : new Date(0);
-      const bDate = b.assignmentCounts?.newestDate
-        ? new Date(b.assignmentCounts.newestDate)
-        : new Date(0);
+      if (field === "student") {
+        const nameA =
+          `${a.studentData?.profile.lastName} ${a.studentData?.profile.firstName}`.toLowerCase();
+        const nameB =
+          `${b.studentData?.profile.lastName} ${b.studentData?.profile.firstName}`.toLowerCase();
+        return direction === "desc"
+          ? nameB.localeCompare(nameA)
+          : nameA.localeCompare(nameB);
+      }
 
-      return bDate.getTime() - aDate.getTime();
+      if (field === "title") {
+        const titleA = a.assignmentData?.title.toLowerCase() || "";
+        const titleB = b.assignmentData?.title.toLowerCase() || "";
+        return direction === "desc"
+          ? titleB.localeCompare(titleA)
+          : titleA.localeCompare(titleB);
+      }
+
+      return 0;
     });
-  };
-
-  const getAssignmentCounts = async (
-    groupId: string
-  ): Promise<AssignmentCounts> => {
-    try {
-      const response = await fetch(
-        `/api/assignments/pending-count?groupId=${groupId}`
-      );
-
-      if (!response.ok) {
-        throw new Error(`API returned status ${response.status}`);
-      }
-
-      const data = await response.json();
-      return data;
-    } catch (error) {
-      console.error(
-        `Error fetching assignment counts for group ${groupId}:`,
-        error
-      );
-      return {
-        total: 0,
-        pending: 0,
-        marked: 0,
-        submitted: 0,
-        byStatus: {},
-      };
-    }
-  };
-
-  const formatDate = (dateString: string | Date | null | undefined) => {
-    if (!dateString) return "No activity yet";
-
-    try {
-      const date = new Date(dateString);
-      if (isNaN(date.getTime())) return "Invalid date";
-
-      const now = new Date();
-      const diffMs = now.getTime() - date.getTime();
-      const diffSecs = Math.floor(diffMs / 1000);
-      const diffMins = Math.floor(diffSecs / 60);
-      const diffHours = Math.floor(diffMins / 60);
-      const diffDays = Math.floor(diffHours / 24);
-
-      if (diffSecs < 60) return `${diffSecs} seconds ago`;
-      if (diffMins < 60) return `${diffMins} minutes ago`;
-      if (diffHours < 24) return `${diffHours} hours ago`;
-      if (diffDays < 30) return `${diffDays} days ago`;
-
-      return date.toLocaleDateString();
-    } catch (error) {
-      return "Invalid date";
-    }
-  };
 
   return (
     <ContentLayout title="Mark Assessments">
@@ -194,7 +202,7 @@ export default function MarkAssignmentsPage() {
                 variant="ghost"
                 onClick={() => {
                   setSelectedFilters(null);
-                  setIntakeGroups([]);
+                  setAssignments([]);
                 }}
               >
                 Clear Filters
@@ -203,17 +211,44 @@ export default function MarkAssignmentsPage() {
           )}
         </div>
 
-        {!selectedFilters ? (
-          <div className="text-center p-8">
-            <h3 className="text-lg font-medium">Select Filters to Load Data</h3>
-            <p className="text-muted-foreground mt-2">
-              Please select your filters above to view the relevant assignments.
-            </p>
+        {selectedFilters && (
+          <div className="flex justify-between items-center mb-4">
+            <div className="flex items-center space-x-2">
+              <div className="relative">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search assignments or students"
+                  className="pl-8 w-[250px]"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <Select value={sortBy} onValueChange={setSortBy}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Sort By" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="dateTaken-desc">Newest First</SelectItem>
+                <SelectItem value="dateTaken-asc">Oldest First</SelectItem>
+                <SelectItem value="student-asc">Student Name (A-Z)</SelectItem>
+                <SelectItem value="student-desc">Student Name (Z-A)</SelectItem>
+                <SelectItem value="title-asc">
+                  Assessment Title (A-Z)
+                </SelectItem>
+                <SelectItem value="title-desc">
+                  Assessment Title (Z-A)
+                </SelectItem>
+              </SelectContent>
+            </Select>
           </div>
-        ) : loading ? (
+        )}
+
+        {loading ? (
           <div className="flex justify-center items-center h-64">
             <Loader2 className="h-8 w-8 animate-spin text-primary mr-3" />
-            <span>Loading intake groups...</span>
+            <span>Loading assignments...</span>
           </div>
         ) : error ? (
           <div className="rounded-md bg-red-50 p-4">
@@ -227,101 +262,131 @@ export default function MarkAssignmentsPage() {
               </div>
             </div>
           </div>
+        ) : selectedFilters ? (
+          filteredAssignments.length > 0 ? (
+            <AssignmentsTable
+              assignments={filteredAssignments}
+              onMarkAssignment={(id) =>
+                router.push(`/admin/assignment/mark/${id}`)
+              }
+            />
+          ) : (
+            <Card>
+              <CardContent className="flex flex-col items-center justify-center h-40">
+                <p className="text-muted-foreground">No assignments found</p>
+              </CardContent>
+            </Card>
+          )
         ) : (
-          <>
-            {intakeGroups.length === 0 ? (
-              <div className="text-center p-8">
-                <h3 className="text-lg font-medium">No intake groups found</h3>
-                <p className="text-muted-foreground mt-2">
-                  No groups match your selected filters.
-                </p>
-              </div>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Intake Group</TableHead>
-                    <TableHead>Assessment Status</TableHead>
-                    <TableHead>Latest Activity</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {intakeGroups.map((group) => (
-                    <TableRow
-                      key={group.id}
-                      className={
-                        group.pendingAssignmentsCount ? "bg-amber-50" : ""
-                      }
-                    >
-                      <TableCell className="font-medium">
-                        {group.title}
-                      </TableCell>
-                      <TableCell>
-                        {!group.assignmentCounts ? (
-                          <span className="text-muted-foreground">
-                            Loading...
-                          </span>
-                        ) : (
-                          <div className="space-y-1">
-                            <div className="flex gap-2 flex-wrap">
-                              {group.assignmentCounts.pending > 0 && (
-                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
-                                  {group.assignmentCounts.pending} pending
-                                </span>
-                              )}
-                              {group.assignmentCounts.marked > 0 && (
-                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                  {group.assignmentCounts.marked} marked
-                                </span>
-                              )}
-                              {group.assignmentCounts.submitted > 0 && (
-                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                  {group.assignmentCounts.submitted} submitted
-                                </span>
-                              )}
-                            </div>
-                            <p className="text-xs text-gray-500">
-                              {group.assignmentCounts.total} total assessments
-                            </p>
-                          </div>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center">
-                          <Clock className="h-3.5 w-3.5 mr-1.5 text-gray-500" />
-                          {formatDate(group.assignmentCounts?.newestDate)}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Button
-                          asChild
-                          variant={
-                            group.pendingAssignmentsCount > 0
-                              ? "default"
-                              : "outline"
-                          }
-                          className={
-                            group.pendingAssignmentsCount > 0
-                              ? "font-medium"
-                              : ""
-                          }
-                        >
-                          <Link
-                            href={`/admin/assignment/mark/group/${group.id}`}
-                          >
-                            View Assessments
-                          </Link>
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </>
+          <div className="text-center p-8">
+            <h3 className="text-lg font-medium">Select Filters to Load Data</h3>
+            <p className="text-muted-foreground mt-2">
+              Please select your filters above to view assignments.
+            </p>
+          </div>
         )}
       </div>
     </ContentLayout>
+  );
+}
+
+function AssignmentsTable({
+  assignments,
+  onMarkAssignment,
+}: {
+  assignments: AssignmentResult[];
+  onMarkAssignment: (id: string) => void;
+}) {
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Date</TableHead>
+          <TableHead>Assessment</TableHead>
+          <TableHead>Student</TableHead>
+          <TableHead>Test Mark</TableHead>
+          <TableHead>Task Mark</TableHead>
+          <TableHead>Overall %</TableHead>
+          <TableHead>Status</TableHead>
+          <TableHead>Actions</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {assignments.map((result) => (
+          <TableRow key={result.id}>
+            <TableCell>
+              <div className="flex items-center">
+                <CalendarIcon className="mr-2 h-4 w-4 text-muted-foreground" />
+                <span>{format(new Date(result.dateTaken), "dd MMM yyyy")}</span>
+              </div>
+              <div className="text-xs text-muted-foreground">
+                {format(new Date(result.dateTaken), "h:mm a")}
+              </div>
+            </TableCell>
+            <TableCell className="font-medium">
+              {result.assignmentData?.title || "Unknown Assessment"}
+              <div className="text-xs text-muted-foreground">
+                {result.assignmentData?.type || "Unknown Type"}
+              </div>
+            </TableCell>
+            <TableCell>
+              {result.studentData ? (
+                <>
+                  {result.studentData.profile.firstName}{" "}
+                  {result.studentData.profile.lastName}
+                  <div className="text-xs text-muted-foreground">
+                    {result.studentData.admissionNumber}
+                  </div>
+                </>
+              ) : (
+                "Unknown Student"
+              )}
+            </TableCell>
+            <TableCell>{result.testScore ?? "N/A"}</TableCell>
+            <TableCell>{result.taskScore ?? "N/A"}</TableCell>
+            <TableCell>
+              <span
+                className={`font-bold ${
+                  (result.percent || 0) >= 40
+                    ? "text-green-600"
+                    : "text-red-600"
+                }`}
+              >
+                {result.percent
+                  ? `${result.percent}%`
+                  : result.scores
+                  ? `${result.scores}%`
+                  : "N/A"}
+              </span>
+            </TableCell>
+            <TableCell>
+              <Badge
+                variant="outline"
+                className={`
+                  ${
+                    result.status === "pending" && "bg-amber-100 text-amber-800"
+                  }
+                  ${result.status === "marked" && "bg-green-100 text-green-800"}
+                  ${
+                    result.status === "submitted" && "bg-blue-100 text-blue-800"
+                  }
+                `}
+              >
+                {result.status}
+              </Badge>
+            </TableCell>
+            <TableCell>
+              <Button
+                onClick={() => onMarkAssignment(result.id)}
+                variant={result.status === "pending" ? "default" : "outline"}
+                size="sm"
+              >
+                {result.status === "pending" ? "Mark" : "View"}
+              </Button>
+            </TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
   );
 }

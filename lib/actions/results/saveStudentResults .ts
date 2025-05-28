@@ -45,10 +45,16 @@ export async function saveStudentResults(results: StudentResultInput[]) {
       return { success: false, error: "Only staff members can save results" };
     }
 
-    // Get outcome info
+    // Get outcome info with title
     const outcome = await prisma.outcomes.findUnique({
       where: { id: results[0].outcomeId },
-      select: { id: true, title: true },
+      select: {
+        id: true,
+        title: true,
+        type: true,
+        hidden: true,
+        campus: true,
+      },
     });
 
     if (!outcome) {
@@ -57,7 +63,7 @@ export async function saveStudentResults(results: StudentResultInput[]) {
 
     console.log("📝 Saving results for outcome:", outcome.title);
 
-    // Prepare batch operations
+    // Prepare batch operations matching exact schema
     const assignmentResults = results.map((result) => ({
       v: 1,
       student: result.studentId,
@@ -70,7 +76,7 @@ export async function saveStudentResults(results: StudentResultInput[]) {
       scores: Math.round((result.testScore + result.taskScore) / 2),
       status: result.competency,
       dateTaken: new Date(),
-      answers: [],
+      answers: [], // Empty array as per schema
       assignment: result.outcomeId,
       markedBy: decoded.id,
       moderatedscores: null,
@@ -84,7 +90,7 @@ export async function saveStudentResults(results: StudentResultInput[]) {
       intakeGroups: result.intakeGroupId[0],
       outcome: result.outcomeId,
       conductedOn: new Date(),
-      details: "Individual Assessment Result",
+      details: `Individual Assessment Result for ${outcome.title}`,
       observer: decoded.id,
       participants: [result.studentId],
       resultType: "assessment",
@@ -95,7 +101,9 @@ export async function saveStudentResults(results: StudentResultInput[]) {
           score: result.mark,
           testScore: result.testScore,
           taskScore: result.taskScore,
-          average: (result.testScore + result.taskScore) / 2,
+          average: Number(
+            ((result.testScore + result.taskScore) / 2).toFixed(2)
+          ),
           overallOutcome: result.competency,
         },
       ],
@@ -111,13 +119,22 @@ export async function saveStudentResults(results: StudentResultInput[]) {
       }),
     ]);
 
+    console.log(`✅ Saved ${assignmentSaves.count} assignment results`);
+    console.log(`✅ Saved ${resultSaves.count} result records`);
+
     // Revalidate paths
     revalidatePath("/admin/results");
     revalidatePath("/admin/results/capture");
 
     return {
       success: true,
-      message: `Successfully saved ${results.length} results`,
+      message: `Successfully saved ${results.length} results for ${outcome.title}`,
+      details: {
+        outcomeTitle: outcome.title,
+        savedCount: results.length,
+        assignmentSaves: assignmentSaves.count,
+        resultSaves: resultSaves.count,
+      },
     };
   } catch (error) {
     console.error("❌ Save error:", error);

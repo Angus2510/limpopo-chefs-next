@@ -201,11 +201,9 @@ export function MarkAnswers({
     e.preventDefault();
     setIsSubmitting(true);
 
-    // Get the global scores object that contains all scores
     const allScores = window.markingScores || scores;
 
     try {
-      // Calculate the total from the global scores object
       const allQuestionScores = Object.values(allScores);
       const totalScore = allQuestionScores.reduce(
         (sum, score) => sum + (score || 0),
@@ -213,7 +211,6 @@ export function MarkAnswers({
       );
       const percentage = Math.round((totalScore * 100) / totalPossible);
 
-      // Create an object with all scores and their corresponding answers
       const scoreData = {};
       questions.forEach((question) => {
         scoreData[question.id] = {
@@ -243,12 +240,32 @@ export function MarkAnswers({
         variant: "success",
       });
 
+      // Get the current URL search parameters
+      const params = new URLSearchParams(window.location.search);
+
+      // Construct return URL to MarkAssignmentsPage with filters
+      const returnUrl = new URL(
+        "/admin/assignment/mark",
+        window.location.origin
+      );
+
+      // Preserve all filter parameters
+      if (params.has("groupId"))
+        returnUrl.searchParams.set("groupId", params.get("groupId")!);
+      if (params.has("campusId"))
+        returnUrl.searchParams.set("campusId", params.get("campusId")!);
+      if (params.has("outcomeId"))
+        returnUrl.searchParams.set("outcomeId", params.get("outcomeId")!);
+      if (params.has("search"))
+        returnUrl.searchParams.set("search", params.get("search")!);
+      if (params.has("sort"))
+        returnUrl.searchParams.set("sort", params.get("sort")!);
+
       // Short delay before redirect
       await new Promise((resolve) => setTimeout(resolve, 1000));
-      router.push(`/admin/assignment/mark/group/${groupId}`);
+      router.push(returnUrl.toString());
     } catch (error) {
       console.error("Error in handleSubmit:", error);
-
       toast({
         title: "Error",
         description: `Failed to submit scores: ${
@@ -260,7 +277,6 @@ export function MarkAnswers({
       setIsSubmitting(false);
     }
   };
-
   // If in input mode, just render the score input for the single question
   if (mode === "input" && questions.length === 1) {
     const question = questions[0];
