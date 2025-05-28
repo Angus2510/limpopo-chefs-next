@@ -92,6 +92,49 @@ function getUserFromToken(token: string | undefined) {
   }
 }
 
+const formatAnswer = (answer: any): string => {
+  // Return early for simple types that already work
+  if (!answer) return "No answer provided";
+  if (typeof answer === "string") return answer;
+  if (Array.isArray(answer)) return answer.join(", ");
+
+  // Only handle complex objects
+  if (typeof answer === "object") {
+    // Handle multiple choice questions
+    if (answer.options && answer.correctOption) {
+      // Find the selected option text if available
+      const selectedOption = answer.options.find(
+        (opt: any) => opt.id === answer.correctOption
+      );
+      return selectedOption?.value || answer.correctOption;
+    }
+
+    // Handle matching questions
+    if (Array.isArray(answer.matches)) {
+      return answer.matches
+        .map((match: any) => `${match.columnA} → ${match.columnB}`)
+        .join(", ");
+    }
+
+    // For any other objects, try to extract meaningful information
+    const keys = Object.keys(answer);
+    if (keys.includes("value")) return answer.value;
+    if (keys.includes("text")) return answer.text;
+
+    // Last resort: stringify but clean up the output
+    try {
+      return JSON.stringify(answer, null, 2)
+        .replace(/[{}"]/g, "")
+        .replace(/,\n/g, "\n")
+        .trim();
+    } catch {
+      return "Unable to display answer";
+    }
+  }
+
+  return String(answer);
+};
+
 export default async function AssignmentMarkingPage({ params }: PageProps) {
   console.log("🚀 Starting to load assessment marking page...");
 
@@ -339,8 +382,10 @@ export default async function AssignmentMarkingPage({ params }: PageProps) {
                       <h4 className="font-semibold text-green-700 mb-2">
                         Model Answer:
                       </h4>
-                      <div className="text-sm">
-                        {question.correctAnswer || (
+                      <div className="text-sm whitespace-pre-wrap">
+                        {question.correctAnswer ? (
+                          <span>{formatAnswer(question.correctAnswer)}</span>
+                        ) : (
                           <p className="italic text-muted-foreground">
                             No model answer specified
                           </p>
@@ -353,8 +398,12 @@ export default async function AssignmentMarkingPage({ params }: PageProps) {
                       <h4 className="font-semibold text-blue-700 mb-2">
                         Student&apos;s Answer:
                       </h4>
-                      <div className="text-sm">
-                        {studentAnswer?.answer || "No answer provided"}
+                      <div className="text-sm whitespace-pre-wrap">
+                        {studentAnswer ? (
+                          <span>{formatAnswer(studentAnswer.answer)}</span>
+                        ) : (
+                          "No answer provided"
+                        )}
                       </div>
                     </div>
 
