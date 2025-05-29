@@ -28,7 +28,7 @@ export async function saveStudentResults(results: StudentResultInput[]) {
 
   try {
     // Auth checks
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const token = cookieStore.get("accessToken")?.value;
     if (!token) {
       return { success: false, error: "Not authenticated" };
