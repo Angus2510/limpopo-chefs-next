@@ -78,16 +78,26 @@ export default function StudentMarksPage() {
 
     setLoading(true);
     try {
-      // Create a clean search params object without undefined values
-      const searchParams = {
-        ...(searchType === "number" ? { studentNumber } : {}),
-        ...(searchType === "name" && firstName.trim()
-          ? { firstName: firstName.trim() }
-          : {}),
-        ...(searchType === "name" && lastName.trim()
-          ? { lastName: lastName.trim() }
-          : {}),
-      };
+      // Create separate objects based on search type to ensure we don't mix parameters
+      let searchParams;
+
+      if (searchType === "number") {
+        searchParams = {
+          studentNumber: studentNumber.trim(),
+          // Explicitly exclude name fields
+          firstName: undefined,
+          lastName: undefined,
+        };
+      } else {
+        searchParams = {
+          // Explicitly exclude student number
+          studentNumber: undefined,
+          firstName: firstName.trim() || "",
+          lastName: lastName.trim() || "",
+        };
+      }
+
+      console.log("Sending search params:", searchParams);
 
       // Call the server action with the prepared params
       const result = await getStudentMarks(searchParams);
