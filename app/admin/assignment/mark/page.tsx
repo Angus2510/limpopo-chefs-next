@@ -126,6 +126,13 @@ export default function MarkAssignmentsPage() {
       }
 
       setAssignments(data.results);
+
+      // Update URL with selected filters (new code)
+      const url = new URL(window.location.href);
+      url.searchParams.set("groupId", selection.intakeGroupId[0]);
+      url.searchParams.set("campusId", selection.campusId);
+      url.searchParams.set("outcomeId", selection.outcomeId);
+      window.history.replaceState({}, "", url.toString());
     } catch (error) {
       console.error("Error loading assignments:", error);
       setError("Failed to load assignments. Please try again.");
@@ -227,12 +234,34 @@ export default function MarkAssignmentsPage() {
                   placeholder="Search assignments or students"
                   className="pl-8 w-[250px]"
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onChange={(e) => {
+                    const newQuery = e.target.value;
+                    setSearchQuery(newQuery);
+
+                    // Update URL with search parameter
+                    const url = new URL(window.location.href);
+                    if (newQuery) {
+                      url.searchParams.set("search", newQuery);
+                    } else {
+                      url.searchParams.delete("search");
+                    }
+                    window.history.replaceState({}, "", url.toString());
+                  }}
                 />
               </div>
             </div>
 
-            <Select value={sortBy} onValueChange={setSortBy}>
+            <Select
+              value={sortBy}
+              onValueChange={(value) => {
+                setSortBy(value);
+
+                // Update URL with sort parameter
+                const url = new URL(window.location.href);
+                url.searchParams.set("sort", value);
+                window.history.replaceState({}, "", url.toString());
+              }}
+            >
               <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder="Sort By" />
               </SelectTrigger>

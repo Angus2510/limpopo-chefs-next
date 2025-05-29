@@ -42,8 +42,16 @@ interface MarkAnswersProps {
   staffId: string;
   studentId: string;
   groupId: string;
-  mode?: "input" | "submit"; // Added mode prop
-  onScoreChange?: () => void; // New callback to notify parent of score changes
+  mode?: "input" | "submit";
+  onScoreChange?: () => void;
+  filterParams?: {
+    // Add this
+    groupId: string;
+    campusId: string;
+    outcomeId: string;
+    search: string;
+    sort: string;
+  };
 }
 
 // Create a custom event for score updates
@@ -70,6 +78,7 @@ export function MarkAnswers({
   groupId,
   mode = "submit",
   onScoreChange,
+  filterParams,
 }: MarkAnswersProps) {
   // Initialize scores with empty values unless there are valid initial scores
   const [scores, setScores] = useState<Record<string, number>>(() => {
@@ -201,9 +210,16 @@ export function MarkAnswers({
     e.preventDefault();
     setIsSubmitting(true);
 
-    const allScores = window.markingScores || scores;
-
     try {
+      // Get scores from global state or local state
+      const allScores = window.markingScores || scores;
+
+      // Validate scores
+      if (!Object.keys(allScores).length) {
+        throw new Error("No scores have been entered");
+      }
+
+      // Calculate total score and percentage
       const allQuestionScores = Object.values(allScores);
       const totalScore = allQuestionScores.reduce(
         (sum, score) => sum + (score || 0),
@@ -211,6 +227,7 @@ export function MarkAnswers({
       );
       const percentage = Math.round((totalScore * 100) / totalPossible);
 
+      // Prepare detailed score data with answers
       const scoreData = {};
       questions.forEach((question) => {
         scoreData[question.id] = {
@@ -220,6 +237,7 @@ export function MarkAnswers({
         };
       });
 
+      // Submit scores to server
       const result = await submitScore(
         resultId,
         allScores,
@@ -231,46 +249,80 @@ export function MarkAnswers({
       );
 
       if (!result.success) {
-        throw new Error(result.error);
+        throw new Error(result.error || "Failed to submit scores");
       }
 
+      // Show success notification
       toast({
         title: "Scores submitted successfully",
         description: `Assignment has been marked. Final score: ${totalScore}/${totalPossible} (${percentage}%)`,
         variant: "success",
       });
 
-      // Get the current URL search parameters
-      const params = new URLSearchParams(window.location.search);
-
-      // Construct return URL to MarkAssignmentsPage with filters
+      // Prepare return URL with filter parameters
       const returnUrl = new URL(
         "/admin/assignment/mark",
         window.location.origin
       );
 
-      // Preserve all filter parameters
-      if (params.has("groupId"))
-        returnUrl.searchParams.set("groupId", params.get("groupId")!);
-      if (params.has("campusId"))
-        returnUrl.searchParams.set("campusId", params.get("campusId")!);
-      if (params.has("outcomeId"))
-        returnUrl.searchParams.set("outcomeId", params.get("outcomeId")!);
-      if (params.has("search"))
-        returnUrl.searchParams.set("search", params.get("search")!);
-      if (params.has("sort"))
-        returnUrl.searchParams.set("sort", params.get("sort")!);
+      // First try to use filterParams passed as props
+      if (filterParams) {
+        if (filterParams.groupId)
+          returnUrl.searchParams.set("groupId", filterParams.groupId);
+        if (filterParams.campusId)
+          returnUrl.searchParams.set("campusId", filterParams.campusId);
+        if (filterParams.outcomeId)
+          returnUrl.searchParams.set("outcomeId", filterParams.outcomeId);
+        if (filterParams.search)
+          returnUrl.searchParams.set("search", filterParams.search);
+        if (filterParams.sort)
+          returnUrl.searchParams.set("sort", filterParams.sort);
+      }
 
-      // Short delay before redirect
+      // If any parameter is missing from props, try to get it from URL
+      const currentUrlParams = new URLSearchParams(window.location.search);
+
+      // List of parameters to preserve
+      const paramsToCopy = [
+        "groupId",
+        "campusId",
+        "outcomeId",
+        "search",
+        "sort",
+      ];
+
+      // Copy any parameters from URL that weren't already set from props
+      paramsToCopy.forEach((param) => {
+        if (!returnUrl.searchParams.has(param) && currentUrlParams.has(param)) {
+          returnUrl.searchParams.set(param, currentUrlParams.get(param)!);
+        }
+      });
+
+      // Add additional useful info to URL (like success status)
+      returnUrl.searchParams.set("marked", "true");
+      returnUrl.searchParams.set("resultId", resultId);
+
+      // Short delay before redirect for better UX
       await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      // Navigate back to assignments page with preserved filters
       router.push(returnUrl.toString());
     } catch (error) {
-      console.error("Error in handleSubmit:", error);
+      // Enhanced error handling
+      console.error("Error submitting scores:", error);
+
+      // More descriptive error message based on error type
+      let errorMessage = "An unexpected error occurred";
+
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      } else if (typeof error === "string") {
+        errorMessage = error;
+      }
+
       toast({
-        title: "Error",
-        description: `Failed to submit scores: ${
-          error instanceof Error ? error.message : "Unknown error"
-        }`,
+        title: "Score Submission Failed",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {

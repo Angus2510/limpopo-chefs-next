@@ -46,7 +46,10 @@ export default function StudentMarksPage() {
   const router = useRouter();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [searchType, setSearchType] = useState<"number" | "name">("number");
   const [studentNumber, setStudentNumber] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [marks, setMarks] = useState<AssignmentMark[]>([]);
   const [studentInfo, setStudentInfo] = useState<{
     firstName: string;
@@ -55,7 +58,7 @@ export default function StudentMarksPage() {
   } | null>(null);
 
   const handleSearch = async () => {
-    if (!studentNumber.trim()) {
+    if (searchType === "number" && !studentNumber.trim()) {
       toast({
         title: "Error",
         description: "Please enter a student number",
@@ -64,9 +67,30 @@ export default function StudentMarksPage() {
       return;
     }
 
+    if (searchType === "name" && !firstName.trim() && !lastName.trim()) {
+      toast({
+        title: "Error",
+        description: "Please enter at least a first or last name",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setLoading(true);
     try {
-      const result = await getStudentMarks(studentNumber);
+      // Create a clean search params object without undefined values
+      const searchParams = {
+        ...(searchType === "number" ? { studentNumber } : {}),
+        ...(searchType === "name" && firstName.trim()
+          ? { firstName: firstName.trim() }
+          : {}),
+        ...(searchType === "name" && lastName.trim()
+          ? { lastName: lastName.trim() }
+          : {}),
+      };
+
+      // Call the server action with the prepared params
+      const result = await getStudentMarks(searchParams);
 
       if ("error" in result) {
         throw new Error(result.error);
@@ -127,26 +151,78 @@ export default function StudentMarksPage() {
           </Button>
         </div>
 
-        <div className="flex gap-4">
-          <div className="relative flex-1 max-w-sm">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Enter student number"
-              className="pl-8"
-              value={studentNumber}
-              onChange={(e) => setStudentNumber(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  handleSearch();
-                }
-              }}
-            />
+        <div className="flex gap-4 mb-4">
+          <div className="flex items-center space-x-2">
+            <Button
+              variant={searchType === "number" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setSearchType("number")}
+            >
+              Search by Number
+            </Button>
+            <Button
+              variant={searchType === "name" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setSearchType("name")}
+            >
+              Search by Name
+            </Button>
           </div>
-          <Button onClick={handleSearch} disabled={loading}>
-            {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Search
-          </Button>
         </div>
+
+        {searchType === "number" ? (
+          <div className="flex gap-4">
+            <div className="relative flex-1 max-w-sm">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Enter student number"
+                className="pl-8"
+                value={studentNumber}
+                onChange={(e) => setStudentNumber(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    handleSearch();
+                  }
+                }}
+              />
+            </div>
+            <Button onClick={handleSearch} disabled={loading}>
+              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Search
+            </Button>
+          </div>
+        ) : (
+          <div className="flex gap-4">
+            <div className="flex-1 max-w-sm">
+              <Input
+                placeholder="First name"
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    handleSearch();
+                  }
+                }}
+              />
+            </div>
+            <div className="flex-1 max-w-sm">
+              <Input
+                placeholder="Last name"
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    handleSearch();
+                  }
+                }}
+              />
+            </div>
+            <Button onClick={handleSearch} disabled={loading}>
+              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Search
+            </Button>
+          </div>
+        )}
 
         {studentInfo && (
           <div className="bg-muted/50 p-4 rounded-lg mb-6">

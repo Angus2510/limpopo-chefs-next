@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { MarkAnswers } from "@/components/assignments/markAnswers";
 import { getAssignmentAnswers } from "@/lib/actions/assignments/getAssignmentAnswers";
 import { cookies } from "next/headers";
+import { headers } from "next/headers";
 import { jwtDecode } from "jwt-decode";
 
 // Define interfaces for type safety
@@ -167,6 +168,16 @@ export default async function AssignmentMarkingPage({ params }: PageProps) {
   // Properly resolve params whether it's a Promise or direct object
   const resolvedParams = params instanceof Promise ? await params : params;
   const id = resolvedParams?.id;
+
+  // Extract filter parameters from the URL search params (new code)
+  const searchParams = new URL(headers().get("referer") || "").searchParams;
+  const filterParams = {
+    groupId: searchParams.get("groupId") || "",
+    campusId: searchParams.get("campusId") || "",
+    outcomeId: searchParams.get("outcomeId") || "",
+    search: searchParams.get("search") || "",
+    sort: searchParams.get("sort") || "",
+  };
 
   if (!id) {
     console.log("❌ No result ID provided");
@@ -452,6 +463,7 @@ export default async function AssignmentMarkingPage({ params }: PageProps) {
                   studentId={result.student.id}
                   groupId={result.assignment.intakeGroups[0]}
                   mode="submit" // Set to submit mode
+                  filterParams={filterParams}
                 />
               </div>
             </CardContent>
