@@ -445,19 +445,27 @@ model questions {
 }
 
 model results {
-  id           String           @id @default(auto()) @map("_id") @db.ObjectId
-  v            Int              @map("__v")
-  campus       String           @db.ObjectId
-  conductedOn  DateTime         @db.Date
-  details      String
-  intakeGroups String           @db.ObjectId
-  observer     String
-  outcome      String           @db.ObjectId
-  participants String[]
-  resultType   String
-  results      ResultsResults[]
-  title        String
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  studentId  String   @db.ObjectId
+  outcomeId  String   @db.ObjectId
+
+  testScore  Float
+  taskScore  Float
+  competency Boolean
+
+  average    Float?   // optional since it can be derived
+  source     SourceType
+  updatedBy  String   @db.ObjectId
+  updatedAt  DateTime @updatedAt
+  dateCreated DateTime @default(now())
 }
+
+enum SourceType {
+  assignment
+  moderation
+  manual
+}
+
 
 model roles {
   id          String             @id @default(auto()) @map("_id") @db.ObjectId
