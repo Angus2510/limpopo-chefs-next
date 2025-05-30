@@ -47,6 +47,11 @@ export default function ResultsCapturePage() {
   }) => {
     setIsLoading(true);
     try {
+      // Ensure intakeGroupId is an array
+      const intakeGroupIds = Array.isArray(newSelection.intakeGroupId)
+        ? newSelection.intakeGroupId
+        : [newSelection.intakeGroupId];
+
       // Fetch outcome details first
       const outcome = await getOutcomeById(newSelection.outcomeId);
       const title = outcome?.title || "";
@@ -54,17 +59,25 @@ export default function ResultsCapturePage() {
       setIsMenuAssessment(isMenuOutcome(title));
 
       const studentData = await getStudentsByIntakeAndCampus(
-        newSelection.intakeGroupId,
+        intakeGroupIds,
         newSelection.campusId,
         newSelection.outcomeId
       );
+
+      if (!studentData || !Array.isArray(studentData)) {
+        throw new Error("Invalid student data received");
+      }
+
       setStudents(studentData);
       setSelection(newSelection);
     } catch (error) {
       console.error("Error fetching students:", error);
       toast({
         title: "Error",
-        description: "Failed to load students. Please try again.",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Failed to load students. Please try again.",
         variant: "destructive",
       });
     } finally {

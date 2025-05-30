@@ -14,7 +14,7 @@ interface StudentResultInput {
   studentId: string;
   outcomeId: string;
   campusId: string;
-  intakeGroupId: string[]; // Changed to array
+  intakeGroupId: string[];
   mark: number;
   testScore: number;
   taskScore: number;
@@ -27,17 +27,19 @@ export async function saveStudentResults(results: StudentResultInput[]) {
   }
 
   try {
-    // Auth checks
-    const cookieStore = await cookies();
-    const token = cookieStore.get("accessToken")?.value;
-    if (!token) {
+    // Properly handle async cookies
+    const cookieStore = cookies();
+    const tokenCookie = await cookieStore.get("accessToken");
+
+    if (!tokenCookie?.value) {
       return { success: false, error: "Not authenticated" };
     }
 
     let decoded: DecodedToken;
     try {
-      decoded = jwtDecode(token);
+      decoded = jwtDecode(tokenCookie.value);
     } catch (error) {
+      console.error("Token decode error:", error);
       return { success: false, error: "Invalid authentication token" };
     }
 
@@ -45,16 +47,10 @@ export async function saveStudentResults(results: StudentResultInput[]) {
       return { success: false, error: "Only staff members can save results" };
     }
 
-    // Get outcome info with title
+    // Get outcome info
     const outcome = await prisma.outcomes.findUnique({
       where: { id: results[0].outcomeId },
-      select: {
-        id: true,
-        title: true,
-        type: true,
-        hidden: true,
-        campus: true,
-      },
+      select: { id: true, title: true },
     });
 
     if (!outcome) {
@@ -63,64 +59,55 @@ export async function saveStudentResults(results: StudentResultInput[]) {
 
     console.log("📝 Saving results for outcome:", outcome.title);
 
-    // Prepare batch operations matching exact schema
-    const assignmentResults = results.map((result) => ({
-      v: 1,
-      student: result.studentId,
-      outcome: result.outcomeId,
-      campus: result.campusId,
-      intakeGroup: result.intakeGroupId[0],
-      percent: Math.round(result.mark),
-      testScore: Math.round(result.testScore),
-      taskScore: Math.round(result.taskScore),
-      scores: Math.round((result.testScore + result.taskScore) / 2),
-      status: result.competency,
-      dateTaken: new Date(),
-      answers: [], // Empty array as per schema
-      assignment: result.outcomeId,
-      markedBy: decoded.id,
-      moderatedscores: null,
-      feedback: null,
-    }));
-
+    // Create results based on new schema
     const resultRecords = results.map((result) => ({
-      v: 1,
-      title: `${outcome.title} Result`,
-      campus: result.campusId,
-      intakeGroups: result.intakeGroupId[0],
-      outcome: result.outcomeId,
-      conductedOn: new Date(),
-      details: `Individual Assessment Result for ${outcome.title}`,
-      observer: decoded.id,
-      participants: [result.studentId],
-      resultType: "assessment",
-      results: [
-        {
-          id: result.studentId,
-          student: result.studentId,
-          score: result.mark,
-          testScore: result.testScore,
-          taskScore: result.taskScore,
-          average: Number(
-            ((result.testScore + result.taskScore) / 2).toFixed(2)
-          ),
-          overallOutcome: result.competency,
-        },
-      ],
+      studentId: result.studentId,
+      outcomeId: result.outcomeId,
+      testScore: result.testScore,
+      taskScore: result.taskScore,
+      competency: result.competency === "competent",
+      average: Number(((result.testScore + result.taskScore) / 2).toFixed(2)),
+      source: "manual" as const,
+      updatedBy: decoded.id,
+      dateCreated: new Date(),
+      updatedAt: new Date(),
     }));
 
-    // Execute all operations in a transaction
-    const [assignmentSaves, resultSaves] = await prisma.$transaction([
-      prisma.assignmentresults.createMany({
-        data: assignmentResults,
-      }),
-      prisma.results.createMany({
-        data: resultRecords,
-      }),
-    ]);
+    // Execute operations in a transaction using the compound unique constraint
+    const savedResults = await prisma.$transaction(
+      resultRecords.map((record) =>
+        prisma.results.upsert({
+          where: {
+            studentId_outcomeId: {
+              studentId: record.studentId,
+              outcomeId: record.outcomeId,
+            },
+          },
+          update: {
+            testScore: record.testScore,
+            taskScore: record.taskScore,
+            competency: record.competency,
+            average: record.average,
+            updatedBy: record.updatedBy,
+            updatedAt: record.updatedAt,
+          },
+          create: {
+            studentId: record.studentId,
+            outcomeId: record.outcomeId,
+            testScore: record.testScore,
+            taskScore: record.taskScore,
+            competency: record.competency,
+            average: record.average,
+            source: record.source,
+            updatedBy: record.updatedBy,
+            dateCreated: record.dateCreated,
+            updatedAt: record.updatedAt,
+          },
+        })
+      )
+    );
 
-    console.log(`✅ Saved ${assignmentSaves.count} assignment results`);
-    console.log(`✅ Saved ${resultSaves.count} result records`);
+    console.log(`✅ Saved ${savedResults.length} results`);
 
     // Revalidate paths
     revalidatePath("/admin/results");
@@ -131,16 +118,20 @@ export async function saveStudentResults(results: StudentResultInput[]) {
       message: `Successfully saved ${results.length} results for ${outcome.title}`,
       details: {
         outcomeTitle: outcome.title,
-        savedCount: results.length,
-        assignmentSaves: assignmentSaves.count,
-        resultSaves: resultSaves.count,
+        savedCount: savedResults.length,
       },
     };
   } catch (error) {
-    console.error("❌ Save error:", error);
+    const errorMessage =
+      error instanceof Error
+        ? `${error.message}\n${error.stack}`
+        : "Unknown error";
+    console.error("❌ Save error:", errorMessage);
+
     return {
       success: false,
       error: error instanceof Error ? error.message : "Failed to save results",
+      details: error instanceof Error ? error.stack : undefined,
     };
   }
 }

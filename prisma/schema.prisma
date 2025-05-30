@@ -458,6 +458,8 @@ model results {
   updatedBy  String   @db.ObjectId
   updatedAt  DateTime @updatedAt
   dateCreated DateTime @default(now())
+
+  @@unique([studentId, outcomeId])
 }
 
 enum SourceType {
