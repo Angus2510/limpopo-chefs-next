@@ -27,9 +27,12 @@ export async function saveStudentResults(results: StudentResultInput[]) {
   }
 
   try {
-    // Properly handle async cookies
-    const cookieStore = cookies();
-    const tokenCookie = await cookieStore.get("accessToken");
+    // Debug input
+    console.log("Incoming results data:", JSON.stringify(results, null, 2));
+
+    // Auth checks with async cookies
+    const cookieStore = await cookies();
+    const tokenCookie = cookieStore.get("accessToken");
 
     if (!tokenCookie?.value) {
       return { success: false, error: "Not authenticated" };
@@ -43,11 +46,7 @@ export async function saveStudentResults(results: StudentResultInput[]) {
       return { success: false, error: "Invalid authentication token" };
     }
 
-    if (!decoded.userType || !decoded.userType.includes("Staff")) {
-      return { success: false, error: "Only staff members can save results" };
-    }
-
-    // Get outcome info
+    // Get outcome info for logging
     const outcome = await prisma.outcomes.findUnique({
       where: { id: results[0].outcomeId },
       select: { id: true, title: true },
@@ -59,12 +58,37 @@ export async function saveStudentResults(results: StudentResultInput[]) {
 
     console.log("📝 Saving results for outcome:", outcome.title);
 
-    // Create results based on new schema
+    // Create assignment result with correct model name
+    const assignmentResult = await prisma.assignmentresults.create({
+      data: {
+        v: 1,
+        assignment: results[0].outcomeId, // Using outcomeId as assignment reference
+        campus: results[0].campusId,
+        dateTaken: new Date(),
+        intakeGroup: results[0].intakeGroupId[0],
+        markedBy: decoded.id,
+        outcome: results[0].outcomeId,
+        status: "completed",
+        student: results[0].studentId,
+        testScore: results[0].testScore,
+        taskScore: results[0].taskScore,
+        scores: Math.round((results[0].testScore + results[0].taskScore) / 2),
+        percent: Math.round((results[0].testScore + results[0].taskScore) / 2),
+      },
+    });
+
+    console.log(
+      "Created assignment result:",
+      JSON.stringify(assignmentResult, null, 2)
+    );
+
+    // Then prepare individual results records
     const resultRecords = results.map((result) => ({
       studentId: result.studentId,
       outcomeId: result.outcomeId,
       testScore: result.testScore,
       taskScore: result.taskScore,
+      mark: Number(((result.testScore + result.taskScore) / 2).toFixed(2)),
       competency: result.competency === "competent",
       average: Number(((result.testScore + result.taskScore) / 2).toFixed(2)),
       source: "manual" as const,
@@ -73,7 +97,7 @@ export async function saveStudentResults(results: StudentResultInput[]) {
       updatedAt: new Date(),
     }));
 
-    // Execute operations in a transaction using the compound unique constraint
+    // Use transaction for all upserts
     const savedResults = await prisma.$transaction(
       resultRecords.map((record) =>
         prisma.results.upsert({
@@ -86,39 +110,33 @@ export async function saveStudentResults(results: StudentResultInput[]) {
           update: {
             testScore: record.testScore,
             taskScore: record.taskScore,
+            mark: record.mark,
             competency: record.competency,
             average: record.average,
+            source: "manual",
             updatedBy: record.updatedBy,
             updatedAt: record.updatedAt,
           },
-          create: {
-            studentId: record.studentId,
-            outcomeId: record.outcomeId,
-            testScore: record.testScore,
-            taskScore: record.taskScore,
-            competency: record.competency,
-            average: record.average,
-            source: record.source,
-            updatedBy: record.updatedBy,
-            dateCreated: record.dateCreated,
-            updatedAt: record.updatedAt,
-          },
+          create: record,
         })
       )
     );
 
-    console.log(`✅ Saved ${savedResults.length} results`);
-
     // Revalidate paths
-    revalidatePath("/admin/results");
-    revalidatePath("/admin/results/capture");
+    revalidatePath("/admin/results", "page");
+    revalidatePath("/admin/results/capture", "page");
+    results.forEach((result) => {
+      revalidatePath(`/admin/student/${result.studentId}`, "page");
+    });
+    revalidatePath(`/admin/outcomes/${results[0].outcomeId}`, "page");
 
     return {
       success: true,
-      message: `Successfully saved ${results.length} results for ${outcome.title}`,
+      message: `Successfully saved ${savedResults.length} results for ${outcome.title}`,
       details: {
         outcomeTitle: outcome.title,
         savedCount: savedResults.length,
+        assignmentResultId: assignmentResult.id,
       },
     };
   } catch (error) {

@@ -445,18 +445,17 @@ model questions {
 }
 
 model results {
-  id         String   @id @default(auto()) @map("_id") @db.ObjectId
-  studentId  String   @db.ObjectId
-  outcomeId  String   @db.ObjectId
-
-  testScore  Float
-  taskScore  Float
-  competency Boolean
-
-  average    Float?   // optional since it can be derived
-  source     SourceType
-  updatedBy  String   @db.ObjectId
-  updatedAt  DateTime @updatedAt
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  studentId   String   @db.ObjectId
+  outcomeId   String   @db.ObjectId
+  testScore   Float
+  taskScore   Float
+  mark        Float    // Add this field
+  competency  Boolean
+  average     Float?   
+  source      SourceType
+  updatedBy   String   @db.ObjectId
+  updatedAt   DateTime @updatedAt
   dateCreated DateTime @default(now())
 
   @@unique([studentId, outcomeId])
